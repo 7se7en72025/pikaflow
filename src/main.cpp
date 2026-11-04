@@ -104,6 +104,9 @@ class Modules {
             auto name = part.u8string();
             if (name == "..")
                 throw pika::Error(location, "package import cannot escape its locked package");
+            std::transform(name.begin(), name.end(), name.begin(), [](unsigned char c) {
+                return static_cast<char>(std::tolower(c));
+            });
             if (name == "build" || name == "out" || (!name.empty() && name[0] == '.'))
                 throw pika::Error(location, "package import names an excluded, unlocked source");
         }
@@ -210,6 +213,9 @@ class Modules {
         for (const auto &source : loaded)
             if (sameFile(output, fs::u8path(source)))
                 throw std::runtime_error("output path would overwrite a source file");
+        if (!packageRoot.empty() &&
+            (sameFile(output, packageRoot / "pika.json") || sameFile(output, packageRoot / "pika.lock")))
+            throw std::runtime_error("output path would overwrite project metadata");
     }
     pika::SyntaxTree program(const fs::path &file) {
         std::string path = fs::weakly_canonical(fs::absolute(file)).u8string();
