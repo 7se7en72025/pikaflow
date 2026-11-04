@@ -4,6 +4,15 @@
 #include <set>
 #include <sstream>
 
+// Keep recursive dispatch frames separate from call and aggregate scratch storage.
+#if defined(_MSC_VER)
+#define PIKAFLOW_COMPILER_NOINLINE __declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+#define PIKAFLOW_COMPILER_NOINLINE __attribute__((noinline))
+#else
+#define PIKAFLOW_COMPILER_NOINLINE
+#endif
+
 namespace pika {
 namespace {
 struct Binding {
@@ -1901,6 +1910,51 @@ class Compiler {
             }
             return binary(e.text, left, expr(e.items.at(1)), loc);
         }
+        case Expr::Kind::Call:
+            return exprCall(e, expected);
+        case Expr::Kind::TypeApply:
+        case Expr::Kind::Propagate:
+        case Expr::Kind::Lambda:
+        case Expr::Kind::Stack:
+            return exprAdvanced(e);
+        case Expr::Kind::Array:
+        case Expr::Kind::Tuple:
+            return exprAggregate(e, expected);
+        case Expr::Kind::NamedArgument:
+            fail(loc, "named arguments are only supported by record constructors");
+        case Expr::Kind::Member: {
+            if (e.items.at(0)->kind == Expr::Kind::Name && !binding(e.items[0]->text) && !declaration(e.items[0]->text, e.items[0]->location))
+                fail(e.items[0]->location, "unknown module alias or record value '" + e.items[0]->text + "'");
+            int base = expr(e.items.at(0));
+            auto field = fieldLocation(type(base), e);
+            return emit(Op::Index, field.first, {base, integer(static_cast<int64_t>(field.second), e.nameLocation)}, e.nameLocation);
+        }
+        case Expr::Kind::Index: {
+            int base = expr(e.items[0]);
+            int index = expr(e.items[1]);
+            require(type(index), I64, loc, "index");
+            Type t = type(base), result;
+            if (t.kind == TypeKind::Array)
+                result = t.args.at(0);
+            else if (t == String)
+                result = I64;
+            else if (t.kind == TypeKind::Tuple && t.name.empty()) {
+                if (e.items[1]->kind != Expr::Kind::Integer)
+                    fail(loc, "tuple index must be an integer literal");
+                int64_t i = e.items[1]->integer;
+                if (i < 0 || static_cast<size_t>(i) >= t.args.size())
+                    fail(loc, "tuple index out of bounds");
+                result = t.args[i];
+            } else
+                fail(loc, "indexing requires array, tuple, or string");
+            return emit(Op::Index, result, {base, index}, loc);
+        }
+        }
+        fail(loc, "unsupported expression");
+    }
+    PIKAFLOW_COMPILER_NOINLINE int exprCall(const Expr &e, const Type *expected) {
+        auto loc = e.location;
+        switch (e.kind) {
         case Expr::Kind::Call: {
             auto callee = e.items.at(0);
             std::vector<int> arguments;
@@ -1980,31 +2034,13 @@ class Compiler {
                     expr(e.items[i], i - 1 < parameters.size() ? &parameters[i - 1] : nullptr));
             return indirect(callable, arguments, loc);
         }
-        case Expr::Kind::TypeApply: {
-            auto name = e.items.at(0);
-            if (name->kind != Expr::Kind::Name || binding(name->text)) fail(loc, "type application requires a module-level generic function");
-            auto *target = declaration(name->text, loc);
-            if (!target || target->ast->typeParameters.empty()) fail(loc, "type application requires a generic function");
-            auto concrete = specialize(*target, e.typeArguments, nullptr, nullptr, loc);
-            int result = emit(Op::MakeClosure, concrete.type, {}, loc);
-            fn().code.back().text = concrete.irName;
-            return result;
+        default:
+            fail(loc, "unsupported expression dispatch");
         }
-        case Expr::Kind::Propagate: {
-            int value = expr(e.items.at(0));
-            Type source = type(value), destination = fn().result;
-            if (source.kind != TypeKind::Result || destination.kind != TypeKind::Result)
-                fail(loc, "Result propagation requires a Result operand and Result-returning function");
-            if (!context->stack.empty()) fail(loc, "Result propagation requires an empty shared operand stack");
-            require(source.args[1], destination.args[1], loc, "propagated error");
-            int good = emit(Op::Index, Bool, {value, integer(0, loc)}, loc);
-            size_t success = jump(Op::JumpFalse, emit(Op::Not, Bool, {good}, loc), loc);
-            int error = emit(Op::ResultError, source.args[1], {value}, loc);
-            int returned = invoke("err", {error}, loc, &destination);
-            emit(Op::Return, Unit, {returned}, loc);
-            patch(success, position());
-            return emit(Op::Unwrap, source.args[0], {value}, loc);
-        }
+    }
+    PIKAFLOW_COMPILER_NOINLINE int exprAggregate(const Expr &e, const Type *expected) {
+        auto loc = e.location;
+        switch (e.kind) {
         case Expr::Kind::Array: {
             std::vector<int> values;
             Type element;
@@ -2040,34 +2076,37 @@ class Compiler {
             }
             return emit(Op::MakeTuple, Type{TypeKind::Tuple, types}, values, loc);
         }
-        case Expr::Kind::NamedArgument:
-            fail(loc, "named arguments are only supported by record constructors");
-        case Expr::Kind::Member: {
-            if (e.items.at(0)->kind == Expr::Kind::Name && !binding(e.items[0]->text) && !declaration(e.items[0]->text, e.items[0]->location))
-                fail(e.items[0]->location, "unknown module alias or record value '" + e.items[0]->text + "'");
-            int base = expr(e.items.at(0));
-            auto field = fieldLocation(type(base), e);
-            return emit(Op::Index, field.first, {base, integer(static_cast<int64_t>(field.second), e.nameLocation)}, e.nameLocation);
+        default:
+            fail(loc, "unsupported expression dispatch");
         }
-        case Expr::Kind::Index: {
-            int base = expr(e.items[0]);
-            int index = expr(e.items[1]);
-            require(type(index), I64, loc, "index");
-            Type t = type(base), result;
-            if (t.kind == TypeKind::Array)
-                result = t.args.at(0);
-            else if (t == String)
-                result = I64;
-            else if (t.kind == TypeKind::Tuple && t.name.empty()) {
-                if (e.items[1]->kind != Expr::Kind::Integer)
-                    fail(loc, "tuple index must be an integer literal");
-                int64_t i = e.items[1]->integer;
-                if (i < 0 || static_cast<size_t>(i) >= t.args.size())
-                    fail(loc, "tuple index out of bounds");
-                result = t.args[i];
-            } else
-                fail(loc, "indexing requires array, tuple, or string");
-            return emit(Op::Index, result, {base, index}, loc);
+    }
+    PIKAFLOW_COMPILER_NOINLINE int exprAdvanced(const Expr &e) {
+        auto loc = e.location;
+        switch (e.kind) {
+        case Expr::Kind::TypeApply: {
+            auto name = e.items.at(0);
+            if (name->kind != Expr::Kind::Name || binding(name->text)) fail(loc, "type application requires a module-level generic function");
+            auto *target = declaration(name->text, loc);
+            if (!target || target->ast->typeParameters.empty()) fail(loc, "type application requires a generic function");
+            auto concrete = specialize(*target, e.typeArguments, nullptr, nullptr, loc);
+            int result = emit(Op::MakeClosure, concrete.type, {}, loc);
+            fn().code.back().text = concrete.irName;
+            return result;
+        }
+        case Expr::Kind::Propagate: {
+            int value = expr(e.items.at(0));
+            Type source = type(value), destination = fn().result;
+            if (source.kind != TypeKind::Result || destination.kind != TypeKind::Result)
+                fail(loc, "Result propagation requires a Result operand and Result-returning function");
+            if (!context->stack.empty()) fail(loc, "Result propagation requires an empty shared operand stack");
+            require(source.args[1], destination.args[1], loc, "propagated error");
+            int good = emit(Op::Index, Bool, {value, integer(0, loc)}, loc);
+            size_t success = jump(Op::JumpFalse, emit(Op::Not, Bool, {good}, loc), loc);
+            int error = emit(Op::ResultError, source.args[1], {value}, loc);
+            int returned = invoke("err", {error}, loc, &destination);
+            emit(Op::Return, Unit, {returned}, loc);
+            patch(success, position());
+            return emit(Op::Unwrap, source.args[0], {value}, loc);
         }
         case Expr::Kind::Lambda:
             return closure(e);
@@ -2085,8 +2124,9 @@ class Compiler {
             context->stackMode = previous;
             return takeOutputs(e.returnType, loc);
         }
+        default:
+            fail(loc, "unsupported expression dispatch");
         }
-        fail(loc, "unsupported expression");
     }
     void stackOperation(const std::string &name, Location loc) {
         if (name == "dup") {
@@ -2930,3 +2970,5 @@ Program compile(const SyntaxTree &tree, bool indexSymbols, const std::string &en
     return Compiler(indexSymbols, entryFunction).run(tree);
 }
 } // namespace pika
+
+#undef PIKAFLOW_COMPILER_NOINLINE
