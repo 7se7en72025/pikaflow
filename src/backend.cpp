@@ -277,7 +277,10 @@ class Emitter {
         case Op::Capture:
             result = runtime("pf_closure_get",ptr(),{ptr(),i64()},{environment,n64(ins.integer)}); break;
         case Op::MakeCell:
-            result = runtime("pf_cell_new",ptr(),{i64(),i32()},{bits(arg(0),argType(0)),tag(argType(0))}); break;
+            if(ins.args.empty()) result=runtime("pf_cell_new",ptr(),{i64(),i32()},
+                {n64(0),tag(current->registers.at(ins.dst).args.at(0))});
+            else result = runtime("pf_cell_new",ptr(),{i64(),i32()},{bits(arg(0),argType(0)),tag(argType(0))});
+            break;
         case Op::LoadCell:
             result = fromBits(runtime("pf_cell_get",i64(),{ptr()},{arg(0)}),current->registers.at(ins.dst)); break;
         case Op::StoreCell:
@@ -328,6 +331,27 @@ class Emitter {
             builder.CreateUnreachable(); break;
         case Op::Unwrap:
             result=fromBits(runtime("pf_result_value",i64(),{ptr()},{arg(0)}),current->registers.at(ins.dst)); break;
+        case Op::RawAlloc:
+            result=runtime("pf_raw_alloc",ptr(),{i64(),i32()},
+                {arg(0),tag(current->registers.at(ins.dst).args.at(0))}); break;
+        case Op::RawFree:
+            runtime("pf_raw_free",voidTy,{ptr()},{arg(0)}); break;
+        case Op::RawLoad:
+            result=fromBits(runtime("pf_raw_load",i64(),{ptr(),i64(),i32()},
+                {arg(0),arg(1),tag(current->registers.at(ins.dst))}),current->registers.at(ins.dst)); break;
+        case Op::RawStore:
+            runtime("pf_raw_store",voidTy,{ptr(),i64(),i64(),i32()},
+                {arg(0),arg(1),bits(arg(2),argType(2)),tag(argType(2))}); break;
+        case Op::CString:
+            result=runtime("pf_cstr",ptr(),{ptr()},{arg(0)}); break;
+        case Op::Pin:
+            result=runtime("pf_pin",ptr(),{ptr()},{arg(0)}); break;
+        case Op::Unpin:
+            runtime("pf_unpin",voidTy,{ptr()},{arg(0)}); break;
+        case Op::Zero:
+            result=llvm::Constant::getNullValue(slotType(current->registers.at(ins.dst))); break;
+        case Op::ResultError:
+            result=fromBits(runtime("pf_result_error",i64(),{ptr()},{arg(0)}),current->registers.at(ins.dst)); break;
         case Op::ExternalCall: {
             auto it = std::find_if(program.externals.begin(),program.externals.end(),
                 [&](const External& e){return e.name==ins.text;});
@@ -346,7 +370,11 @@ class Emitter {
             }
             auto callee=module.getOrInsertFunction(ins.text,
                 llvm::FunctionType::get(type(it->result),parameters,it->variadic));
-            result=builder.CreateCall(callee,args); break;
+            auto* call=builder.CreateCall(callee,args);
+            for(size_t n=0;n<it->parameters.size();++n)
+                if(it->parameters[n].kind==TypeKind::Bool) call->addParamAttr(unsigned(n),llvm::Attribute::ZExt);
+            if(it->result.kind==TypeKind::Bool) call->addRetAttr(llvm::Attribute::ZExt);
+            result=call; break;
         }
         }
         store(ins.dst,result);
@@ -528,6 +556,9 @@ int runJIT(const Program& program,unsigned optimization) {
     PF_JIT_SYMBOL(pf_checked_mod); PF_JIT_SYMBOL(pf_checked_neg); PF_JIT_SYMBOL(pf_float_to_int);
     PF_JIT_SYMBOL(pf_string_equal);
     PF_JIT_SYMBOL(pf_panic); PF_JIT_SYMBOL(pf_result_value);
+    PF_JIT_SYMBOL(pf_raw_alloc); PF_JIT_SYMBOL(pf_raw_free); PF_JIT_SYMBOL(pf_raw_load);
+    PF_JIT_SYMBOL(pf_raw_store); PF_JIT_SYMBOL(pf_cstr); PF_JIT_SYMBOL(pf_pin); PF_JIT_SYMBOL(pf_unpin);
+    PF_JIT_SYMBOL(pf_result_error);
 #undef PF_JIT_SYMBOL
     if(auto error=jit->getMainJITDylib().define(llvm::orc::absoluteSymbols(std::move(symbols))))
         throw std::runtime_error(llvm::toString(std::move(error)));
