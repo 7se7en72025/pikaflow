@@ -29,6 +29,15 @@ void testArithmetic() {
     require(pf_checked_neg(high) == -high, "valid negation");
     require(pf_float_to_int(-3.9) == -3, "float conversion truncates toward zero");
     require(pf_float_to_int(-9223372036854775808.0) == low, "float conversion permits lower endpoint");
+    require(pf_c_integer(static_cast<uint64_t>(int64_t(-128)), 8, 1) == static_cast<uint64_t>(int64_t(-128)),
+        "signed C integer lower endpoint preserves carrier bits");
+    require(pf_c_integer(127, 8, 1) == 127 && pf_c_integer(32767, 16, 1) == 32767 &&
+        pf_c_integer(2147483647, 32, 1) == 2147483647, "signed C integer upper endpoints");
+    require(pf_c_integer(255, 8, 0) == 255 && pf_c_integer(65535, 16, 0) == 65535 &&
+        pf_c_integer(4294967295ULL, 32, 0) == 4294967295ULL, "unsigned C integer upper endpoints");
+    require(pf_c_integer(std::numeric_limits<uint64_t>::max(), 64, 0) == std::numeric_limits<uint64_t>::max() &&
+        pf_c_integer(static_cast<uint64_t>(low), 64, 1) == static_cast<uint64_t>(low),
+        "64-bit C carriers preserve the complete unsigned and signed bit ranges");
 }
 void testHeap() {
     pf_collect();
@@ -191,6 +200,12 @@ int main(int argc, char** argv) {
         else if (name == "neg-overflow") pf_checked_neg(low);
         else if (name == "float-overflow") pf_float_to_int(9223372036854775808.0);
         else if (name == "float-nan") pf_float_to_int(std::numeric_limits<double>::quiet_NaN());
+        else if (name == "c-int-signed-high") pf_c_integer(128, 8, 1);
+        else if (name == "c-int-signed-low") pf_c_integer(static_cast<uint64_t>(int64_t(-129)), 8, 1);
+        else if (name == "c-int-unsigned-high") pf_c_integer(256, 8, 0);
+        else if (name == "c-int-unsigned-negative") pf_c_integer(static_cast<uint64_t>(int64_t(-1)), 32, 0);
+        else if (name == "c-int-width") pf_c_integer(0, 7, 1);
+        else if (name == "c-int-signedness") pf_c_integer(0, 8, 2);
         else if (name == "bounds") pf_index(pf_array_new(1, 1), 1);
         else if (name == "negative-index") pf_index(pf_array_new(1, 1), -1);
         else if (name == "type-mismatch") pf_set_index(pf_array_new(1, 1), 0, 1, 3);

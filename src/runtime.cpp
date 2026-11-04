@@ -533,6 +533,20 @@ int64_t pf_float_to_int(double number) {
     return static_cast<int64_t>(number);
 }
 
+uint64_t pf_c_integer(uint64_t payload, uint32_t width, uint32_t isSigned) {
+    if ((width != 8 && width != 16 && width != 32 && width != 64) || isSigned > 1)
+        fail("invalid C integer width or signedness");
+    // The i64 carrier preserves every bit of a 64-bit C integer, including u64.
+    if (width == 64) return payload;
+    if (isSigned) {
+        const auto limit = int64_t(1) << (width - 1);
+        const auto number = integer(payload);
+        if (number < -limit || number >= limit) fail("C integer argument is outside its declared signed width");
+    } else if (payload > (uint64_t(1) << width) - 1)
+        fail("C integer argument is outside its declared unsigned width");
+    return payload;
+}
+
 int32_t pf_string_equal(void* a, void* b) {
     return object(a, StringTag)->bytes == object(b, StringTag)->bytes ? 1 : 0;
 }

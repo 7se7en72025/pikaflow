@@ -42,6 +42,14 @@ do not unwind C++ exceptions through JIT-generated code. Integer division
 truncates toward zero. Converting a finite, in-range floating-point value to
 `i64` also truncates toward zero.
 
+`pf_c_integer` validates explicitly declared C integer argument widths before the
+backend truncates their `i64` carriers. Signed and unsigned 8/16/32-bit ranges
+are checked; 64-bit declarations preserve every carrier bit, so a `c_u64`
+value with its high bit set is represented by a negative language `i64`.
+The reference interpreter rejects narrow C width metadata instead of calling
+an audited foreign function through a mismatched signature. Explicit 64-bit
+carriers remain compatible with its audited integer calls.
+
 Generated code and the interpreter call `pf_source_location` before operations
 that may fail. The runtime owns a thread-local copy of the filename, line, and
 column, so diagnostics remain valid after a JIT module is unloaded. Errors use

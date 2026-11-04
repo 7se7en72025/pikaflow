@@ -92,6 +92,15 @@ class Interpreter {
 
     PFValue external(const Instruction& instruction, const std::vector<PFValue>& arguments) {
         const auto& declaration = *externals.at(instruction.text);
+        std::vector<const CABIType*> descriptors{&declaration.abiResult};
+        for (const auto& parameter : declaration.abiParameters) descriptors.push_back(&parameter);
+        while (!descriptors.empty()) {
+            const auto* descriptor = descriptors.back();
+            descriptors.pop_back();
+            if (descriptor->bits && descriptor->bits != 64)
+                throw Error(instruction.location, "narrow C integer widths require native compilation or JIT");
+            for (const auto& field : descriptor->fields) descriptors.push_back(&field);
+        }
         const auto& symbol = declaration.symbol.empty() ? declaration.name : declaration.symbol;
         auto matches = [&](size_t count, const Type& input, const Type& output) {
             if (declaration.variadic || declaration.parameters.size() != count || declaration.result != output) return false;

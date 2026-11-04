@@ -48,6 +48,7 @@ int64_t pf_checked_div(int64_t a, int64_t b);
 int64_t pf_checked_mod(int64_t a, int64_t b);
 int64_t pf_checked_neg(int64_t value);
 int64_t pf_float_to_int(double value);
+uint64_t pf_c_integer(uint64_t bits, uint32_t width, uint32_t is_signed);
 int32_t pf_string_equal(void* a, void* b);
 void* pf_raw_alloc(int64_t count, uint32_t element_tag);
 void pf_raw_free(void* pointer);

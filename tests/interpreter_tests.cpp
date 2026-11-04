@@ -150,6 +150,18 @@ void testFloatingAndAuditedExterns() {
     try { interpret(program); }
     catch (const Error& error) { rejected = std::string(error.what()).find("cannot execute extern") != std::string::npos; }
     require(rejected, "unknown external never called through an assumed function-pointer signature");
+
+    main = function("main", {}, Unit, {I64, I64});
+    main.code = {number(0, -42), named(Op::ExternalCall, 1, {0}, "narrow_abs"), instruction(Op::Return)};
+    program.functions = {main};
+    program.externals = {External{"narrow_abs", {I64}, I64, false, "llabs", {{8, true, {}}}, {8, true, {}}}};
+    rejected = false;
+    try { interpret(program); }
+    catch (const Error& error) { rejected = std::string(error.what()).find("narrow C integer widths") != std::string::npos; }
+    require(rejected, "narrow C ABI width never silently falls through an audited i64 signature");
+    program.externals[0].abiParameters[0].bits = 64;
+    program.externals[0].abiResult.bits = 64;
+    require(execute(program).empty(), "explicit 64-bit integer carriers retain audited ABI compatibility");
 }
 
 void testRecursionGuard() {
