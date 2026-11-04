@@ -243,43 +243,59 @@ unsigned char* rawAddress(void* pointer, int64_t index, uint32_t tag) {
 }
 
 void render(std::ostream& output, PFValue item, std::unordered_set<Object*>& active, bool nested) {
-    switch (item.tag) {
-    case UnitTag: output << "unit"; return;
-    case IntTag: output << integer(item.bits); return;
-    case FloatTag: {
-        double number;
-        std::memcpy(&number, &item.bits, sizeof(number));
-        output << std::setprecision(std::numeric_limits<double>::max_digits10) << number;
-        return;
-    }
-    case BoolTag: output << (item.bits ? "true" : "false"); return;
-    case PointerTag: output << "0x" << std::hex << item.bits << std::dec; return;
-    default: break;
-    }
-    if (!item.bits) { output << "null"; return; }
-    auto* reference = object(reinterpret_cast<void*>(static_cast<uintptr_t>(item.bits)), objectKind(item.tag));
-    if (reference->kind == StringTag) {
-        if (nested) output << std::quoted(reference->bytes);
-        else output.write(reference->bytes.data(), static_cast<std::streamsize>(reference->bytes.size()));
-        return;
-    }
-    if (reference->kind == ClosureTag) { output << "<function>"; return; }
-    if (reference->kind == TaskTag) { output << "<task>"; return; }
-    if (!active.insert(reference).second) { output << "<cycle>"; return; }
-    if (reference->kind == CellTag) {
-        output << "<cell ";
-        render(output, reference->values[0], active, true);
-        output << '>';
-    } else {
-        output << (reference->kind == TupleTag ? '(' : '[');
-        for (size_t index = 0; index < reference->values.size(); ++index) {
-            if (index) output << ", ";
-            render(output, reference->values[index], active, true);
+    struct Frame {
+        PFValue item;
+        bool nested;
+        Object* reference = nullptr;
+        size_t next = 0;
+    };
+    std::vector<Frame> frames{{item, nested}};
+    while (!frames.empty()) {
+        auto& frame = frames.back();
+        if (frame.reference) {
+            auto* reference = frame.reference;
+            if (frame.next < reference->values.size()) {
+                if (frame.next && reference->kind != CellTag) output << ", ";
+                auto child = reference->values[frame.next++];
+                frames.push_back({child, true});
+                continue;
+            }
+            if (reference->kind == CellTag) output << '>';
+            else {
+                if (reference->kind == TupleTag && reference->values.size() == 1) output << ',';
+                output << (reference->kind == TupleTag ? ')' : ']');
+            }
+            active.erase(reference);
+            frames.pop_back();
+            continue;
         }
-        if (reference->kind == TupleTag && reference->values.size() == 1) output << ',';
-        output << (reference->kind == TupleTag ? ')' : ']');
+        const auto current = frame.item;
+        switch (current.tag) {
+        case UnitTag: output << "unit"; frames.pop_back(); continue;
+        case IntTag: output << integer(current.bits); frames.pop_back(); continue;
+        case FloatTag: {
+            double number;
+            std::memcpy(&number, &current.bits, sizeof(number));
+            output << std::setprecision(std::numeric_limits<double>::max_digits10) << number;
+            frames.pop_back(); continue;
+        }
+        case BoolTag: output << (current.bits ? "true" : "false"); frames.pop_back(); continue;
+        case PointerTag: output << "0x" << std::hex << current.bits << std::dec; frames.pop_back(); continue;
+        default: break;
+        }
+        if (!current.bits) { output << "null"; frames.pop_back(); continue; }
+        auto* reference = object(reinterpret_cast<void*>(static_cast<uintptr_t>(current.bits)), objectKind(current.tag));
+        if (reference->kind == StringTag) {
+            if (frame.nested) output << std::quoted(reference->bytes);
+            else output.write(reference->bytes.data(), static_cast<std::streamsize>(reference->bytes.size()));
+            frames.pop_back(); continue;
+        }
+        if (reference->kind == ClosureTag) { output << "<function>"; frames.pop_back(); continue; }
+        if (reference->kind == TaskTag) { output << "<task>"; frames.pop_back(); continue; }
+        if (!active.insert(reference).second) { output << "<cycle>"; frames.pop_back(); continue; }
+        output << (reference->kind == CellTag ? "<cell " : reference->kind == TupleTag ? "(" : "[");
+        frame.reference = reference;
     }
-    active.erase(reference);
 }
 }
 

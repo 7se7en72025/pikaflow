@@ -109,6 +109,38 @@ void testPrinting() {
     pf_roots_pop(frame);
     pf_collect();
 }
+void testDeepPrinting() {
+    void* roots[2]{};
+    auto* frame = pf_roots_push(roots, 2);
+    roots[0] = pf_tuple_new(2);
+    roots[1] = pf_string("shared", 6);
+    pf_set_index(roots[0], 0, bits(roots[0]), 6);
+    pf_set_index(roots[0], 1, bits(roots[1]), 4);
+    roots[1] = pf_tuple_new(2);
+    pf_set_index(roots[1], 0, bits(roots[0]), 6);
+    pf_set_index(roots[1], 1, bits(roots[0]), 6);
+    roots[0] = roots[1];
+    roots[1] = nullptr;
+    constexpr size_t depth = 50000;
+    for (size_t index = 0; index < depth; ++index) {
+        roots[1] = pf_tuple_new(1);
+        pf_set_index(roots[1], 0, bits(roots[0]), 6);
+        roots[0] = roots[1];
+        roots[1] = nullptr;
+    }
+    std::ostringstream output;
+    auto* original = std::cout.rdbuf(output.rdbuf());
+    pf_print(bits(roots[0]), 6);
+    std::cout.rdbuf(original);
+    std::string expected(depth, '(');
+    expected += "((<cycle>, \"shared\"), (<cycle>, \"shared\"))";
+    for (size_t index = 0; index < depth; ++index) expected += ",)";
+    expected += '\n';
+    require(output.str() == expected, "deep managed printing preserves tuples, cycle markers and shared aliases without native recursion");
+    pf_roots_pop(frame);
+    pf_collect();
+    require(pf_heap_objects() == 0, "deep printed graph and shared cycle are reclaimed iteratively");
+}
 void testResults() {
     void* roots[3]{};
     auto* frame = pf_roots_push(roots, 3);
@@ -280,6 +312,7 @@ int main(int argc, char** argv) {
     testArithmetic();
     testHeap();
     testPrinting();
+    testDeepPrinting();
     testResults();
     testRawMemoryAndPins();
     std::cout << "runtime tests passed\n";
