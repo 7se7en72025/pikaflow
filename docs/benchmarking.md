@@ -32,7 +32,35 @@ flags, timing scope, and noise in view.
 and report structure without creating native executables. Actual native benchmark
 execution remains a separate verification step.
 
-## 0.3 recorded native run
+## 0.3.1 recorded native run
+
+The [0.3.1 Windows report](benchmarks/windows-0.3.1-2026-11-05.json) was captured
+after both host suites completed, from clean frozen commit
+`d77a3b5cdab180e061d66f0fee18634a913ad001` (`dirty: false`):
+
+```powershell
+python scripts/benchmark.py build/native/pikaflow.exe --repeats 3 --output out/benchmark-0.3.1-final-windows.json
+```
+
+The native compiler reports `PikaFlow 0.3.1; LLVM enabled;
+x86_64-pc-windows-msvc`, SHA-256
+`046b0c02eeb05b5f6cb798676e5df4f5c0c3115603c81e14d7f1c64b37cd5dde`,
+matching the [Windows validation record](validation/windows-0.3.1-2026-11-05.json).
+All interpreter references, native warmups and three timed outputs per
+configuration matched.
+
+| Workload | `-O0` median | `-O2` median |
+|---|---:|---:|
+| Checked loop over 50,000 integers | 30.401 ms | 28.232 ms |
+| Recursive Fibonacci(20) | 17.231 ms | 17.417 ms |
+
+Startup and captured output are included. These small process-inclusive samples
+are noisy; the different directions of the workload medians establish no
+general optimization speedup or cross-language advantage. The report preserves
+all samples and machine/source identities. The earlier results below are
+history, not a controlled performance comparison with this corrective release.
+
+## Historical 0.3 recorded native run
 
 The [0.3 Windows report](benchmarks/windows-0.3-2026-11-04.json) was captured from
 clean frozen commit `5f0b10915013d38d834ad72dca785bf8f9f8e4fa` (`dirty: false`)

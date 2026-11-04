@@ -89,7 +89,11 @@ text and 65,536 bytes per filename. Duplicate, relative, truncated and oversized
 records are rejected by the compiler. Compiler subprocesses have a 30-second
 timeout. JSON is limited to 128 container levels before decoding, independently
 of the Python runtime's recursion limit. Oversized/deeply nested JSON fails
-through protocol errors rather than an unhandled parser exception.
+through protocol errors rather than an unhandled parser exception. The 0.3.1
+protocol regressions also reject UTF-16/32 JSON payloads and report invalid
+parameters for nonstring document URIs; a valid request after an invalid URI
+still works. These checks bound the advertised protocol flow,
+not every possible client implementation.
 
 ## Checks
 

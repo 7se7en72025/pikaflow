@@ -1,0 +1,54 @@
+﻿{
+    "observedAtUtc":  "2026-11-04T21:13:31.8983505Z",
+    "sourceHead":  "6a7234007d0d88078b0695df81f225d021e80aff",
+    "sourceDirty":  true,
+    "sourceSha256":  {
+                         "src/runtime.cpp":  "165d03537503e25a7e62d7eba2d3851d796ff750b3b01542e52410f01d8aa5ad",
+                         "tests/runtime_tests.cpp":  "5bd051c60c0e8cd93aa36f54e64555c6216ac23c12ce2583e5e3586dd1aa4ecb",
+                         "src/ir.cpp":  "80f914c2cf96ab6a67b991741231459e3d10144e4b20121c34da812d13709316",
+                         "tests/ir_tests.cpp":  "5db1d45a1bbf8c4b8b3f1783ca4642c659729ba79bcf32d1bd856f88a8e836d4"
+                     },
+    "runtime":  {
+                    "windows":  {
+                                    "command":  "MSVC /std:c++17 /O2 /EHsc /W4; runtime_tests.exe; python tests/runtime_failures.py runtime_tests.exe",
+                                    "exitCode":  0,
+                                    "stdout":  [
+                                                   "runtime tests passed",
+                                                   "47 runtime failure cases passed"
+                                               ],
+                                    "binarySha256":  "c6c007ba0078ec664f24e6da89c3c4ee61430d31e3ab9cf20db63b7f0918f3e0"
+                                },
+                    "sanitizer":  {
+                                      "compiler":  "Clang 18, WSL Ubuntu-24.04",
+                                      "flags":  "-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -pthread",
+                                      "environment":  "ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1",
+                                      "exitCode":  0,
+                                      "stdoutObservedInToolTranscript":  "runtime tests passed",
+                                      "findings":  0,
+                                      "binarySha256":  "919294f9e958c96c38f5eca6215bc72cb9df5db195b38ab7cc1fcfc4a9b93c74"
+                                  },
+                    "depth":  50000,
+                    "regression":  "Exact tuple rendering, self cycle marker, repeated shared leaf and post-render garbage collection"
+                },
+    "ir":  {
+               "windows":  {
+                               "exitCode":  0,
+                               "log":  "out/runtime-hardening/ir-tests-windows.log",
+                               "binarySha256":  "108e14a4ac2c2655a7d67dc4374989c3aa911238622e3451c8947aa5a2dd724f"
+                           },
+               "sanitizer":  {
+                                 "compiler":  "Clang18 WSL Ubuntu-24.04",
+                                 "flags":  "-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all",
+                                 "environment":  "ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1",
+                                 "exitCode":  0,
+                                 "findings":  0,
+                                 "log":  "out/runtime-hardening/ir-tests-asan.log",
+                                 "binarySha256":  "bd09551234128fa1595d7d398f7acc602a93ee271d79d1b8c70268b1f197a566"
+                             },
+               "regressions":  [
+                                   "Incoming parameter cannot prove constant heterogeneous index, straight and branch paths",
+                                   "Reassigned heterogeneous index rejected",
+                                   "50000-deep nominal type rejected before recursive equality"
+                               ]
+           }
+}

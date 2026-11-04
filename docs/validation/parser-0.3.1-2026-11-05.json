@@ -1,0 +1,237 @@
+{
+  "source_commit": "d77a3b5cdab180e061d66f0fee18634a913ad001",
+  "corpus_commit": "d77a3b5cdab180e061d66f0fee18634a913ad001",
+  "snapshot": {
+    "source_commit": "d77a3b5cdab180e061d66f0fee18634a913ad001",
+    "capture_head": "d77a3b5cdab180e061d66f0fee18634a913ad001",
+    "capture_worktree_status": "",
+    "dirty": false,
+    "captured_utc": "2026-11-04T21:14:35.380604+00:00",
+    "source_archive_sha256": "5bb56a5d7ad428c7c11478be98dbcfb7a08660b3b0ea0386a885644104936c80",
+    "corpus_archive_sha256": "214a139d3d0fc3c40c331760035d13ce301c265742c8b71fcc96563cf722ddc8"
+  },
+  "source_archive_sha256": "5bb56a5d7ad428c7c11478be98dbcfb7a08660b3b0ea0386a885644104936c80",
+  "corpus_archive_sha256": "214a139d3d0fc3c40c331760035d13ce301c265742c8b71fcc96563cf722ddc8",
+  "source_files": {
+    "CMakeLists.txt": "7411d6cdf940a30264084fdb12ba452cb74959da2964bee24a216b550c14c4f2",
+    "cmake/Fuzzing.cmake": "971897de17d088a52c503e2ec21c922f286ab95e1136fd903832b8508571bea6",
+    "include/pikaflow/backend.hpp": "c0d2fd0aa4dd3e6c36dd120772fe78f637784783f362fc0580c52fdfdd2ddb4e",
+    "include/pikaflow/common.hpp": "421a3562ee8521f4ea9d504463710d3bef5f1b45b10a50603b5b8b174e65c517",
+    "include/pikaflow/frontend.hpp": "95154d17d31e202818fd3ed2367d088e96cc3d05ce336831813121958c4e7a19",
+    "include/pikaflow/ir.hpp": "f075ba584e723f805ab2586451f1dd811de6007ce2e2fe7dc48d9ebcfb4ca40b",
+    "include/pikaflow/optimizer.hpp": "b5ed793d697dc817faf473a0e03c3f552da1f6fcebd29119f4eb661da350859f",
+    "include/pikaflow/runtime.h": "1424d412d2455afaf0bc6d85209958238d789f0617e11969887b6f52b9bc9a0c",
+    "src/common.cpp": "cad0d2b4b70aecffa791d35324bc52c15b53b25bd92abafb2b99100c9f481a05",
+    "src/lexer.cpp": "8437da631c1310b349c6045590ebbfb7f183441dfc1d51be4f18cc8c1f0914b1",
+    "src/parser.cpp": "432fc22e0ea27271c0ed74febbb198e75837956355a18120ee33a168592047dd",
+    "tests/fuzz_parser.cpp": "6e1ed0990b0a418b5c3bac505418cc72c604e183db5c5e1e49e162e27f5c10ca"
+  },
+  "compiler": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-18/bin",
+  "compiler_path": "/usr/lib/llvm-18/bin/clang",
+  "compiler_sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+  "binary_sha256": "44b8a3d9fc226677420d42ecc7e142afb52b74b10fa30178ef9bc681ad2eb070",
+  "compile_commands_sha256": "bca6f14a42725724aee5f1e2b68168196139a7f87ea0a18ee9579b8881d31546",
+  "cmake_cache_sha256": "f672cff83095c872e86ac863e98a84a4318e14db013546a5ca6cb55a93111f5a",
+  "command": [
+    "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build/pikaflow_parser_fuzzer",
+    "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/corpus",
+    "-seed=20261105",
+    "-max_total_time=45",
+    "-max_len=4096",
+    "-rss_limit_mb=1024",
+    "-timeout=5",
+    "-print_final_stats=1",
+    "-artifact_prefix=/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/artifacts/"
+  ],
+  "seed": 20261105,
+  "max_total_time": 45,
+  "max_len": 4096,
+  "rss_limit_mb": 1024,
+  "timeout": 5,
+  "sanitizers": "libFuzzer + AddressSanitizer + UndefinedBehaviorSanitizer; leak detection enabled",
+  "asan_options": "detect_leaks=1",
+  "symbolizer": "/usr/lib/llvm-24/bin/llvm-symbolizer",
+  "symbolizer_sha256": "3a7455769a3ed69075351d52eefc4bc827dd95e49a905d119f541455a96c6821",
+  "started_utc": "2026-11-04T21:15:16.639748+00:00",
+  "wall_seconds": 43.372,
+  "reported_elapsed_seconds": 46,
+  "exit_code": 0,
+  "executions": 48721,
+  "coverage_counter_count": 2239,
+  "feature_count": 10289,
+  "corpus_inputs": 623,
+  "corpus_size_reported": "348Kb",
+  "evolving_size_limit": 3809,
+  "peak_rss_mb": 411,
+  "initial_seeds": [
+    {
+      "name": "generics_enums",
+      "bytes": 380,
+      "sha256": "1240a3b02aefa0b8d86409940956ed2f3d019d804bae0fd9de3f08549309e366"
+    },
+    {
+      "name": "hybrid",
+      "bytes": 130,
+      "sha256": "186e6e0ce28cd1aa47d4b1a41b1e3537d78eb89a652f551d34099fc893b05196"
+    },
+    {
+      "name": "patterns",
+      "bytes": 226,
+      "sha256": "361c41add5fb9b9f789c02b9c7ae35fad1dbaa2551f9a0222d0e2661a6c1f414"
+    },
+    {
+      "name": "qualified",
+      "bytes": 400,
+      "sha256": "3a7d147778bb8a4b455ecaf8c4268b55ec4df9ae9dab4fdeea5a9ae992eb6f9c"
+    },
+    {
+      "name": "strings",
+      "bytes": 196,
+      "sha256": "2fb563c0b1b2d0f0b1533131861a9d67da595a39e61e4282d11810a8a6d6d514"
+    },
+    {
+      "name": "tasks_ffi",
+      "bytes": 399,
+      "sha256": "08bde1107937386585172ad19ff6154025fc4d164fcd271669388aef39effb7a"
+    },
+    {
+      "name": "underscore_patterns",
+      "bytes": 277,
+      "sha256": "5790f9a80c8d466c670d5857f120b0d69e291c9c3fa2c3f980a8be229204a6cd"
+    }
+  ],
+  "generated_seeds": [
+    {
+      "name": "depth_binary",
+      "content": "fun main():\n    print(1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1)\n",
+      "bytes": 2023,
+      "sha256": "db32c448883787129bdf88a64677a3db014573b0a781279ae26a02638a12cce7"
+    },
+    {
+      "name": "depth_calls",
+      "content": "fun main():\n    let value = f()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()\n",
+      "bytes": 2030,
+      "sha256": "a7bebb675c4fadb35c94a4aba6825ddb8bb4c23f43dc6573a72306526b9792a8"
+    },
+    {
+      "name": "depth_elif",
+      "content": "fun main():\n    if false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n    elif false:\n        pass\n",
+      "bytes": 3809,
+      "sha256": "da251333fea0f65b5b6b91001f94dc580dfa2afbb28354fb2cf40f08ca20e616"
+    },
+    {
+      "name": "depth_propagation",
+      "content": "fun main():\n    let value = value????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????????\n",
+      "bytes": 1034,
+      "sha256": "b0e228601e973c2eaf9133c6c6890927db96803898f609a721df48654030503e"
+    },
+    {
+      "name": "depth_types",
+      "content": "fun main():\n    let value = f::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]::[i64]\n",
+      "bytes": 2130,
+      "sha256": "6f822463b359fb2e64584adb8b7bba57cb7e0822198b70b4d98e3a274d66bf49"
+    }
+  ],
+  "initial_seed_count": 12,
+  "initial_seed_bytes": 13034,
+  "crash_artifacts": [],
+  "sanitizer_findings": [],
+  "warnings": [],
+  "log_sha256": "a06b6ab81c42cc24b89d6fdda1dd70e05eaecc6d21aa0b66339e4155566f852e",
+  "scope": "Real lexer/parser only; no semantic compilation, interpreter, LLVM backend, runtime or editor execution",
+  "cmake_configuration": [
+    "-G",
+    "Ninja",
+    "-DCMAKE_C_COMPILER=clang-18",
+    "-DCMAKE_CXX_COMPILER=clang++-18",
+    "-DCMAKE_BUILD_TYPE=RelWithDebInfo",
+    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+    "-DPIKAFLOW_ENABLE_LLVM=OFF",
+    "-DPIKAFLOW_BUILD_FUZZER=ON",
+    "-DBUILD_TESTING=OFF"
+  ],
+  "build_target": "pikaflow_parser_fuzzer",
+  "compile_commands": [
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -fPIC -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_runtime.dir/src/runtime.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/runtime.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/runtime.cpp",
+      "output": "CMakeFiles/pikaflow_runtime.dir/src/runtime.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/common.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/common.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/common.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/common.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/lexer.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/lexer.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/lexer.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/lexer.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/parser.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/parser.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/parser.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/parser.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/compiler.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/compiler.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/compiler.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/compiler.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/ir.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/ir.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/ir.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/ir.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/interpreter.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/interpreter.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/interpreter.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/interpreter.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/optimizer.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/optimizer.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/optimizer.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/optimizer.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -DPF_COMPILER_DRIVER=\\\"/usr/bin/clang++-18\\\" -DPF_RUNTIME_LIBRARY=\\\"/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build/libpikaflow_runtime.a\\\" -DPF_STDLIB_DIR=\\\"/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/stdlib\\\" -DPF_VERSION=\\\"0.3.1\\\" -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow.dir/src/main.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/main.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/main.cpp",
+      "output": "CMakeFiles/pikaflow.dir/src/main.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_parser_fuzzer.dir/tests/fuzz_parser.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/tests/fuzz_parser.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/tests/fuzz_parser.cpp",
+      "output": "CMakeFiles/pikaflow_parser_fuzzer.dir/tests/fuzz_parser.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_parser_fuzzer.dir/src/common.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/common.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/common.cpp",
+      "output": "CMakeFiles/pikaflow_parser_fuzzer.dir/src/common.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_parser_fuzzer.dir/src/lexer.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/lexer.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/lexer.cpp",
+      "output": "CMakeFiles/pikaflow_parser_fuzzer.dir/src/lexer.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/include -O2 -g -DNDEBUG -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_parser_fuzzer.dir/src/parser.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/parser.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/fuzz-0.3.1-validation/source/src/parser.cpp",
+      "output": "CMakeFiles/pikaflow_parser_fuzzer.dir/src/parser.cpp.o"
+    }
+  ],
+  "runner_sha256": "3669b10c80076e8955e724862f9ac0224fa3320bacc7eeaabe5adea34e5457a5",
+  "corpus_files_on_disk": 627,
+  "corpus_manifest_sha256": "378fd28499dff5633b7c5a1746d00d7a00c3090248752052a2d3f8e17c9b146e"
+}

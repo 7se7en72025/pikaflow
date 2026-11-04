@@ -29,6 +29,14 @@ Unreachable cycles are reclaimed. The tracing worklist is iterative. Strings
 are immutable UTF-8 byte sequences; length and indexing count bytes, and string
 indexing returns an unsigned byte integer.
 
+Printing also traverses managed graphs iteratively. Active ancestors print as
+`<cycle>`; a shared child reached along separate paths is printed separately.
+Nested strings are quoted, while a top-level string prints its bytes directly.
+The 0.3.1 regression renders 50,000 nested tuples containing a shared cyclic
+leaf, checks the exact output, then collects the entire graph. This removes
+native-stack growth from graph depth; output size and heap memory remain finite
+resource requirements.
+
 `pf_cell_address` exposes a mutable cell's value storage for generated debug
 information. Its address remains stable while the cell stays reachable. The
 address itself is not a root and must not outlive the cell.
@@ -58,6 +66,12 @@ column, so diagnostics remain valid after a JIT module is unloaded. Errors use
 The native runtime test executable checks arithmetic boundaries, reachability,
 cycles, closures, UTF-8 indexing, Result references, and printable values.
 `tests/runtime_failures.py` checks fatal failures in subprocesses.
+
+Focused 0.3.1 runtime and IR tests also passed Clang 18 ASan/UBSan with leak
+detection. The [focused record](validation/focused-sanitizers-0.3.1-2026-11-05.json)
+retains its original dirty-worktree provenance; four recorded source hashes
+match the frozen `d77a3b5` blobs. This is focused sanitizer evidence, not a
+whole-compiler sanitizer or successful TSan claim.
 
 The reference interpreter keeps calls in explicit heap-allocated VM frames, so
 language recursion does not consume the Windows native call stack. It reports

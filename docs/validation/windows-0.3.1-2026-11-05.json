@@ -1,0 +1,119 @@
+{
+  "source_commit": "d77a3b5cdab180e061d66f0fee18634a913ad001",
+  "dirty": false,
+  "started_utc": "2026-11-04T21:13:54.957789+00:00",
+  "platform": "Windows-10-10.0.26300-SP0",
+  "modes": {
+    "native": {
+      "ctest_total": 25,
+      "passed": 25,
+      "skipped": 0,
+      "binary_sha256": "046b0c02eeb05b5f6cb798676e5df4f5c0c3115603c81e14d7f1c64b37cd5dde",
+      "runtime_sha256": "106c7dc3870ecdefee3dd3a84878e25550f7a01b4913b2873a00c38fec794040",
+      "version": "PikaFlow 0.3.1; LLVM enabled; x86_64-pc-windows-msvc",
+      "junit_sha256": "494fde72bf1de356a1aa702dae796f6a98d09683f80fc67ab2775425e8ac7860",
+      "cmake_cache_sha256": "8df4b8b3f0e63e1973a217f7cf00c2c3aad724415ee246f51649f01bb9291791"
+    },
+    "reference": {
+      "ctest_total": 21,
+      "passed": 21,
+      "skipped": 0,
+      "binary_sha256": "4c97ded68ae121c69b7627c607ff0fbaa5061461246a3096c170aa3e3ef807ff",
+      "runtime_sha256": "921e1f4d8bd61d51a56209de3e8a441bbd06eb44e98df8b85ce6f5b1f96231bd",
+      "version": "PikaFlow 0.3.1; LLVM disabled; reference interpreter only",
+      "junit_sha256": "04a8dcbca12983ff9da31170134f3eb9512e6a36fc155b926ec6b655aa0042ff",
+      "cmake_cache_sha256": "a5ffecd072fcaac24dd24bf05ed6bbcb783c1d88e28dfd92988905183b1f75b3"
+    }
+  },
+  "stages": [
+    {
+      "name": "native-build",
+      "command": [
+        "powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "C:\\Users\\RAIYYAN\\pikaflow\\scripts\\build.ps1",
+        "-BuildOnly",
+        "-Jobs",
+        "2"
+      ],
+      "exit_code": 0,
+      "seconds": 13.188,
+      "log": "native-build.log",
+      "log_sha256": "c3e248ed0c97ef955d3a982cb27aedf5cb71473a8ef1bf3ee6b35129662a5bd4"
+    },
+    {
+      "name": "native-ctest",
+      "command": [
+        "C:\\Program Files\\CMake\\bin\\ctest.exe",
+        "--test-dir",
+        "C:\\Users\\RAIYYAN\\pikaflow\\build\\native",
+        "--output-on-failure",
+        "--parallel",
+        "1",
+        "--output-junit",
+        "C:\\Users\\RAIYYAN\\pikaflow\\out\\windows-validation\\0.3.1\\native-ctest.xml",
+        "--no-tests=error"
+      ],
+      "exit_code": 0,
+      "seconds": 156.719,
+      "log": "native-ctest.log",
+      "log_sha256": "2ab38b11f5bce82df14657d3340330e310ed62a257e7112f0eb07b9f0d607c64"
+    },
+    {
+      "name": "reference-build",
+      "command": [
+        "powershell.exe",
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "C:\\Users\\RAIYYAN\\pikaflow\\scripts\\build.ps1",
+        "-BuildOnly",
+        "-Jobs",
+        "2",
+        "-InterpreterOnly"
+      ],
+      "exit_code": 0,
+      "seconds": 11.625,
+      "log": "reference-build.log",
+      "log_sha256": "36711ab9d368625ff3b3363e05f72319487d12e9657bdabdefff36bda9bc6fca"
+    },
+    {
+      "name": "reference-ctest",
+      "command": [
+        "C:\\Program Files\\CMake\\bin\\ctest.exe",
+        "--test-dir",
+        "C:\\Users\\RAIYYAN\\pikaflow\\build\\interpreter",
+        "--output-on-failure",
+        "--parallel",
+        "1",
+        "--output-junit",
+        "C:\\Users\\RAIYYAN\\pikaflow\\out\\windows-validation\\0.3.1\\reference-ctest.xml",
+        "--no-tests=error"
+      ],
+      "exit_code": 0,
+      "seconds": 38.265,
+      "log": "reference-ctest.log",
+      "log_sha256": "021915c26ef2c0f75a8aa19b6fc11c0b618590c69151aced204e6086666f8fb2"
+    }
+  ],
+  "archive_sha256": "5bb56a5d7ad428c7c11478be98dbcfb7a08660b3b0ea0386a885644104936c80",
+  "source_changes_after_tests": [],
+  "head_after_tests": "d77a3b5cdab180e061d66f0fee18634a913ad001",
+  "status_after_tests": "",
+  "finished_utc": "2026-11-04T21:17:35.232257+00:00",
+  "source_matches_after_tests": true,
+  "toolchains": {
+    "cmake": "cmake version 4.4.4",
+    "cxx_compiler": "C:/Program Files/Microsoft Visual Studio/18/Insiders/VC/Tools/MSVC/14.52.37025/bin/Hostx64/x64/cl.exe",
+    "cxx_version": "19.52.37025.0",
+    "release_flags": "/O2 /Ob2 /DNDEBUG",
+    "python": "Python 3.14.2",
+    "python_executable": "C:/Users/RAIYYAN/AppData/Local/Python/pythoncore-3.14-64/python.exe",
+    "llvm_dir": "C:\\Users\\RAIYYAN\\llvm-work\\llvm-project\\build\\lib\\cmake\\llvm",
+    "llvm_source_revision": "0247623ddadb8d078a446a704cc20f0a8c944fc8"
+  }
+}

@@ -9,8 +9,8 @@ extern fun foreign_free(memory: ptr[unit]) -> unit = "free"
 ```
 
 The caller must declare the real signature and respect ownership. In particular,
-`i64` means C `int64_t`, not C `int` or Windows `long`. The current language does
-not expose every C integer width.
+`i64` means C `int64_t`, not C `int` or Windows `long`. The current language
+supports explicit 8/16/32/64-bit integer annotations as described below.
 
 ## Supported boundary types
 
@@ -110,6 +110,16 @@ passes a library to the native linker; it does not copy runtime dependencies.
 For Linux, build `libpair.so` with `cc -shared -fPIC pair.c -o libpair.so`, pass its
 path to `--load` or `--link`, and make it discoverable to the executable using the
 loader's normal search path, such as `LD_LIBRARY_PATH`.
+
+## Native output files
+
+The executable output must not alias loaded source or project metadata. With
+MSVC, the backend passes an explicit linker output path, disables incremental
+`.ilk` generation and writes temporary export `.lib`/`.exp` artifacts in an
+isolated directory. Debug builds place their PDB at `OUTPUT.pdb`; the CLI also
+checks that path against protected inputs before linking. Tests preserve
+adjacent sentinel files and source/metadata aliases, including failed links.
+This does not copy external DLL dependencies or remove the host SDK requirement.
 
 ## ABI lowering
 

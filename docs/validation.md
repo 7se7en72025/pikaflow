@@ -1,6 +1,113 @@
 # Validation record
 
-## 0.3 clean release validation
+## 0.3.1 corrective release validation
+
+The frozen implementation **`d77a3b5cdab180e061d66f0fee18634a913ad001`**
+passed the complete host suites below. Both captures were clean (`dirty: false`)
+and used source archive SHA-256
+`5bb56a5d7ad428c7c11478be98dbcfb7a08660b3b0ea0386a885644104936c80`.
+The tracked manifests preserve every captured JSON field; Git normalizes line
+endings, and the original raw files remain under `out/`. Linux's
+123 archived files still matched after its tests; Windows also recorded no
+source changes. Documentation updates follow that tested implementation.
+
+| Host / mode | Result | Exact record |
+|---|---|---|
+| Windows x64, MSVC 19.52 / LLVM 24.0.0git | **25/25 native suites**, 156.67 s | [Windows manifest](validation/windows-0.3.1-2026-11-05.json) |
+| Windows x64, MSVC 19.52, LLVM disabled | **21/21 reference suites**, 38.22 s | [Same Windows manifest, reference mode](validation/windows-0.3.1-2026-11-05.json) |
+| Ubuntu 24.04 x86-64 / WSL2, GNU 13.3 / LLVM 24.0.0 | **26/26 native suites**, 214.63 s | [Linux manifest](validation/linux-0.3.1-2026-11-05.json) |
+
+Times above are CTest's reported elapsed times; the Windows manifest separately
+records subprocess wall times of 156.719 / 38.265 seconds. No CTest suite was
+skipped. The Linux tools suite internally skips one Windows-only junction test.
+Windows used Python 3.14.2; Linux used Python 3.12.3. LLVM revisions remain
+`0247623ddadb8d078a446a704cc20f0a8c944fc8` on Windows and nightly
+`5883ca2582af` on Linux.
+
+| Check group | Windows native / Linux native |
+|---|---:|
+| Compiler integration | 216 / 217 |
+| Language extensions | 139 / 139 |
+| Namespace and assignment | 61 / 61 |
+| Typed-IR optimizer execution comparisons | 115 / 115 |
+| Developer-tools tests | 16 / 16 (one internal Linux skip) |
+| Git packages / editor workflows | 10 / 19 on each host |
+| Generated C ABI execution comparisons | 120 / 120 |
+| Located C integer range failures / invalid callbacks | 40 / 3 on each host |
+| Task/pointer executions / rejected source programs | 50 / 4 on each host |
+| Fatal runtime / task cases | 47 / 10 on each host |
+| Arithmetic differential / contextual typing programs | 30 / 6 on each host |
+
+These groups overlap CTest organization. Shared runtime, frontend, typed-IR,
+optimizer, interpreter and semantic-symbol unit suites also passed. The Windows
+reference suite includes 99 compiler, 55 language, 21 namespace, 23 optimizer
+and 10 task execution checks. Native suites compare interpreter/JIT/native
+results at `-O0`/`-O2` where applicable and use independent host C fixtures.
+Linux includes real GDB checks. Both hosts passed installed-layout and native
+environment checks; this does not establish every debugger or ABI.
+
+### Corrective regressions
+
+- Formatting preserves compound assignment as a single operator, retaining the
+  compiler-token equivalence check before replacement. Nonstring document URIs
+  return protocol errors instead of Python attribute/type failures, and message
+  payloads require UTF-8 rather than accepting UTF-16/32 JSON encodings.
+- Text output checks buffered flush/close failures before reporting success.
+  The Linux `/dev/full` regression accounts for its extra compiler check.
+- Long binary/postfix/`elif` syntax and combined compilation traversal now have
+  explicit bounds. Excessive inputs diagnose rather than overflowing native
+  stacks. The [language reference](language.md) gives the budgets.
+- Managed printing uses a heap worklist, with exact-output coverage for a
+  50,000-deep graph containing both a cycle and repeated shared children.
+- IR validation bounds nominal shapes before recursive layout equality. Its
+  heterogeneous-index proof treats incoming parameter registers as nonconstant;
+  a later literal assignment cannot retroactively type an earlier dynamic read.
+- MSVC linking uses the exact requested executable path, disables incremental
+  `.ilk` generation, isolates export sidecars and checks the debug PDB output
+  against protected inputs. Adjacent-file preservation has subprocess coverage.
+
+Focused runtime and IR Clang 18 ASan/UBSan runs passed with leak detection and
+no finding. Their [original focused manifest](validation/focused-sanitizers-0.3.1-2026-11-05.json)
+records **`sourceDirty: true`**, captured HEAD `6a72340`, and four source hashes.
+All four match the corresponding committed blobs at `d77a3b5`; this linkage
+does not turn that focused run into a clean-checkout or whole-program sanitizer
+claim. The runtime stdout was preserved from the tool transcript; the manifest
+distinguishes it from the saved IR process logs. The earlier TSan host startup
+failure remains a limitation, not a race-clean result.
+
+### Identities, fuzzing, benchmark and local artifact
+
+| Compiler | SHA-256 |
+|---|---|
+| Windows native | `046b0c02eeb05b5f6cb798676e5df4f5c0c3115603c81e14d7f1c64b37cd5dde` |
+| Windows reference | `4c97ded68ae121c69b7627c607ff0fbaa5061461246a3096c170aa3e3ef807ff` |
+| Linux native | `7c70a5798f530b73784763aea844b884759ccf4c10649369fd07e0e7cd2ab842` |
+
+The [parser manifest](validation/parser-0.3.1-2026-11-05.json) records 48,721
+libFuzzer executions, a 45-second requested budget, 12 starting seeds and zero
+reported findings/artifacts. Only lexer/parser/common code was exercised by that
+target. See [fuzzing.md](fuzzing.md) for instrumentation and timing limits.
+
+The clean [Windows benchmark](benchmarks/windows-0.3.1-2026-11-05.json) uses the
+same native compiler after the host suites finished. All outputs matched across
+three process-inclusive samples per configuration. Loop medians were
+**30.401/28.232 ms** and Fibonacci(20) medians **17.231/17.417 ms**, at
+`-O0`/`-O2`. These small noisy workloads establish no general speedup or
+performance advantage. [Methodology](benchmarking.md)
+
+The [local package record](validation/windows-package-0.3.1-2026-11-05.json)
+identifies `pikaflow-0.3.1-windows-x64-d77a3b5.zip`, **18,181,114 bytes**,
+SHA-256 `a96a182ad4b07ae9638e586c12abb2adb85d3e5a2c0fc03346f570870008af9b`.
+Extracted showcase/namespaces, interpreter/JIT, installed tools and compound
+formatting checks passed. This is a local artifact, not a published Release or
+universal installer; native linking requires a compatible host toolchain/SDK.
+
+Raw host logs, archives and sanitizer artifacts remain under ignored `out/`
+paths identified in these records. GitHub's manual workflow was not dispatched.
+These bounded checks provide evidence for their snapshots and inputs; they do
+not establish perfection or unrestricted safety for foreign pointers.
+
+## Historical 0.3 clean release validation
 
 The frozen implementation at **`5f0b10915013d38d834ad72dca785bf8f9f8e4fa`**
 passed the complete host suites below. Both hosts used clean source

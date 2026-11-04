@@ -41,7 +41,42 @@ This is bounded bug discovery, not a proof of correctness or a performance
 benchmark. `tests/fuzz_frontend.py` separately compares generated arithmetic
 programs with an independent Python result; it is not coverage-guided fuzzing.
 
-## Validation snapshot
+## 0.3.1 depth-bound hardening refresh
+
+The latest campaign used clean source and corpus commit
+`d77a3b5cdab180e061d66f0fee18634a913ad001`, source archive SHA-256
+`5bb56a5d7ad428c7c11478be98dbcfb7a08660b3b0ea0386a885644104936c80`.
+The seven tracked seeds were supplemented with five generated depth stress
+inputs: binary chains, call chains, `elif`, repeated Result propagation and
+explicit type applications. The [recorded manifest](validation/parser-0.3.1-2026-11-05.json)
+retains their content and hashes, commands, toolchain and exploration counters.
+
+Clang 18.1.3 built the same CMake frontend target with libFuzzer/ASan/UBSan,
+leak detection and the LLVM 24 symbolizer. The command used seed `20261105`,
+`-max_total_time=45 -max_len=4096 -rss_limit_mb=1024 -timeout=5` and
+`-print_final_stats=1`. It exited **0**, completing **48,721 executions**,
+with **zero reported sanitizer findings, crash artifacts or warnings**.
+The 12 initial inputs totaled 13,034 bytes; the final in-memory corpus had
+623 inputs/348 KiB, coverage counter 2,239, feature count 10,289 and peak RSS
+411 MiB. The evolving size limit reached 3,809 bytes.
+
+LibFuzzer reported 46 elapsed seconds; the runner independently recorded
+43.372 seconds. Both raw observations remain in the record rather than being
+reconciled into a precise performance measurement. The budget is approximate.
+Exploration counters are instrumentation-specific, not coverage percentages.
+The executable SHA-256 is
+`44b8a3d9fc226677420d42ecc7e142afb52b74b10fa30178ef9bc681ad2eb070`;
+the raw log SHA-256 is
+`a06b6ab81c42cc24b89d6fdda1dd70e05eaecc6d21aa0b66339e4155566f852e`.
+
+Archives, binary, logs, corpus and artifacts remain under ignored
+`out/fuzz-0.3.1-validation/`. This target exercises only the real lexer/parser
+and common code, not semantic compilation, the interpreter, LLVM backend,
+runtime or editor. Focused runtime/IR sanitizer evidence is separately identified
+in [validation.md](validation.md). Earlier campaigns below retain their own
+source identities and are not reused as a claim about later code.
+
+## Historical initial validation snapshot
 
 On 2026-11-04, WSL Ubuntu 24.04 used Ubuntu Clang 18.1.3 (1ubuntu1), targeting
 `x86_64-pc-linux-gnu`. The preinstalled compiler lacked its sanitizer runtimes;
@@ -175,7 +210,7 @@ Only the real lexer/parser ran. Qualified-name binding, assignment evaluation
 order, semantic indexing, the typed optimizer, LLVM execution and editor behavior
 were not exercised by this fuzz target.
 
-## Latest grammar: underscore constructor patterns
+## Historical 0.3 grammar: underscore constructor patterns
 
 The parser subsequently distinguished qualified underscore names and constructor
 calls from a bare match wildcard. A fresh campaign used exact source commit

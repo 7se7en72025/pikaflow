@@ -17,7 +17,8 @@ live in `share/pikaflow/tools/` beneath the installation prefix.
 
 The formatter normalizes indentation to four spaces, operator/argument spacing,
 trailing whitespace, line endings and the final newline. It preserves literal
-spellings and both comment forms. It does not reflow expressions or comments.
+spellings and both comment forms, including compound operators such as `+=`
+as single tokens. It does not reflow expressions or comments.
 
 Before writing, it lexes the original and proposed text through the **actual
 compiler** and compares every token, including indentation/newline structure.
@@ -32,17 +33,18 @@ equivalence, idempotence, strings/comments/exponents, invalid input and check mo
 The stdio server implements the advertised subset of
 [LSP 3.17](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/):
 
-- Initialize/shutdown/exit and full-document open/change/save/close synchronization.
+- Initialize/shutdown/exit, incremental/full document synchronization and save/close notifications.
 - Compiler-backed diagnostics for unsaved documents and their unsaved relative
   imports, without writing over the user's sources.
+- Compiler-backed hover, definitions, references and verified workspace rename.
 - Document formatting, document symbols and keyword/document-declaration completion.
 - UTF-8 message framing and UTF-16 editor positions, including non-BMP characters.
 
-It advertises only these capabilities. Completion and document symbols describe
-declarations in the current document; they are not a whole-program semantic index.
-Rename, cross-module semantic navigation, incremental edits, code actions and
-remote documents are not advertised. These optional protocol features are not
-required to use the delivered server.
+Completion and document symbols describe declarations in the current document;
+navigation and rename use the compiler's semantic source index across bounded
+project contexts. Rename verifies candidate compilation and binding identities
+before returning edits. Code actions and remote documents are not advertised.
+See [editor.md](editor.md) for the exact protocol, scope and position contracts.
 
 Configure an LSP-capable editor with this command array (use absolute paths):
 
@@ -64,6 +66,8 @@ portable part. JSON-RPC goes exclusively to stdout; diagnostics/log notification
 use the protocol. Limits: 4 MiB message/source, 32 open documents, 128 modules per
 diagnostic graph, and a 30-second compiler timeout. Compilation is synchronous;
 new changes are processed in order. Stale document versions are ignored.
+Message payloads require UTF-8; nonstring document URIs produce an invalid-params
+response. JSON nesting is checked before decoding.
 
 `pikaflow check FILE --library` validates a module without requiring a source
 `main`; the editor uses this mode. It does not emit a library or run an entry.

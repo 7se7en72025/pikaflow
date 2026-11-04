@@ -1,5 +1,26 @@
 # Implementation status
 
+PikaFlow **0.3.1** is a corrective release of the 0.3 contract. It preserves
+compound assignment tokens during formatting, rejects malformed LSP messages,
+bounds syntax/semantic traversal, prints deep managed graphs iteratively, fixes
+typed-IR validation gaps and protects adjacent files during MSVC native linking.
+The frozen clean `d77a3b5` passed **25/25 Windows native** (156.67 s), **21/21
+Windows reference** (38.22 s) and **26/26 Linux native** (214.63 s) suites.
+The native suites include 139 language, 61 namespace, 115 optimizer, 19 editor,
+16 developer-tools and 10 Git package cases, plus 216 Windows / 217 Linux
+compiler checks. Linux retains one internal Windows-only junction test skip;
+no CTest suite was skipped. Exact identities and the preserved earlier results
+are in [validation.md](validation.md).
+
+The 0.3.1 parser campaign completed 48,721 executions with no reported finding.
+Focused runtime/IR ASan/UBSan runs also passed; their original dirty-worktree
+manifest is retained with source hashes matching the frozen implementation.
+Neither bounded run establishes a correctness proof. The output-verified
+[0.3.1 benchmark](benchmarks/windows-0.3.1-2026-11-05.json) retains three
+process-inclusive samples per configuration and makes no performance claim.
+
+## Historical 0.3 baseline
+
 PikaFlow 0.3 includes generic recursive ADTs, guarded/exhaustive patterns, Result
 propagation, isolated threaded tasks, C interop and developer tools. It adds named
 module aliases, single-evaluation compound updates, transactional cross-function
@@ -60,7 +81,7 @@ watches; Windows CodeView line/local records are also inspected. Graphical IDE
 integration, managed-value visualization and optimized-code debugger quality
 remain unverified.
 
-The latest bounded parser libFuzzer campaign completed 79,589 executions in
+The historical 0.3 parser libFuzzer campaign completed 79,589 executions in
 46 seconds under ASan/UBSan without a reported finding. Its scope and exact
 parser snapshot are recorded in [fuzzing.md](fuzzing.md); semantic-index changes
 are covered by source/editor regressions rather than that parser harness.

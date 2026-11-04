@@ -1,9 +1,15 @@
 # Feature status
 
-PikaFlow 0.3 implements the language, runtime and developer-tool contracts
+PikaFlow 0.3.1 implements the language, runtime and developer-tool contracts
 below. The boundaries are part of the release contract. Integration results are
 recorded by exact source/toolchain snapshot in [validation.md](validation.md);
 an implemented feature is not a claim of unlimited platform or protocol coverage.
+
+The 0.3.1 hardening keeps these feature boundaries. Regressions cover compound
+formatting, malformed protocol input, bounded syntax and nominal-type checks,
+dynamic heterogeneous indexes, deep graph printing and protected Windows linker
+sidecars. Passing these cases is evidence for the recorded inputs and hosts,
+not a proof that further defects cannot exist.
 
 ## Available implementation
 
@@ -18,10 +24,10 @@ an implemented feature is not a claim of unlimited platform or protocol coverage
 | Control flow | `if`/`elif`/`else`, `while`, range/sequence `for`, `break`, `continue`, nested patterns, guarded cases and bounded exhaustive enum matching |
 | Modules | Direct and named imports with qualified functions/generics/types/constructors/words/externs; relative, `std:` and local `pkg:` paths; privacy and cycle checks |
 | Recoverable errors | Typed `Result[T,E]`, constructors/accessors, Result patterns and postfix `?` early error propagation |
-| Custom IR | Typed register instructions, control-flow verification, definite-assignment checks, dumps |
+| Custom IR | Typed register instructions, bounded canonical nominal layouts, constant heterogeneous indexes, control-flow verification, definite-assignment checks, dumps |
 | Typed-IR optimization | Verified CFG integer/boolean constant propagation, safe arithmetic/branch folding, unreachable-instruction removal and bounded fallback |
 | Reference execution | Typed-IR interpreter using the common runtime |
-| Runtime | Printing, bounds checks, checked arithmetic, arrays/tuples/closures, traced non-moving GC |
+| Runtime | Iterative graph printing with cycle markers, bounds checks, checked arithmetic, arrays/tuples/closures, traced non-moving GC |
 | Concurrency | Real OS-thread `spawn`/`join`, typed task handles, isolated capture/result graph copies, automatic scoped joins, independent worker heaps |
 | LLVM backend | LLVM IR generation/verification, optimization pipelines, a checked-arithmetic identity transform, object emission, native linking, ORC JIT |
 | Foreign calls | Scalar/pointer and nested natural C records, explicit 8/16/32/64-bit integer boundary annotations, varargs, scalar noncapturing callbacks and symbol aliases |

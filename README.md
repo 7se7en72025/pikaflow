@@ -9,13 +9,15 @@ The project draws inspiration from [Pikapika](https://github.com/7se7en72025/pik
 and [Goof](https://github.com/sneaky-potato/goof). Its implementation and language
 rules are developed here rather than merging the two projects' source code.
 
-**Status:** PikaFlow 0.3 adds named module namespaces, single-evaluation compound
+**Status:** PikaFlow 0.3.1 hardens formatting, protocol validation, syntax bounds,
+managed printing, IR validation and Windows native output protection. PikaFlow 0.3
+adds named module namespaces, single-evaluation compound
 updates, cross-function diagnostics, typed-IR dataflow optimization and a compiler
 semantic index for incremental editor navigation and verified rename. It includes
 generic recursive ADTs, Result propagation, isolated threaded tasks, C interop,
 formatting and exact-commit Git/local packages. Native targets are Windows x64
 and Linux x86-64. The [validation record](docs/validation.md) identifies frozen
-source/toolchain results. Clean `5f0b109` passed 25/25 Windows native, 21/21
+source/toolchain results. Clean `d77a3b5` passed 25/25 Windows native, 21/21
 Windows reference and 26/26 Linux native suites; historical records remain separate.
 See [feature status](docs/FEATURES.md) for supported contracts and limits.
 
@@ -228,8 +230,9 @@ native output comparisons at `-O0`/`-O2`, object/IR checks, and C ABI tests.
 Bounded generated-program checks complement the parser's malformed-input tests;
 they are not a coverage-guided fuzz campaign.
 The separate [Clang libFuzzer target](docs/fuzzing.md) completed 79,589 parser
-executions under ASan/UBSan in its latest bounded campaign without a reported
-finding. The final native suites include 216 compiler, 133 language, 61 namespace,
+executions under ASan/UBSan in its historical 0.3 campaign. The 0.3.1 refresh
+completed 48,721 executions without a reported finding. The final native suites
+include 216 Windows / 217 Linux compiler, 139 language, 61 namespace,
 115 optimizer execution and 19 editor workflow checks on each host, with
 [host-specific counts and identities](docs/validation.md).
 
