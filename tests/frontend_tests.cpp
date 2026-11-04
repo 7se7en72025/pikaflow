@@ -107,6 +107,8 @@ int main() {
         require(imports.statements[0]->other->text == "math", "import alias failed");
         require(imports.statements[1]->variadic, "extern varargs failed");
         require(imports.statements[2]->exported && imports.statements[2]->returnType.kind == TypeKind::Result, "Result/export types failed");
+        const auto aliased = tree("extern fun libc_free(p: ptr[unit]) -> unit = \"free\"\n");
+        require(aliased.statements[0]->expression && aliased.statements[0]->expression->text == "free", "foreign symbol alias failed");
         const auto unsafe = tree("fun main():\n    unsafe:\n        let memory: ptr[i64] = alloc_i64(2)\n        store(memory, 0, 42)\n        free(memory)\n");
         require(unsafe.statements[0]->body[0]->kind == Stmt::Kind::Unsafe && unsafe.statements[0]->body[0]->body.size() == 3, "unsafe suite failed");
         require(tree("let n = -9223372036854775808\n").statements[0]->expression->integer == std::numeric_limits<int64_t>::min(), "minimum i64 literal failed");
@@ -129,6 +131,7 @@ int main() {
         reject("let x = " + std::string(1000, '!') + "true\n", "nesting depth");
         reject("let x: " + std::string(1000, '[') + "i64" + std::string(1000, ']') + " = []\n", "nesting depth");
         reject("export export fun main():\n    return\n", "duplicate export");
+        reject("extern fun missing() -> unit = \"\"\n", "foreign symbol");
         try {
             tree("fun first():\n    let x =\nfun second():\n    let y =\n");
             throw std::runtime_error("two malformed functions were accepted");

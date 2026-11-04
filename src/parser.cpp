@@ -322,7 +322,16 @@ class Parser {
             result->name = expect(TokenKind::Name, "a function name").text;
             result->parameters = parameters(word, external, result->variadic);
             if (accept("->")) result->returnType = type();
-            if (external) finishSimple();
+            if (external) {
+                if (accept("=")) {
+                    Token symbol = expect(TokenKind::String, "a foreign symbol string");
+                    if (symbol.text.empty() || symbol.text.find('\0') != std::string::npos)
+                        throw Error(symbol.location, "foreign symbol must be nonempty and contain no NUL bytes");
+                    result->expression = std::make_shared<Expr>(Expr::Kind::String, symbol.location);
+                    result->expression->text = std::move(symbol.text);
+                }
+                finishSimple();
+            }
             else result->body = suite(word);
             return result;
         }
