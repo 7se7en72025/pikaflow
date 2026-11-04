@@ -2,7 +2,7 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 04:26 IST.
+**Last updated:** 2026-11-05 04:36 IST.
 
 **Status:** the user expanded the goal beyond the verified 0.3.1 delivery.
 A substantive 0.4 expansion is active: nominal records, stronger optimizations,
@@ -90,6 +90,16 @@ Source records remain managed nominal values, not automatic C record declaration
   reduces expression-dispatch stack frames while retaining the documented
   traversal budget and valid source behavior; final whole-host checks will use
   a new frozen snapshot after the correction.
+- 04:35: stack correction committed as `39a549c`, touching only `compiler.cpp`.
+  Three private non-inlined scratch helpers reduce the measured Clang ASan
+  expression frame from 17,568 to 7,392 bytes. The valid/over-budget generic
+  cases pass on the default 8 MiB stack without reducing the language budget;
+  four instrumented unit groups, records, aliases, language and 50 generated
+  programs pass with no reported sanitizer finding. Eight O0/O2 IR comparisons
+  are byte-identical. Fresh Windows regression suites pass 5/5 in 70.42 s.
+  This proof identifies the patched candidate honestly; final clean-archive
+  host and sanitizer runs follow from a new snapshot. Parser campaign inputs
+  are unchanged and will receive an explicit final-input hash comparison.
 
 ## 0.3.1 quality hardening — 2026-11-05 (historical delivery)
 
