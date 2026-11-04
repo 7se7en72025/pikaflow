@@ -145,6 +145,8 @@ class Interpreter {
                 throw Error(function.location, "reference interpreter reached the end of a function without returning");
             auto set = [&](int destination, PFValue value) { frame.set(destination, value); };
             const auto& instruction = function.code[pc];
+            pf_source_location(instruction.location.file.c_str(), static_cast<int32_t>(instruction.location.line),
+                static_cast<int32_t>(instruction.location.column));
             auto arg = [&](size_t index) { return registers.at(static_cast<size_t>(instruction.args.at(index))); };
             auto argType = [&](size_t index) -> const Type& { return function.registers.at(static_cast<size_t>(instruction.args.at(index))); };
             auto destinationType = [&]() -> const Type& { return function.registers.at(static_cast<size_t>(instruction.dst)); };

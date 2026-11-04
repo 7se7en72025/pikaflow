@@ -7,6 +7,7 @@ extern "C" {
 typedef struct PFValue { uint64_t bits; uint32_t tag; uint32_t reserved; } PFValue;
 void pf_print(uint64_t bits, uint32_t tag);
 void pf_fail(const char* message, const char* file, int32_t line);
+void pf_source_location(const char* file, int32_t line, int32_t column);
 void pf_panic(void* message);
 uint64_t pf_result_value(void* result);
 uint64_t pf_result_error(void* result);

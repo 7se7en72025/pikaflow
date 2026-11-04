@@ -38,6 +38,9 @@ def main():
         "released-pin": "invalid or released persistent root",
         "result-nonstring": "cannot unwrap an error Result",
         "result-success-error": "cannot extract an error from a successful Result",
+        "source-location": "example.pf:12:7: runtime error:",
+        "source-location-copy": "copied.pf:8:3: runtime error:",
+        "source-location-explicit": "new.pf:5:1: runtime error:",
     }
     for case, expected in cases.items():
         result = subprocess.run(

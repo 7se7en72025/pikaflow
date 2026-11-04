@@ -230,6 +230,20 @@ int main(int argc, char** argv) {
             pf_set_index(roots[0], 0, 1, 3);
             pf_result_error(roots[0]);
         }
+        else if (name == "source-location") {
+            pf_source_location("example.pf", 12, 7);
+            pf_checked_div(1, 0);
+        }
+        else if (name == "source-location-copy") {
+            std::string filename = "copied.pf";
+            pf_source_location(filename.c_str(), 8, 3);
+            filename.assign("overwritten.pf");
+            pf_checked_div(1, 0);
+        }
+        else if (name == "source-location-explicit") {
+            pf_source_location("old.pf", 1, 9);
+            pf_fail("explicit failure", "new.pf", 5);
+        }
         else { std::cerr << "unknown error case\n"; return 2; }
         std::cerr << "error case unexpectedly succeeded\n";
         return 2;

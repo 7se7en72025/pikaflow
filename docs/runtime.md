@@ -42,6 +42,11 @@ do not unwind C++ exceptions through JIT-generated code. Integer division
 truncates toward zero. Converting a finite, in-range floating-point value to
 `i64` also truncates toward zero.
 
+Generated code and the interpreter call `pf_source_location` before operations
+that may fail. The runtime owns a thread-local copy of the filename, line, and
+column, so diagnostics remain valid after a JIT module is unloaded. Errors use
+`file:line:column: runtime error: message` when source information is available.
+
 The native runtime test executable checks arithmetic boundaries, reachability,
 cycles, closures, UTF-8 indexing, Result references, and printable values.
 `tests/runtime_failures.py` checks fatal failures in subprocesses.

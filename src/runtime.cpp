@@ -61,6 +61,11 @@ struct Heap {
 };
 
 thread_local Heap heap;
+struct SourceLocation {
+    std::string file;
+    int32_t line = 1, column = 1;
+};
+thread_local SourceLocation sourceLocation;
 
 [[noreturn]] void fail(const char* message) {
     pf_fail(message, nullptr, 0);
@@ -208,10 +213,27 @@ void render(std::ostream& output, PFValue item, std::unordered_set<Object*>& act
 
 extern "C" {
 void pf_fail(const char* message, const char* file, int32_t line) {
-    if (file && *file) std::fprintf(stderr, "%s:%d: runtime error: %s\n", file, line, message ? message : "unknown failure");
+    const bool explicitLocation = file && *file;
+    const char* filename = explicitLocation ? file : sourceLocation.file.c_str();
+    const int32_t actualLine = explicitLocation ? line : sourceLocation.line;
+    const int32_t actualColumn = explicitLocation && (sourceLocation.file != file || sourceLocation.line != line)
+        ? 1 : sourceLocation.column;
+    if (*filename) std::fprintf(stderr, "%s:%d:%d: runtime error: %s\n", filename,
+        actualLine > 0 ? actualLine : 1, actualColumn > 0 ? actualColumn : 1, message ? message : "unknown failure");
     else std::fprintf(stderr, "runtime error: %s\n", message ? message : "unknown failure");
     std::fflush(stderr);
     std::exit(EXIT_FAILURE);
+}
+
+void pf_source_location(const char* file, int32_t line, int32_t column) {
+    const char* filename = file ? file : "";
+    try {
+        if (sourceLocation.file != filename) sourceLocation.file = filename;
+    } catch (const std::bad_alloc&) {
+        pf_fail("out of memory recording source location", filename, line);
+    }
+    sourceLocation.line = line > 0 ? line : 1;
+    sourceLocation.column = column > 0 ? column : 1;
 }
 
 void pf_panic(void* message) { fail(object(message, StringTag)->bytes.c_str()); }
