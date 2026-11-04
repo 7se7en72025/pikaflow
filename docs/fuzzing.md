@@ -74,3 +74,40 @@ would need a symbolizer or offline address translation for readable stack traces
 The raw run log, mutated corpus and artifacts directory are retained locally in
 ignored `out/fuzz-validation/`. This snapshot validates only a bounded frontend
 campaign, not the rest of the compiler.
+
+## Parser refresh after the roadmap features
+
+The second campaign used an exact `git archive` snapshot of commit
+`3e7cafc95c7365c3d1c87bbe585902420670df8f`, containing the harness, headers,
+common code, lexer, parser and committed corpus. It included the new
+`generics_enums` and `tasks_ffi` seeds: recursive generic enum syntax, function
+specialization, guarded patterns, Result propagation, typed tasks, pointer
+offsets and explicit C integer annotations. This still exercises parsing only;
+it does not type-check or execute those features.
+
+Ubuntu Clang 18.1.3 (1ubuntu1), target `x86_64-pc-linux-gnu`, built with the same
+libFuzzer/ASan/UBSan flags above. The compiler executable SHA-256 was
+`8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45`;
+the source archive SHA-256 was
+`10753117d760d6c2c160e6de5f2fe689e7fd3ae22a721c2fdfdd67566ba2a1b0`.
+
+```sh
+ASAN_OPTIONS=detect_leaks=1 ./fuzz_parser corpus -seed=20261104 \
+  -max_total_time=45 -max_len=4096 -rss_limit_mb=1024 -timeout=5 \
+  -print_final_stats=1 -artifact_prefix=artifacts/
+```
+
+The process exited **0** after **80,430 executions in 49 seconds**, with no
+crash artifacts or ASan/UBSan finding. It started with five seeds totaling 1,331
+bytes and finished with 710 retained inputs/88 KiB, counter count 2,142, feature
+count 8,589 and peak RSS 423 MiB. The evolving size limit was 399 bytes; the
+4096-byte configured maximum does not imply that larger inputs were explored.
+The requested 45-second budget is approximate; the final reported elapsed time
+was 49 seconds. External symbolizer warnings remained and limit readable crash
+stacks, as in the earlier run.
+
+The exact archive, toolchain version, input/output hashes, executable, full log,
+mutated corpus and empty artifacts directory are retained under ignored
+`out/fuzz-roadmap-validation/`. Its `results.json` records the machine-readable
+summary. These runs provide bounded parser bug discovery, not semantic,
+concurrency or backend verification.
