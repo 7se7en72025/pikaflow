@@ -1,0 +1,15 @@
+extern fun narrow(value: c_i8, pair: (c_u16, c_i32)) -> c_u64
+
+fun source() -> Result[i64, str]:
+    return ok(42)
+
+fun worker() -> Result[i64, str]:
+    return ok(source()?)
+
+fun main() -> unit:
+    let job: task[Result[i64, str]] = spawn(worker)
+    print(unwrap(join(job)))
+    unsafe:
+        let memory = alloc_i64(2)
+        store(offset(memory, 1), 0, 42)
+        free(memory)

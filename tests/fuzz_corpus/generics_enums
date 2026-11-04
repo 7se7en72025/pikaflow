@@ -1,0 +1,16 @@
+enum List[T]:
+    Nil
+    Cons(value: T, tail: List[T])
+
+fun identity[T](value: T) -> T:
+    return value
+
+fun main() -> unit:
+    let values: List[i64] = Cons(identity::[i64](42), Nil())
+    match values:
+        case Cons(value, _) if value > 0:
+            print(value)
+        case Cons(value, _):
+            print(value)
+        case Nil():
+            pass
