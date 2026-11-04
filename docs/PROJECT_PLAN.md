@@ -2,7 +2,7 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 03:28 IST.
+**Last updated:** 2026-11-05 04:14 IST.
 
 **Status:** the user expanded the goal beyond the verified 0.3.1 delivery.
 A substantive 0.4 expansion is active: nominal records, stronger optimizations,
@@ -38,10 +38,13 @@ Do not increase feature counts using placeholders or silently widen support clai
 
 | Milestone | Acceptance | Owner | Engineering estimate | State |
 |---|---|---|---|---|
-| Generic nominal records | Named fields and constructors; mutable field reads/writes/compound updates; recursive layouts, modules, patterns, source bindings/rename; interpreter/JIT/AOT agreement | Frontend + root IR integration | 3–5 h | Design approved; implementation underway |
-| Checked CSE and dead scalar results | Bounded local value numbering and CFG liveness; retain first possible traps, managed operations/effects and debug definitions; actual IR reduction + differential output | Optimizer agent | 1–3 h | Design approved; implementation underway |
-| Project test workflow | Discover typed `test_*` functions, select real compiler entry without source rewriting, isolate cases with timeout/output bounds, assertions and machine-readable reports | Root | 1–3 h | Entry API agreed; CLI/tool implementation underway |
-| Reusable LLVM pass | Same real new-PM pass in compiler and loadable `opt` plugin; exact pipeline and positive/negative structural/execution checks | Backend agent | 1–3 h | Linux plugin viable; Windows compiler reuse planned, Windows plugin loading unavailable in current LLVM configuration |
+| Generic nominal records | Named fields and constructors; mutable field reads/writes/compound updates; recursive layouts, modules, patterns, source bindings/rename; interpreter/JIT/AOT agreement | Frontend + root IR integration | 3–5 h | Implemented; 90 focused Windows native checks and source-field rename execution proofs pass |
+| Transparent type aliases | Module/export/privacy and generic aliases, cyclic/exponential bounds, record receiver identity, C-width alias metadata, exact source binding and rename | Frontend | 2–3 h | Implemented; 76 reference / 116 native checks plus 8 C-wire executions/traps pass |
+| Checked CSE and dead scalar results | Bounded local value numbering and CFG liveness; retain first possible traps, managed operations/effects and debug definitions; actual IR reduction + differential output | Optimizer agent | 1–3 h | Implemented; 135 fresh cross-mode comparisons plus unit/ASan checks pass |
+| Project test workflow | Discover typed `test_*` functions, select real compiler entry without source rewriting, isolate cases with timeout/output bounds, assertions and machine-readable reports | Root | 1–3 h | Implemented; 14 Windows checks and three combined-example native tests pass; new-project test scaffold added |
+| Reusable LLVM pass | Same real new-PM pass in compiler and loadable `opt` plugin; exact pipeline and positive/negative structural/execution checks | Backend agent | 1–3 h | Implemented; 4 FileCheck pipelines and 23 executions pass; Windows backend reuse builds; dynamic plugin remains Linux-only |
+| Semantic editor decorations | Compiler-backed semantic tokens and inferred local type hints, bounded and UTF-16 correct, no source writes | Tooling agent / root | 1–2 h | Implemented; eight actual compiler/protocol tests pass |
+| Independent structured program generation | Python oracles for arrays/loops, capture cells, records, stack/pipelines and task snapshots/GC; repeatable seed and failure replay | Backend agent | 0.5–2 h | Implemented; 150 focused comparisons, timeout/artifact paths and argument bounds checked |
 | Integration and delivery | Current language/tool docs, meaningful combined example, full frozen-host suites, refreshed installation/artifacts/evidence, focused pushed commits | Root / all | 1–2 h | Follows feature integration |
 
 These are focused engineering estimates with parallel work, not a guaranteed
@@ -54,6 +57,30 @@ Approved record syntax uses `record Point[T]:` with typed named fields and
 contents through a `let` binding. Named arguments evaluate in written order;
 layout follows declaration order. No defaults, inheritance or C++ ABI is implied.
 Source records remain managed nominal values, not automatic C record declarations.
+
+### 0.4 engineering updates (IST, 2026-11-05)
+
+- 03:28: expansion contract and original estimates recorded. Three agents own
+  frontend, optimizer and LLVM work; root owns shared IR/CLI/project integration.
+- 03:41: fresh Windows native build and six focused suites pass, including
+  records, project testing, field rename, optimizer semantics and backend/IR.
+- 03:47: reference aliases and additional editor/program-testing work integrated;
+  new signatures and metadata remain consistent across execution and indexing.
+- 04:00–04:07: project-runner review exposed a Windows exited-parent cleanup gap.
+  Workers now start suspended and join an owned job before execution; the real
+  background-child regression passes. Init also rejects an existing non-directory
+  tests path without replacing user data. Alias generic-signature validation and
+  legacy C-width diagnostics were corrected before freezing final source.
+- 04:07: combined record/alias/task project runs with output `42,43,52,36`, its
+  three native cases pass, and 13 project-runner checks pass. Final incremental
+  native rebuild and complete frozen Windows/Linux validation remain pending.
+- 04:10: final alias guard rebuild and six focused native suites pass in 49.19 s;
+  these include legacy language compatibility, aliases/C-width fixtures, seeded
+  programs, test runner and both editor suites. Later report-destination guard
+  coverage raises the test-runner count to 14, all passing.
+- 04:14: all implementation milestones are committed. The final source freeze
+  and whole-host validation follow; no further feature additions are planned
+  during this integration stage. Earlier focused results retain their snapshots.
 
 ## 0.3.1 quality hardening — 2026-11-05 (historical delivery)
 
