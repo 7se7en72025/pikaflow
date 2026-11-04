@@ -1,4 +1,5 @@
 #include "pikaflow/backend.hpp"
+#include "pikaflow/optimizer.hpp"
 #include "pikaflow/runtime.h"
 #include "pikaflow/backend_config.hpp"
 
@@ -850,14 +851,17 @@ struct Generated {
 };
 Generated generate(const Program& program,unsigned optimization,bool debug) {
     if(optimization>3) throw std::runtime_error("optimization level must be between 0 and 3");
-    verify(program);
+    Program optimized;
+    const Program* lowering = &program;
+    if(optimization) { optimized = optimizeIR(program); lowering = &optimized; }
+    else verify(program);
     Generated g;
     g.context=std::make_unique<llvm::LLVMContext>();
     g.module=std::make_unique<llvm::Module>("PikaFlow",*g.context);
     g.target=makeTarget(optimization);
     g.module->setTargetTriple(g.target->getTargetTriple());
     g.module->setDataLayout(g.target->createDataLayout());
-    Emitter(program,*g.context,*g.module,debug).emit();
+    Emitter(*lowering,*g.context,*g.module,debug).emit();
     std::string message;
     llvm::raw_string_ostream errors(message);
     if(llvm::verifyModule(*g.module,&errors)) throw std::runtime_error("invalid generated LLVM IR:\n"+errors.str());
