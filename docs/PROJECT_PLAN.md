@@ -2,12 +2,12 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 03:00 IST.
+**Last updated:** 2026-11-05 03:28 IST.
 
-**Status:** corrective 0.3.1 hardening is complete at pushed source `d77a3b5`.
-Fresh frozen-source suites pass: Windows native 25/25, Windows reference 21/21,
-Linux native 26/26. The installed ZIP and output-checked benchmark are refreshed;
-the final documentation closeout contains documentation/JSON changes only.
+**Status:** the user expanded the goal beyond the verified 0.3.1 delivery.
+A substantive 0.4 expansion is active: nominal records, stronger optimizations,
+project testing and reusable LLVM passes. The 0.3.1 evidence below remains a
+historical baseline, not validation of the evolving feature branch.
 Historical 0.2 completion records remain below, separately identified.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
@@ -25,7 +25,37 @@ Windows x64/Linux x86-64 native and interpreter checks. Each feature needs valid
 examples, negative diagnostics, relevant edge cases, and cross-mode execution
 where applicable. Preserve explicit unsafe boundaries and source-file protection.
 
-## 0.3.1 quality hardening — 2026-11-05
+## 0.4 expansion — 2026-11-05
+
+The user authorized advancing beyond 0.3.1 as far as practical and leaving the
+PC on overnight. Work proceeds in this active session with durable Git and log
+checkpoints. The PC being on does not itself restart an ended agent session.
+
+The next deliverable is a coherent compiler/tooling expansion with actual native
+execution, negative cases and source-level metadata. Existing language semantics,
+checked traps, file protection and independent execution paths remain required.
+Do not increase feature counts using placeholders or silently widen support claims.
+
+| Milestone | Acceptance | Owner | Engineering estimate | State |
+|---|---|---|---|---|
+| Generic nominal records | Named fields and constructors; mutable field reads/writes/compound updates; recursive layouts, modules, patterns, source bindings/rename; interpreter/JIT/AOT agreement | Frontend + root IR integration | 3–5 h | Design approved; implementation underway |
+| Checked CSE and dead scalar results | Bounded local value numbering and CFG liveness; retain first possible traps, managed operations/effects and debug definitions; actual IR reduction + differential output | Optimizer agent | 1–3 h | Design approved; implementation underway |
+| Project test workflow | Discover typed `test_*` functions, select real compiler entry without source rewriting, isolate cases with timeout/output bounds, assertions and machine-readable reports | Root | 1–3 h | Entry API agreed; CLI/tool implementation underway |
+| Reusable LLVM pass | Same real new-PM pass in compiler and loadable `opt` plugin; exact pipeline and positive/negative structural/execution checks | Backend agent | 1–3 h | Linux plugin viable; Windows compiler reuse planned, Windows plugin loading unavailable in current LLVM configuration |
+| Integration and delivery | Current language/tool docs, meaningful combined example, full frozen-host suites, refreshed installation/artifacts/evidence, focused pushed commits | Root / all | 1–2 h | Follows feature integration |
+
+These are focused engineering estimates with parallel work, not a guaranteed
+overnight finish or a claim that an experimental compiler can be made universally
+perfect. Re-estimate from implementation and test evidence. The feature contract
+will be expanded further only when it forms a useful, testable next milestone.
+
+Approved record syntax uses `record Point[T]:` with typed named fields and
+`Point(x: 20, y: 22)` construction. Fields are mutable object contents, like array
+contents through a `let` binding. Named arguments evaluate in written order;
+layout follows declaration order. No defaults, inheritance or C++ ABI is implied.
+Source records remain managed nominal values, not automatic C record declarations.
+
+## 0.3.1 quality hardening — 2026-11-05 (historical delivery)
 
 The user requested further hardening after the completed 0.3 handoff. Review
 focuses on reproducible correctness, crash and file-protection failures within
