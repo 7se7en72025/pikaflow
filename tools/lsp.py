@@ -2,16 +2,15 @@
 from __future__ import annotations
 
 import json
-import os
 import pathlib
 import re
 import subprocess
 import sys
-import tempfile
 import urllib.parse
 import urllib.request
 
-from formatter import TOKEN, checked_format, split_comment
+from formatter import checked_format, split_comment
+from editor import Editor, apply_changes, point
 import packages
 
 LIMIT = 4 * 1024 * 1024
@@ -55,7 +54,10 @@ def read_message(stream) -> dict | None:
     content = stream.read(size)
     if len(content) != size:
         raise ValueError("truncated LSP message")
-    result = json.loads(content)
+    try:
+        result = json.loads(content)
+    except RecursionError:
+        raise ValueError("LSP JSON nesting exceeds the parser limit") from None
     if not isinstance(result, dict) or result.get("jsonrpc") != "2.0":
         raise ValueError("expected a JSON-RPC 2.0 object")
     return result
@@ -85,68 +87,6 @@ def symbols(source: str) -> list[dict]:
     return found
 
 
-def package_module(source: pathlib.Path, name: str) -> tuple[pathlib.Path, pathlib.Path]:
-    root = packages.project_root(source.parent)
-    alias, slash, module = name.partition("/")
-    if not packages.NAME.fullmatch(alias):
-        raise ValueError("invalid package import name")
-    lines = (root / "pika.lock").read_text(encoding="utf-8").splitlines()
-    if not lines or lines[0] != packages.LOCK_HEADER:
-        raise ValueError("invalid package lock")
-    dependency = None
-    for line in lines[1:]:
-        fields = line.split("\t")
-        if (len(fields) != 3 or not fields[1] or "\0" in line
-                or not re.fullmatch(r"[0-9a-f]{64}", fields[2])):
-            raise ValueError("invalid package lock entry")
-        if fields[0] == alias:
-            if dependency is not None:
-                raise ValueError("duplicate dependency in package lock")
-            dependency = (root / fields[1]).resolve()
-    if dependency is None:
-        raise ValueError(f"package dependency is not locked: {alias}")
-    relative = pathlib.Path(module if slash else "lib.pf")
-    if not module and slash:
-        raise ValueError("package module must be a relative path")
-    if relative.is_absolute() or ".." in relative.parts:
-        raise ValueError("package import escapes package")
-    if not relative.suffix:
-        relative = relative.with_suffix(".pf")
-    return packages.package_source(dependency, dependency / relative), dependency
-
-
-def rewrite_imports(source: str, resolve) -> str:
-    output = []
-    escapes = {"n": "\n", "r": "\r", "t": "\t", "0": "\0", "\\": "\\", "'": "'", '"': '"'}
-    for line in source.splitlines(keepends=True):
-        code, _ = split_comment(line)
-        tokens = list(TOKEN.finditer(code))
-        edits = []
-        for index, token in enumerate(tokens[:-1]):
-            if token[0] != "import" or (index and tokens[index - 1][0] != ";"):
-                continue
-            literal = tokens[index + 1]
-            if literal[0][0] not in "\"'" or literal[0][-1] != literal[0][0]:
-                continue
-            text = literal[0][1:-1]
-            decoded = ""
-            position = 0
-            while position < len(text):
-                char = text[position]
-                if char == "\\":
-                    position += 1
-                    if position == len(text) or text[position] not in escapes:
-                        raise ValueError("unknown string escape in import")
-                    char = escapes[text[position]]
-                decoded += char
-                position += 1
-            edits.append((literal.start(), literal.end(), resolve(decoded)))
-        for start, end, replacement in reversed(edits):
-            line = line[:start] + json.dumps(replacement, ensure_ascii=False) + line[end:]
-        output.append(line)
-    return "".join(output)
-
-
 class Server:
     def __init__(self, compiler: pathlib.Path, output):
         self.compiler = compiler
@@ -155,78 +95,45 @@ class Server:
         self.published: set[str] = set()
         self.initialized = False
         self.shutdown = False
+        self.document_changes = False
+        self.editor = Editor(self)
 
     def notify(self, method: str, params: dict) -> None:
         write_message(self.output, {"method": method, "params": params})
 
     def source(self, path: pathlib.Path) -> str:
-        text = self.documents[path]["text"] if path in self.documents else path.read_text(encoding="utf-8")
+        if path in self.documents:
+            text = self.documents[path]["text"]
+        else:
+            with path.open("rb") as source:
+                data = source.read(LIMIT + 1)
+            if len(data) > LIMIT:
+                raise ValueError("editor source exceeds 4 MiB")
+            text = data.decode("utf-8-sig")
         if len(text.encode("utf-8")) > LIMIT:
             raise ValueError("editor source exceeds 4 MiB")
         return text
 
     def diagnostics(self, path: pathlib.Path) -> dict[str, list[dict]]:
-        with tempfile.TemporaryDirectory(prefix="pikaflow-lsp-") as directory:
-            mapping: dict[pathlib.Path, pathlib.Path] = {}
-            staged_contexts: set[tuple[pathlib.Path, pathlib.Path | None]] = set()
-            active_contexts: set[tuple[pathlib.Path, pathlib.Path | None]] = set()
-
-            def stage(original: pathlib.Path, boundary: pathlib.Path | None = None) -> pathlib.Path:
-                original = original.resolve()
-                if boundary is not None:
-                    packages.package_source(boundary, original)
-                context = (original, boundary)
-                if context in staged_contexts or context in active_contexts:
-                    return mapping[original]
-                if original not in mapping and len(mapping) >= 128:
-                    raise ValueError("editor import graph exceeds 128 modules")
-                if original not in mapping:
-                    mapping[original] = pathlib.Path(directory) / f"module{len(mapping)}.pf"
-                temporary = mapping[original]
-                active_contexts.add(context)
-                text = self.source(original)
-
-                def replace(name: str) -> str:
-                    if name.startswith("std:"):
-                        return name
-                    if name.startswith("pkg:"):
-                        dependency, confined = package_module(path, name[4:])
-                    else:
-                        dependency, confined = (original.parent / name).resolve(), boundary
-                    return stage(dependency, confined).as_posix()
-
-                text = rewrite_imports(text, replace)
-                temporary.write_text(text, encoding="utf-8")
-                active_contexts.remove(context)
-                staged_contexts.add(context)
-                return temporary
-
-            staged = stage(path)
-            result = subprocess.run([str(self.compiler), "check", str(staged), "--library"], capture_output=True,
-                                    text=True, encoding="utf-8", errors="replace", timeout=30)
-            diagnostics: dict[str, list[dict]] = {}
-            reverse = {str(temporary): original for original, temporary in mapping.items()}
-            for line in result.stderr.splitlines():
-                match = re.match(r"^(.*?):(\d+):(\d+): error: (.*)$", line)
-                if not match:
-                    continue
-                original = reverse.get(match[1], path)
-                number, column = max(0, int(match[2]) - 1), max(0, int(match[3]) - 1)
-                lines = self.source(original).splitlines()
-                before = lines[number].encode("utf-8")[:column].decode("utf-8", errors="ignore") if number < len(lines) else ""
-                character = utf16_length(before)
-                message = match[4]
-                for temporary, real in reverse.items():
-                    message = message.replace(temporary, str(real))
-                diagnostics.setdefault(original.as_uri(), []).append({"range": {
-                    "start": {"line": number, "character": character},
-                    "end": {"line": number, "character": character + 1}},
-                    "severity": 1, "source": "pikaflow", "message": message})
-            if result.returncode and not diagnostics:
-                diagnostics[path.as_uri()] = [{"range": {"start": {"line": 0, "character": 0},
-                    "end": {"line": 0, "character": 1}}, "severity": 1, "source": "pikaflow",
-                    "message": result.stderr.strip() or "compiler failed without a diagnostic"}]
-            return diagnostics
+        result = self.editor.compile("check", path)
+        diagnostics: dict[str, list[dict]] = {}
+        for line in result.stderr.splitlines():
+            match = re.match(r"^(.*?):(\d+):(\d+): error: (.*)$", line)
+            if not match:
+                continue
+            original = pathlib.Path(match[1]).resolve()
+            where = {"line": int(match[2]), "column": int(match[3])}
+            from editor import native_offset
+            source = self.source(original)
+            start = point(source, native_offset(source, where))
+            diagnostics.setdefault(original.as_uri(), []).append({"range": {
+                "start": start, "end": {"line": start["line"], "character": start["character"] + 1}},
+                "severity": 1, "source": "pikaflow", "message": match[4]})
+        if result.returncode and not diagnostics:
+            diagnostics[path.as_uri()] = [{"range": {"start": {"line": 0, "character": 0},
+                "end": {"line": 0, "character": 1}}, "severity": 1, "source": "pikaflow",
+                "message": result.stderr.strip() or "compiler failed without a diagnostic"}]
+        return diagnostics
 
     def validate(self) -> None:
         diagnostics: dict[str, list[dict]] = {}
@@ -250,14 +157,34 @@ class Server:
 
     def handle(self, message: dict):
         method, params = message.get("method"), message.get("params", {})
+        if not isinstance(params, dict):
+            raise ValueError("LSP parameters must be an object")
         if method == "initialize":
             if self.initialized:
                 raise ValueError("server already initialized")
+            roots = params.get("workspaceFolders") or []
+            if not roots and params.get("rootUri"):
+                roots = [{"uri": params["rootUri"]}]
+            capabilities = params.get("capabilities", {})
+            if not isinstance(capabilities, dict):
+                raise ValueError("client capabilities must be an object")
+            workspace = capabilities.get("workspace", {})
+            if not isinstance(workspace, dict):
+                raise ValueError("workspace capabilities must be an object")
+            edit = workspace.get("workspaceEdit", {})
+            if not isinstance(edit, dict) or type(edit.get("documentChanges", False)) is not bool:
+                raise ValueError("workspace edit capability must contain a boolean documentChanges")
+            resolved_roots = list(dict.fromkeys(path_from_uri(item["uri"]) for item in roots))
+            self.editor.roots = resolved_roots
+            self.document_changes = edit.get("documentChanges", False)
             self.initialized = True
-            return {"capabilities": {"positionEncoding": "utf-16", "textDocumentSync": 1,
+            return {"capabilities": {"positionEncoding": "utf-16", "textDocumentSync": {
+                "openClose": True, "change": 2, "save": {"includeText": False}},
                 "documentFormattingProvider": True, "documentSymbolProvider": True,
+                "hoverProvider": True, "definitionProvider": True, "referencesProvider": True,
+                "renameProvider": {"prepareProvider": True},
                 "completionProvider": {"resolveProvider": False}},
-                "serverInfo": {"name": "PikaFlow", "version": "0.2.0"}}
+                "serverInfo": {"name": "PikaFlow", "version": "0.3.0"}}
         if not self.initialized:
             return {"__error__": -32002, "message": "server not initialized"}
         if method == "shutdown":
@@ -270,11 +197,15 @@ class Server:
         if method in ("textDocument/didOpen", "textDocument/didChange", "textDocument/didClose", "textDocument/didSave"):
             document = params["textDocument"]
             path = path_from_uri(document["uri"])
+            if method.endswith(("didOpen", "didChange")) and type(document["version"]) is not int:
+                raise ValueError("document version must be an integer")
             if method.endswith("didClose"):
                 self.documents.pop(path, None)
             elif method.endswith("didOpen"):
                 if path not in self.documents and len(self.documents) >= 32:
                     raise ValueError("at most 32 editor documents may be open")
+                if not isinstance(document["text"], str):
+                    raise ValueError("editor text must be a string")
                 if len(document["text"].encode("utf-8")) > LIMIT:
                     raise ValueError("editor source exceeds 4 MiB")
                 self.documents[path] = {"text": document["text"], "version": document["version"]}
@@ -283,14 +214,13 @@ class Server:
                     raise ValueError("document is not open")
                 if document["version"] <= self.documents[path]["version"]:
                     return None
-                changes = params["contentChanges"]
-                if len(changes) != 1 or "range" in changes[0]:
-                    raise ValueError("server requires full-document synchronization")
-                if len(changes[0]["text"].encode("utf-8")) > LIMIT:
-                    raise ValueError("editor source exceeds 4 MiB")
-                self.documents[path] = {"text": changes[0]["text"], "version": document["version"]}
+                updated = apply_changes(self.documents[path]["text"], params["contentChanges"])
+                self.documents[path] = {"text": updated, "version": document["version"]}
             self.validate()
             return None
+        if method in ("textDocument/hover", "textDocument/definition", "textDocument/references",
+                      "textDocument/prepareRename", "textDocument/rename"):
+            return self.editor.request(method, params, path_from_uri(params["textDocument"]["uri"]))
         if method in ("textDocument/formatting", "textDocument/documentSymbol", "textDocument/completion"):
             path = path_from_uri(params["textDocument"]["uri"])
             source = self.source(path)
@@ -298,9 +228,8 @@ class Server:
                 formatted = checked_format(self.compiler, source)
                 if source == formatted:
                     return []
-                lines = source.split("\n")
                 return [{"range": {"start": {"line": 0, "character": 0},
-                    "end": {"line": len(lines) - 1, "character": utf16_length(lines[-1])}},
+                    "end": point(source, len(source))},
                     "newText": formatted}]
             declarations = symbols(source)
             if method.endswith("documentSymbol"):
@@ -336,6 +265,6 @@ def serve(compiler: pathlib.Path) -> int:
         except (ValueError, KeyError, TypeError, OSError, subprocess.SubprocessError) as error:
             if "id" in message:
                 write_message(sys.stdout.buffer, {"id": message["id"],
-                    "error": {"code": -32602, "message": str(error)}})
+                    "error": {"code": getattr(error, "code", -32602), "message": str(error)}})
             else:
                 server.notify("window/logMessage", {"type": 1, "message": str(error)})

@@ -210,8 +210,8 @@ class ToolsTests(unittest.TestCase):
                     result = run("check", "--project", str(app))
                     self.assertNotEqual(result.returncode, 0, result.stdout)
                     self.assertIn("escape", result.stderr)
-                    with self.assertRaisesRegex(ValueError, "escape"):
-                        lsp.Server(COMPILER, io.BytesIO()).diagnostics(source)
+                    diagnostics = lsp.Server(COMPILER, io.BytesIO()).diagnostics(source)
+                    self.assertIn("escape", str(diagnostics))
             for module in ("out/value.pf", "Out/value.pf", ".hidden/value.pf", "payload.txt"):
                 path = library / module
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -224,8 +224,8 @@ class ToolsTests(unittest.TestCase):
                         result = run("check", "--project", str(app))
                         self.assertNotEqual(result.returncode, 0, result.stdout)
                         self.assertTrue("excluded" in result.stderr or "locked .pf" in result.stderr, result.stderr)
-                        with self.assertRaisesRegex(ValueError, "excluded|locked .pf"):
-                            lsp.Server(COMPILER, io.BytesIO()).diagnostics(source)
+                        diagnostics = lsp.Server(COMPILER, io.BytesIO()).diagnostics(source)
+                        self.assertRegex(str(diagnostics), "excluded|locked .pf")
 
     @unittest.skipUnless(os.name == "nt", "Windows directory junction boundary")
     def test_package_init_rejects_directory_junction(self):
@@ -333,8 +333,7 @@ class ToolsTests(unittest.TestCase):
             server = lsp.Server(COMPILER, io.BytesIO())
             self.assertEqual(server.diagnostics(path), {})
             path.write_text('import "\\x61.pf"\nfun main() -> unit:\n    pass\n', encoding="utf-8")
-            with self.assertRaisesRegex(ValueError, "unknown string escape"):
-                server.diagnostics(path)
+            self.assertIn("unknown string escape", str(server.diagnostics(path)))
 
 
 if __name__ == "__main__":
