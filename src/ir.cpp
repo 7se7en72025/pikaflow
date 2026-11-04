@@ -225,6 +225,8 @@ void verify(const Program &program) {
                 throw Error(f.location, "invalid IR source variable metadata");
         if (f.code.empty())
             throw Error(f.location, "empty IR function");
+        if (!f.registers.empty() && f.code.size() > (64 * 1024 * 1024) / f.registers.size())
+            throw Error(f.location, "IR definite-assignment analysis exceeds the 64-million-fact limit");
         if (f.registers.size() < f.parameters.size())
             throw Error(f.location, "missing IR parameter registers");
         for (size_t i = 0; i < f.parameters.size(); ++i)

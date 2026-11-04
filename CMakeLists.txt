@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(PikaFlow VERSION 0.2.0 LANGUAGES C CXX)
+project(PikaFlow VERSION 0.3.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -14,13 +14,14 @@ target_link_libraries(pikaflow_runtime PUBLIC Threads::Threads)
 set_target_properties(pikaflow_runtime PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(pikaflow_core STATIC src/common.cpp src/lexer.cpp src/parser.cpp
-    src/compiler.cpp src/ir.cpp src/interpreter.cpp)
+    src/compiler.cpp src/ir.cpp src/interpreter.cpp src/optimizer.cpp)
 target_include_directories(pikaflow_core PUBLIC include)
 target_link_libraries(pikaflow_core PUBLIC pikaflow_runtime)
 
 add_executable(pikaflow src/main.cpp)
 target_link_libraries(pikaflow PRIVATE pikaflow_core)
 target_compile_definitions(pikaflow PRIVATE
+    PF_VERSION="${PROJECT_VERSION}"
     PF_RUNTIME_LIBRARY="$<TARGET_FILE:pikaflow_runtime>"
     PF_COMPILER_DRIVER="${CMAKE_CXX_COMPILER}"
     PF_STDLIB_DIR="${CMAKE_CURRENT_SOURCE_DIR}/stdlib")
@@ -106,6 +107,11 @@ if(BUILD_TESTING)
         target_link_libraries(pikaflow_ir_tests PRIVATE pikaflow_core)
         add_test(NAME typed_ir COMMAND pikaflow_ir_tests)
     endif()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/optimizer_tests.cpp")
+        add_executable(pikaflow_optimizer_tests tests/optimizer_tests.cpp)
+        target_link_libraries(pikaflow_optimizer_tests PRIVATE pikaflow_core)
+        add_test(NAME ir_optimizer COMMAND pikaflow_optimizer_tests)
+    endif()
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/interpreter_tests.cpp")
         add_executable(pikaflow_interpreter_tests tests/interpreter_tests.cpp)
         target_link_libraries(pikaflow_interpreter_tests PRIVATE pikaflow_core)
@@ -131,6 +137,26 @@ if(BUILD_TESTING)
     if(Python3_FOUND AND Python3_VERSION VERSION_GREATER_EQUAL 3.10)
         add_test(NAME developer_tools COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_tools.py" "$<TARGET_FILE:pikaflow>")
+    endif()
+    if(Python3_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_namespaces_assignments.py")
+        add_test(NAME namespaces_assignments COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_namespaces_assignments.py" "$<TARGET_FILE:pikaflow>")
+    endif()
+    if(Python3_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_optimization.py")
+        add_test(NAME optimization_semantics COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_optimization.py" "$<TARGET_FILE:pikaflow>")
+    endif()
+    if(Python3_FOUND AND Python3_VERSION VERSION_GREATER_EQUAL 3.10 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_packages.py")
+        add_test(NAME git_packages COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_packages.py" "$<TARGET_FILE:pikaflow>")
+    endif()
+    if(Python3_FOUND AND Python3_VERSION VERSION_GREATER_EQUAL 3.10 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_editor.py")
+        add_test(NAME editor_workflows COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_editor.py" "$<TARGET_FILE:pikaflow>")
+    endif()
+    if(Python3_FOUND AND Python3_VERSION VERSION_GREATER_EQUAL 3.10 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_semantic_symbols.py")
+        add_test(NAME semantic_symbols COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_semantic_symbols.py" "$<TARGET_FILE:pikaflow>")
     endif()
     if(Python3_FOUND AND TARGET pikaflow_task_tests)
         add_test(NAME task_failures COMMAND "${Python3_EXECUTABLE}"

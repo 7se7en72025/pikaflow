@@ -230,6 +230,12 @@ int main() {
             try { verify(recursive); } catch (const Error &) { rejected = true; }
             if (!rejected) throw std::runtime_error("recursive nominal field accepted wrong type");
         }
+        rejects("definite assignment resource bound", [](Program &p) {
+            auto &f = p.functions[0];
+            f.registers.assign(8193, I64);
+            f.code.assign(8193, instruction(Op::ConstI64, 0));
+            f.code.back() = instruction(Op::Return, -1, {0});
+        });
         std::cout << "Typed IR verification tests passed\n";
         return 0;
     } catch (const std::exception &error) {

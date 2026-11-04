@@ -1,5 +1,6 @@
 /build/
 /out/
+/.pika/
 /.vs/
 CMakeUserPresets.json
 .env

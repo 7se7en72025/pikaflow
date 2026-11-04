@@ -1,5 +1,6 @@
 #include "pikaflow/frontend.hpp"
 #include "pikaflow/ir.hpp"
+#include "pikaflow/optimizer.hpp"
 #ifdef PF_HAS_LLVM
 #include "pikaflow/backend.hpp"
 #endif
@@ -49,6 +50,83 @@ void write(const fs::path &file, const std::string &content) {
     if (!output)
         throw std::runtime_error("failed writing output file: " + file.u8string());
 }
+using Overlays = std::map<std::string, std::string>;
+Overlays readOverlays(const fs::path &file) {
+    std::ifstream input(file, std::ios::binary);
+    if (!input) throw std::runtime_error("cannot open editor overlay file");
+    char line[80];
+    if (!input.getline(line, sizeof(line)) || std::string(line) != "PIKAFLOW-OVERLAY-1")
+        throw std::runtime_error("invalid editor overlay header");
+    Overlays result;
+    uint64_t total = 0;
+    while (input.peek() != std::char_traits<char>::eof()) {
+        if (result.size() >= 256 || !input.getline(line, sizeof(line)))
+            throw std::runtime_error("invalid editor overlay record");
+        uint64_t pathSize = 0, sourceSize = 0;
+        std::istringstream sizes(line);
+        if (!(sizes >> pathSize >> sourceSize) || (sizes >> std::ws && !sizes.eof()) ||
+            !pathSize || pathSize > 65536 || sourceSize > 4 * 1024 * 1024)
+            throw std::runtime_error("editor overlay record exceeds limits");
+        total += sourceSize;
+        if (total > 128 * 1024 * 1024)
+            throw std::runtime_error("editor overlays exceed 128 MiB");
+        std::string path(static_cast<size_t>(pathSize), '\0'), source(static_cast<size_t>(sourceSize), '\0');
+        if (!input.read(&path[0], static_cast<std::streamsize>(pathSize)) ||
+            (sourceSize && !input.read(&source[0], static_cast<std::streamsize>(sourceSize))) ||
+            input.get() != '\n' || path.find('\0') != std::string::npos)
+            throw std::runtime_error("truncated or invalid editor overlay record");
+        auto requested = fs::u8path(path);
+        if (!requested.is_absolute()) throw std::runtime_error("editor overlay paths must be absolute");
+        path = fs::weakly_canonical(requested).u8string();
+        if (!result.emplace(path, std::move(source)).second)
+            throw std::runtime_error("duplicate editor overlay path");
+    }
+    if (input.bad()) throw std::runtime_error("cannot read editor overlays");
+    return result;
+}
+std::string json(const std::string &value) {
+    std::ostringstream output;
+    output << '"';
+    constexpr char hex[] = "0123456789abcdef";
+    for (unsigned char c : value) {
+        if (c == '"' || c == '\\') output << '\\' << char(c);
+        else if (c < 32) output << "\\u00" << hex[c >> 4] << hex[c & 15];
+        else output << char(c);
+    }
+    output << '"';
+    return output.str();
+}
+std::string position(const pika::Location &where) {
+    return "{\"file\":" + json(where.file) + ",\"line\":" + std::to_string(where.line) +
+           ",\"column\":" + std::to_string(where.column) + "}";
+}
+std::string symbolJSON(const pika::Program &program, const std::set<std::string> &sources) {
+    std::ostringstream output;
+    output << "{\"version\":1,\"sources\":[";
+    bool comma = false;
+    for (const auto &source : sources) {
+        if (comma) output << ',';
+        comma = true;
+        output << json(source);
+    }
+    output << "],\"symbols\":[";
+    comma = false;
+    for (const auto &symbol : program.symbols) {
+        if (comma) output << ',';
+        comma = true;
+        output << "{\"id\":" << json(symbol.id) << ",\"name\":" << json(symbol.name)
+               << ",\"kind\":" << json(symbol.kind) << ",\"detail\":" << json(symbol.detail)
+               << ",\"type\":" << json(symbol.type.str()) << ",\"definition\":" << position(symbol.definition)
+               << ",\"uses\":[";
+        for (size_t i = 0; i < symbol.uses.size(); ++i) {
+            if (i) output << ',';
+            output << position(symbol.uses[i]);
+        }
+        output << "]}";
+    }
+    output << "]}\n";
+    return output.str();
+}
 fs::path executablePath(const char *executable) {
     fs::path executablePath = fs::absolute(fs::u8path(executable));
 #ifdef _WIN32
@@ -94,6 +172,8 @@ class Modules {
     std::vector<pika::StmtPtr> statements;
     fs::path standard;
     fs::path packageRoot;
+    const Overlays &overlays;
+    size_t sourceBytes = 0;
     std::set<std::pair<std::string, std::string>> confinedSources;
     void validatePackageSource(const fs::path &source, const fs::path &boundary,
                                const pika::Location &location) const {
@@ -168,15 +248,19 @@ class Modules {
         auto confinement = std::make_pair(path, boundary.u8string());
         if (alreadyLoaded && (boundary.empty() || confinedSources.count(confinement)))
             return;
+        if (active.size() >= 128 || active.size() + loaded.size() >= 512)
+            throw pika::Error({path, 1, 1}, "module graph limit exceeded");
         active.insert(path);
-        auto source = read(fs::u8path(path));
+        auto overlaid = overlays.find(path);
+        auto source = overlaid == overlays.end() ? read(fs::u8path(path)) : overlaid->second;
+        if (!alreadyLoaded) {
+            sourceBytes += source.size();
+            if (sourceBytes > 64 * 1024 * 1024)
+                throw pika::Error({path, 1, 1}, "module sources exceed 64 MiB");
+        }
         auto tree = pika::parse(pika::lex(source, path), path);
         for (auto &statement : tree.statements)
             if (statement->kind == pika::Stmt::Kind::Import) {
-                if (statement->other)
-                    throw pika::Error(
-                        statement->location,
-                        "named import aliases are not implemented; import exported names directly");
                 fs::path imported, importedBoundary = boundary;
                 if (statement->name.rfind("std:", 0) == 0) {
                     std::string module = statement->name.substr(4);
@@ -208,7 +292,9 @@ class Modules {
     }
 
   public:
-    explicit Modules(fs::path directory) : standard(std::move(directory)) {}
+    explicit Modules(fs::path directory, const Overlays &editorSources)
+        : standard(std::move(directory)), overlays(editorSources) {}
+    const std::set<std::string> &files() const { return loaded; }
     void protect(const fs::path &output) const {
         for (const auto &source : loaded)
             if (sameFile(output, fs::u8path(source)))
@@ -216,8 +302,18 @@ class Modules {
         if (!packageRoot.empty() &&
             (sameFile(output, packageRoot / "pika.json") || sameFile(output, packageRoot / "pika.lock")))
             throw std::runtime_error("output path would overwrite project metadata");
+        if (!packageRoot.empty()) {
+            auto relative = fs::weakly_canonical(fs::absolute(output)).lexically_relative(packageRoot);
+            if (!relative.empty()) {
+                auto first = relative.begin()->u8string();
+                std::transform(first.begin(), first.end(), first.begin(), [](unsigned char c) {
+                    return static_cast<char>(std::tolower(c));
+                });
+                if (first == ".pika") throw std::runtime_error("output path would overwrite the package cache");
+            }
+        }
     }
-    pika::SyntaxTree program(const fs::path &file) {
+    pika::SyntaxTree program(const fs::path &file, const std::vector<fs::path> &indexSources = {}) {
         std::string path = fs::weakly_canonical(fs::absolute(file)).u8string();
         for (auto directory = fs::u8path(path).parent_path(); !directory.empty();) {
             if (fs::is_regular_file(directory / "pika.json")) {
@@ -229,14 +325,16 @@ class Modules {
             directory = parent;
         }
         load(file);
+        for (const auto &extra : indexSources) load(extra);
         return {std::move(statements), path};
     }
 };
-void diagnostic(const pika::Error &error) {
+void diagnostic(const pika::Error &error, const Overlays &overlays) {
     std::cerr << error.location.file << ":" << error.location.line << ":" << error.location.column
               << ": error: " << error.what() << "\n";
     try {
-        std::istringstream input(read(fs::u8path(error.location.file)));
+        auto editor = overlays.find(error.location.file);
+        std::istringstream input(editor == overlays.end() ? read(fs::u8path(error.location.file)) : editor->second);
         std::string line;
         for (unsigned n = 1; n <= error.location.line && std::getline(input, line); ++n)
             if (n == error.location.line) {
@@ -253,6 +351,7 @@ void help() {
               << "usage: pikaflow COMMAND FILE [-O0|-O1|-O2|-O3] [--debug] [-o OUTPUT]\n"
               << "  check         parse, type-check and verify typed IR\n"
               << "                --library checks modules without a source main\n"
+              << "  symbols       emit compiler-resolved source bindings as JSON\n"
               << "  interpret     execute the reference interpreter\n"
               << "  run           execute through LLVM ORC JIT\n"
               << "  emit-ir       print/write verified LLVM IR\n"
@@ -266,6 +365,7 @@ void help() {
 }
 } // namespace
 int runCLI(int argc, char **argv) {
+    Overlays editorSources;
     try {
         if (argc < 2 || std::string(argv[1]) == "--help" || std::string(argv[1]) == "-h") {
             help();
@@ -273,7 +373,7 @@ int runCLI(int argc, char **argv) {
         }
         std::string command = argv[1];
         if (command == "--version") {
-            std::cout << "PikaFlow 0.2.0; "
+            std::cout << "PikaFlow " PF_VERSION "; "
 #ifdef PF_HAS_LLVM
                       << "LLVM enabled; " << pika::targetTriple()
 #else
@@ -288,7 +388,9 @@ int runCLI(int argc, char **argv) {
         std::string output;
         [[maybe_unused]] unsigned optimization = 0;
         [[maybe_unused]] bool debug = false;
-        bool libraryMode = false;
+        bool libraryMode = command == "symbols";
+        std::string overlay;
+        std::vector<fs::path> indexSources;
         std::vector<std::string> links, loads;
         for (int i = 3; i < argc; ++i) {
             std::string option = argv[i];
@@ -301,6 +403,13 @@ int runCLI(int argc, char **argv) {
                     throw std::runtime_error(option + " requires a library path");
                 (option == "--link" ? links : loads)
                     .push_back(fs::absolute(fs::u8path(argv[i])).u8string());
+            } else if (option == "--index-source") {
+                if (++i >= argc || indexSources.size() >= 128)
+                    throw std::runtime_error("--index-source requires a path; limit 128 sources");
+                indexSources.push_back(fs::u8path(argv[i]));
+            } else if (option == "--overlay") {
+                if (++i >= argc) throw std::runtime_error("--overlay requires a file path");
+                overlay = argv[i];
             } else if (option == "--library")
                 libraryMode = true;
             else if (option == "--debug" || option == "-g")
@@ -315,8 +424,14 @@ int runCLI(int argc, char **argv) {
             throw std::runtime_error("--link is supported by build only");
         if (!loads.empty() && command != "run")
             throw std::runtime_error("--load is supported by JIT run only");
-        if (libraryMode && command != "check")
-            throw std::runtime_error("--library is supported by check only");
+        if (libraryMode && command != "check" && command != "symbols")
+            throw std::runtime_error("--library is supported by check and symbols only");
+        if (!overlay.empty() && command != "check" && command != "symbols")
+            throw std::runtime_error("--overlay is supported by check and symbols only");
+        if (!indexSources.empty() && command != "symbols")
+            throw std::runtime_error("--index-source is supported by symbols only");
+        if (!overlay.empty() && !output.empty() && sameFile(fs::u8path(output), fs::u8path(overlay)))
+            throw std::runtime_error("output path would overwrite editor overlays");
         if (!output.empty() && sameFile(fs::u8path(output), source))
             throw std::runtime_error("output path would overwrite the source file");
         std::string text;
@@ -324,8 +439,9 @@ int runCLI(int argc, char **argv) {
             text = pika::dumpTokens(
                 pika::lex(read(source), fs::weakly_canonical(fs::absolute(source)).u8string()));
         } else {
-            Modules modules(standardLibrary(argv[0]));
-            auto tree = modules.program(source);
+            if (!overlay.empty()) editorSources = readOverlays(fs::u8path(overlay));
+            Modules modules(standardLibrary(argv[0]), editorSources);
+            auto tree = modules.program(source, indexSources);
             if (libraryMode && std::none_of(tree.statements.begin(), tree.statements.end(),
                     [&](const pika::StmtPtr &statement) {
                         return statement->name == "main" && statement->location.file == tree.filename;
@@ -343,13 +459,15 @@ int runCLI(int argc, char **argv) {
             if (command == "dump-ast")
                 text = pika::dumpAST(tree);
             else {
-                auto program = pika::compile(tree);
+                auto program = pika::compile(tree, command == "symbols");
                 if (command == "check") {
                     std::cout << "OK: " << source.u8string() << "\n";
                     return 0;
                 }
-                if (command == "dump-ir")
-                    text = pika::dumpIR(program);
+                if (command == "symbols")
+                    text = symbolJSON(program, modules.files());
+                else if (command == "dump-ir")
+                    text = pika::dumpIR(optimization ? pika::optimizeIR(program) : program);
                 else if (command == "interpret")
                     return pika::interpret(program);
 #ifdef PF_HAS_LLVM
@@ -395,7 +513,7 @@ int runCLI(int argc, char **argv) {
             write(fs::u8path(output), text);
         return 0;
     } catch (const pika::Error &error) {
-        diagnostic(error);
+        diagnostic(error, editorSources);
         return 1;
     } catch (const std::exception &error) {
         std::cerr << "pikaflow: " << error.what() << "\n";
