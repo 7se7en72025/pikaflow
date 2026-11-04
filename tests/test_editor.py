@@ -33,15 +33,16 @@ class EditorWorkflows(unittest.TestCase):
         self.server.handle({"method": "initialize", "params": {"rootUri": self.root.as_uri(),
             "capabilities": {"workspace": {"workspaceEdit": {"documentChanges": True}}}}})
 
-    def index_symbol(self, path, name, line=None):
+    def index_symbol(self, path, name, line=None, kind=None):
         index = self.server.editor.index(path, strict=True)
         candidates = [item for item in index["symbols"] if item["name"] == name
-                      and (line is None or item["definition"]["line"] == line)]
+                      and (line is None or item["definition"]["line"] == line)
+                      and (kind is None or item["kind"] == kind)]
         self.assertEqual(len(candidates), 1, candidates)
         return index, candidates[0]
 
-    def renamed(self, path, name, new, line=None):
-        index, symbol = self.index_symbol(path, name, line)
+    def renamed(self, path, name, new, line=None, kind=None):
+        index, symbol = self.index_symbol(path, name, line, kind)
         result = self.server.editor.rename(path, symbol, new, index)
         changed = {}
         for document in result["documentChanges"]:
@@ -49,6 +50,16 @@ class EditorWorkflows(unittest.TestCase):
             changed[file] = editor.apply_changes(self.server.source(file), [
                 {"range": item["range"], "text": item["newText"]} for item in document["edits"]])
         return result, changed
+
+    def interpreted(self, text, companions=None):
+        with tempfile.TemporaryDirectory(prefix="pika editor candidate ") as directory:
+            source = write(pathlib.Path(directory) / "main.pf", text)
+            for name, content in (companions or {}).items():
+                write(pathlib.Path(directory) / name, content)
+            result = subprocess.run([str(COMPILER), "interpret", str(source)], capture_output=True,
+                                    text=True, encoding="utf-8", timeout=20)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            return result.stdout.replace("\r\n", "\n")
 
     def test_utf16_crlf_changes_and_atomic_failures(self):
         text = "a\U0001f600b\r\nnext\r\n"
@@ -165,6 +176,108 @@ class EditorWorkflows(unittest.TestCase):
         self.assertIn("enum Option[Element]:\n    Some(value: Element)", changed[main])
         self.assertIn("fun identity[T](value: T) -> T:", changed[main])
         self.assertEqual(main.read_bytes(), source.encode())
+
+    def test_underscore_function_local_destructure_and_pattern_are_distinct(self):
+        source = ('fun _() -> i64:\n    return 1\n'
+                  'fun global_value() -> i64:\n    return _()\n'
+                  'fun main() -> unit:\n    let _ = 42\n    print(_)\n    print(global_value())\n'
+                  '    if true:\n        let (first, _) = (10, 20)\n        print(_)\n'
+                  '    match (1, 2):\n        case (_, second):\n            print(_)\n            print(second)\n')
+        main = write(self.root / "main.pf", source)
+        expected = "42\n1\n20\n42\n2\n"
+        self.assertEqual(self.interpreted(source), expected)
+        _, changed = self.renamed(main, "_", "renamed", line=1, kind="function")
+        self.assertIn("fun renamed()", changed[main])
+        self.assertIn("return renamed()", changed[main])
+        self.assertEqual(changed[main].count("print(_)"), 3)
+        self.assertIn("case (_, second):", changed[main])
+        self.assertEqual(self.interpreted(changed[main]), expected)
+        _, changed = self.renamed(main, "_", "outer_value", line=6, kind="variable")
+        self.assertIn("let outer_value = 42", changed[main])
+        self.assertIn("case (_, second):\n            print(outer_value)", changed[main])
+        self.assertIn("let (first, _) = (10, 20)\n        print(_)", changed[main])
+        self.assertIn("return _()", changed[main])
+        self.assertEqual(self.interpreted(changed[main]), expected)
+        _, changed = self.renamed(main, "_", "tail", line=10, kind="variable")
+        self.assertIn("let (first, tail) = (10, 20)\n        print(tail)", changed[main])
+        self.assertIn("let _ = 42\n    print(_)", changed[main])
+        self.assertEqual(self.interpreted(changed[main]), expected)
+        wildcard = {"line": 12, "character": 14}
+        self.assertIsNone(self.server.editor.request("textDocument/prepareRename", {"position": wildcard}, main))
+        self.assertEqual(main.read_bytes(), source.encode())
+
+    def test_underscore_parameters_and_type_parameters_keep_their_bindings(self):
+        source = ('fun _() -> i64:\n    return 1\n'
+                  'fun take(_: i64) -> i64:\n    return _\n'
+                  'fun identity[_](_: _) -> _:\n    return _\n'
+                  'fun unused[T](_: T) -> T:\n    return _\n'
+                  'fun main() -> unit:\n    print(take(7))\n    print(identity(42))\n    print(_())\n')
+        main = write(self.root / "main.pf", source)
+        expected = "7\n42\n1\n"
+        for line in (3, 5, 7):
+            with self.subTest(parameter_line=line):
+                _, changed = self.renamed(main, "_", "value", line=line, kind="parameter")
+                self.assertIn("fun _()", changed[main])
+                self.assertIn("print(_())", changed[main])
+                self.assertEqual(self.interpreted(changed[main]), expected)
+        _, changed = self.renamed(main, "_", "Element", line=5, kind="typeParameter")
+        self.assertIn("fun identity[Element](_: Element) -> Element:\n    return _", changed[main])
+        self.assertIn("fun take(_: i64)", changed[main])
+        self.assertEqual(self.interpreted(changed[main]), expected)
+        self.assertEqual(main.read_bytes(), source.encode())
+
+    def test_pattern_constructor_and_same_named_local_are_distinct(self):
+        source = ('enum E:\n    Some(value: i64)\n    Other(value: i64)\n'
+                  'fun main() -> unit:\n    let object = Some(1)\n    let Some = 42\n'
+                  '    match object:\n        case Some(value):\n            print(Some)\n'
+                  '        case _:\n            print(0)\n')
+        main = write(self.root / "main.pf", source)
+        self.assertEqual(self.interpreted(source), "42\n")
+        _, changed = self.renamed(main, "Some", "Other", line=6, kind="variable")
+        self.assertIn("let Other = 42", changed[main])
+        self.assertIn("case Some(value):\n            print(Other)", changed[main])
+        self.assertEqual(self.interpreted(changed[main]), "42\n")
+        _, changed = self.renamed(main, "Some", "Renamed", line=2, kind="constructor")
+        self.assertIn("let object = Renamed(1)", changed[main])
+        self.assertIn("case Renamed(value):\n            print(Some)", changed[main])
+        self.assertIn("let Some = 42", changed[main])
+        self.assertEqual(self.interpreted(changed[main]), "42\n")
+        self.assertEqual(main.read_bytes(), source.encode())
+
+    def test_constructor_function_value_pipeline_and_callback_contexts_are_distinct(self):
+        library_source = ('export fun Pick[T](value: T) -> T:\n    return value\n'
+                          'export fun NewPick[T](value: T) -> T:\n    return value + value\n'
+                          'export fun Plain(value: i64) -> i64:\n    return value\n'
+                          'export fun NewPlain(value: i64) -> i64:\n    return value + value\n')
+        source = ('import "library.pf"\nenum Choice:\n    Pick(value: i64)\n    Plain(value: i64)\n    Other\n'
+                  'fun generic_callback() -> ptr[unit]:\n    unsafe:\n        return c_callback(Pick::[i64])\n'
+                  'fun plain_callback() -> ptr[unit]:\n    unsafe:\n        return c_callback(Plain)\n'
+                  'fun main() -> unit:\n    let f = Pick::[i64]\n    let plain = Plain\n'
+                  '    print(f(21))\n    print(plain(21))\n    print(21 |> Pick)\n    print(21 |> Pick())\n    print(21 |> Plain)\n'
+                  '    let object = Pick(21)\n    match object:\n        case Pick(value):\n            print(value)\n        case _:\n            print(0)\n'
+                  '    let other = Plain(21)\n    match other:\n        case Plain(value):\n            print(value)\n        case _:\n            print(0)\n')
+        main = write(self.root / "main.pf", source)
+        library = write(self.root / "library.pf", library_source)
+        expected = "21\n" * 7
+        self.assertEqual(self.interpreted(source, {"library.pf": library_source}), expected)
+        for name, replacement in (("Pick", "NewPick"), ("Plain", "NewPlain")):
+            with self.subTest(kind="constructor", name=name):
+                _, changed = self.renamed(main, name, replacement, kind="constructor")
+                self.assertIn("let f = Pick::[i64]", changed[main])
+                self.assertIn("let plain = Plain", changed[main])
+                self.assertIn("print(21 |> Pick())", changed[main])
+                self.assertIn("c_callback(Pick::[i64])", changed[main])
+                self.assertIn("c_callback(Plain)", changed[main])
+                self.assertIn("case " + replacement + "(value):", changed[main])
+                self.assertEqual(self.interpreted(changed[main], {"library.pf": library_source}), expected)
+        for name, replacement in (("Pick", "Identity"), ("Plain", "PlainFunction")):
+            with self.subTest(kind="function", name=name):
+                _, changed = self.renamed(main, name, replacement, kind="function")
+                self.assertIn("case " + name + "(value):", changed[main])
+                self.assertIn(" = " + name + "(21)", changed[main])
+                self.assertEqual(self.interpreted(changed[main], {"library.pf": changed[library]}), expected)
+        self.assertEqual(main.read_bytes(), source.encode())
+        self.assertEqual(library.read_bytes(), library_source.encode())
 
     def test_namespace_alias_qualified_columns_and_references(self):
         library = write(self.root / "library.pf", 'export fun answer() -> i64:\n    return 42\n')
