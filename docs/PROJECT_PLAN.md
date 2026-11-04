@@ -1,7 +1,7 @@
 # PikaFlow completion plan and live engineering log
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).  
-**Last updated:** 2026-11-04 21:33 IST.  
+**Last updated:** 2026-11-04 21:47 IST.  
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -48,14 +48,15 @@ added to predict a finish time. Integration failures may change these ranges.
 
 | Order | Deliverable and acceptance | Owner | Estimate | State |
 |---|---|---|---|---|
-| 1A | Generic functions: inference/explicit specialization, module visibility, bounded monomorphization, invalid-use diagnostics | Language agent | 1–3 h | In progress |
-| 1B | ADTs, constructor patterns, exhaustiveness, guarded cases, Result propagation with specified semantics | Language agent | 2–5 h | In progress |
-| 1C | Real structured tasks: isolated capture snapshots, thread-local GC, typed spawn/join, automatic cleanup, real parallel-execution test | Runtime agent | 2–5 h | In progress |
-| 1D | Nested natural-layout C records and noncapturing C callback wrappers; host-C cross-checks on both ABIs | Backend agent | 2–4 h | In progress |
-| 1E | Actual debugger breakpoint/backtrace/scalar-local checks; fix metadata when a watch fails | Backend agent | 0.5–2 h | In progress |
-| 2A | Comment-preserving formatter with compiler-token equivalence, idempotence and check mode | Root | 0.5–1.5 h | In progress |
-| 2B | Standard-protocol language server: unsaved diagnostics, formatting, document symbols/completion, lifecycle and UTF-16 tests | Root | 1–3 h | In progress |
-| 2C | Project initialization, dependency manifests, deterministic local dependency locks, package imports, stale/cycle/conflict tests | Root | 1–2 h | In progress |
+| 1A | Generic functions: inference/explicit specialization, module visibility, bounded monomorphization, invalid-use diagnostics | Language agent | 1–3 h | Implemented; interpreter checked; final native suite pending |
+| 1B | Recursive/mutually recursive ADTs, constructor patterns, exhaustiveness, guarded cases, Result propagation | Language agent | 2–5 h | Implemented; 42 extension checks pass in interpreter |
+| 1C | Real structured tasks: isolated capture snapshots, thread-local GC, typed spawn/join, automatic cleanup, real parallel-execution test | Runtime agent | 2–5 h | Implemented; standalone/interpreter/sanitizer checks pass |
+| 1D | Nested natural-layout C records and noncapturing C callback wrappers; host-C cross-checks on both ABIs | Backend agent | 2–4 h | Implemented; Linux 80 executions and Windows earlier 76 pass |
+| 1E | Actual debugger breakpoint/backtrace/scalar-local checks; fix metadata when a watch fails | Backend agent | 0.5–2 h | GDB scalar/captured watches pass; automated regression added |
+| 1F | Signed/unsigned 8/16/32/64-bit extern annotations, checked narrowing, nested records and host-C comparisons | Backend/language/runtime | 1–3 h | In progress; descriptor verification implemented |
+| 2A | Comment-preserving formatter with compiler-token equivalence, idempotence and check mode | Root | 0.5–1.5 h | Implemented; Windows tool checks pass |
+| 2B | Standard-protocol language server: unsaved diagnostics, formatting, document symbols/completion, lifecycle and UTF-16 tests | Root | 1–3 h | Implemented; protocol and unsaved-import checks pass |
+| 2C | Project initialization, dependency manifests, deterministic local dependency locks, package imports, stale/cycle/conflict tests | Root | 1–2 h | Implemented; integrity/symlink review fixes underway |
 | 3A | Integrate shared types/opcodes, audit failure/resource boundaries, complete examples/docs and install tools | All; root integrates | 1–3 h | Pending |
 | 3B | Full Windows/Linux native/interpreter suites; new language, task, C ABI and editor/project integration checks | All | 1–3 h | Pending |
 | 3C | Refresh bounded sanitizer/fuzz evidence, output-checked benchmark report and clean install/relocation checks | Root/runtime | 0.5–2 h | Pending |
@@ -71,12 +72,12 @@ waiting out a timer. Successful tests may finish some milestones much sooner.
 - [x] Checked semantics preserved across optimization; malformed-IR rejection.
 - [x] Unicode paths and relocated installation evidence.
 - [x] Bounded sanitizer-backed fuzzing with reproducible seed/toolchain records.
-- [ ] New generic/ADT/task differential examples across interpreter/JIT/AOT.
-- [ ] Demonstrate actual simultaneous workers, snapshot isolation and GC cleanup.
-- [ ] Headless debugger transcript with real scalar watch values.
-- [ ] Editor integration config and protocol-level subprocess tests.
-- [ ] Small multi-package example with reproducible locks and invalid-lock tests.
-- [ ] Contributor guide mapping language features to LLVM/runtime source/tests.
+- [x] New generic/ADT/task differential examples across interpreter/JIT/AOT.
+- [x] Demonstrate actual simultaneous workers, snapshot isolation and GC cleanup.
+- [x] Headless debugger transcript with real scalar watch values.
+- [x] Editor integration config and protocol-level subprocess tests.
+- [x] Small multi-package example with reproducible locks and invalid-lock tests.
+- [x] Contributor guide mapping language features to LLVM/runtime source/tests.
 - [ ] A final showcase exercising modules, generic/ADT logic, stack programming,
   tasks and native compilation together where semantics permit.
 - [ ] Repeatable benchmark evidence; report regressions and noisy startup timing.
@@ -113,6 +114,16 @@ this file and Git history are the durable resume points if the session stops.
 | 21:32 | Formatter/package/LSP eight integration tests pass on Windows, including unsaved imports and UTF-16 positions | New manifest boundary case added next; full Linux tools checks pending |
 | 21:32 | Two-package example resolves a deterministic lock and prints 42 | `examples/packages/app`; source imports resolve through `pkg:` |
 | 21:33 | Shared generic/nominal/task type interfaces committed | `07686a8`; twenty language interpreter checks passed before ADT extension |
+| 21:36 | Runtime/task, language, tooling and native milestones committed and pushed | Through `827971a`; no final full-suite claim for this evolving snapshot |
+| 21:38 | Recursive ADTs support real lists, mutual recursion, cycles and bounded non-regular specialization | `d57b55d`; 42 language checks, prior 99 CLI checks and task interpreter checks pass |
+| 21:40 | Typed IR nominal-layout registry and C ABI descriptor guards pass focused GNU C++ verifier tests | `33a0e90`; malformed layouts/unknown references rejected |
+| 21:41 | Package review found cross-platform newline hashing and symlink write/integrity gaps | Fixes underway; compiler package imports now confined to hashed source boundaries |
+| 21:43 | Full Windows interpreter build/tests launched; explicit C width implementation continues in parallel | Do not freeze final source until this integration is complete |
+| 21:44 | New exponential-generic regression ran against an earlier binary during parallel development and timed out | No green claim; rebuilt with `d249deb` type-node guards; fresh same check diagnoses in 0.10 s / about 14 MiB on Linux |
+| 21:45 | Rebuilt Windows reference configuration passes 15/15 suites in 13.50 s | Full core, language, task, tool, fatal and differential checks green for this snapshot |
+| 21:46 | Windows focused native checks pass: 127 language checks, 120 C ABI executions, 40 located width-range failures, 50 task/pointer executions + 4 rejections | Backend reports exact execution, not merely LLVM verification; final host suites pending |
+| 21:46 | Package/LSP review fixes committed; 13 tool tests pass | `c5a2c41`; normalized lock hashing, safe writes, confined cached imports, unsaved semicolon imports |
+| 21:47 | Final resource review extends generic bounds to generated nominal names; independent frontend fuzz refresh scheduled | Keep new regression tests paired with a fresh compiler binary |
 
 Update this log after meaningful milestones, failures, estimate changes and pushes.
 Mark delivery only with the corresponding commit and test evidence.

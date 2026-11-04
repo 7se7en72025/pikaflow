@@ -94,15 +94,15 @@ struct External {
     Type result;
     bool variadic = false;
     std::string symbol{};
-    std::vector<CABIType> abiParameters;
-    CABIType abiResult;
+    std::vector<CABIType> abiParameters{};
+    CABIType abiResult{};
 };
 struct Program {
     std::vector<Function> functions;
     std::vector<External> externals;
     std::string entry = "main";
     std::string sourceFile;
-    std::map<std::string, Type> nominalLayouts;
+    std::map<std::string, Type> nominalLayouts{};
 };
 Program compile(const SyntaxTree &tree);
 void verify(const Program &program);

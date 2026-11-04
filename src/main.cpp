@@ -94,7 +94,22 @@ class Modules {
     std::vector<pika::StmtPtr> statements;
     fs::path standard;
     fs::path packageRoot;
-    fs::path packageImport(const std::string &name, const pika::Location &location) const {
+    std::set<std::pair<std::string, std::string>> confinedSources;
+    void validatePackageSource(const fs::path &source, const fs::path &boundary,
+                               const pika::Location &location) const {
+        auto relative = source.lexically_relative(boundary);
+        if (relative.empty() || relative.is_absolute() || source.extension() != ".pf")
+            throw pika::Error(location, "package import must name a locked .pf source");
+        for (const auto &part : relative) {
+            auto name = part.u8string();
+            if (name == "..")
+                throw pika::Error(location, "package import cannot escape its locked package");
+            if (name == "build" || name == "out" || (!name.empty() && name[0] == '.'))
+                throw pika::Error(location, "package import names an excluded, unlocked source");
+        }
+    }
+    fs::path packageImport(const std::string &name, const pika::Location &location,
+                           fs::path &boundary) const {
         auto slash = name.find('/');
         std::string alias = name.substr(0, slash);
         if (alias.empty() || (!std::isalpha(static_cast<unsigned char>(alias[0])) && alias[0] != '_') ||
@@ -127,6 +142,7 @@ class Modules {
         if (dependency.empty())
             throw pika::Error(location, "package dependency is not locked: " + alias);
         dependency = fs::weakly_canonical(fs::absolute(dependency));
+        boundary = dependency;
         fs::path module = slash == std::string::npos ? fs::path("lib.pf") : fs::u8path(name.substr(slash + 1));
         if (module.empty() || module.is_absolute() || module.has_root_name())
             throw pika::Error(location, "package module must be a relative path");
@@ -140,11 +156,14 @@ class Modules {
             throw pika::Error(location, "package module cannot escape its package");
         return resolved;
     }
-    void load(const fs::path &requested) {
+    void load(const fs::path &requested, const fs::path &boundary = {}) {
         std::string path = fs::weakly_canonical(fs::absolute(requested)).u8string();
+        if (!boundary.empty()) validatePackageSource(fs::u8path(path), boundary, {path, 1, 1});
         if (active.count(path))
             throw pika::Error({path, 1, 1}, "cyclic module import");
-        if (loaded.count(path))
+        bool alreadyLoaded = loaded.count(path) != 0;
+        auto confinement = std::make_pair(path, boundary.u8string());
+        if (alreadyLoaded && (boundary.empty() || confinedSources.count(confinement)))
             return;
         active.insert(path);
         auto source = read(fs::u8path(path));
@@ -155,7 +174,7 @@ class Modules {
                     throw pika::Error(
                         statement->location,
                         "named import aliases are not implemented; import exported names directly");
-                fs::path imported;
+                fs::path imported, importedBoundary = boundary;
                 if (statement->name.rfind("std:", 0) == 0) {
                     std::string module = statement->name.substr(4);
                     if (module.empty())
@@ -167,17 +186,22 @@ class Modules {
                                 statement->location,
                                 "std: module name must contain letters, digits or underscores");
                     imported = standard / fs::u8path(module + ".pf");
+                    importedBoundary.clear();
                 } else if (statement->name.rfind("pkg:", 0) == 0)
-                    imported = packageImport(statement->name.substr(4), statement->location);
+                    imported = packageImport(statement->name.substr(4), statement->location, importedBoundary);
                 else
                     imported = fs::u8path(path).parent_path() / fs::u8path(statement->name);
                 imported = fs::weakly_canonical(imported);
+                if (!importedBoundary.empty())
+                    validatePackageSource(imported, importedBoundary, statement->location);
                 statement->name = imported.u8string();
-                load(imported);
+                load(imported, importedBoundary);
             }
-        statements.insert(statements.end(), tree.statements.begin(), tree.statements.end());
+        if (!alreadyLoaded)
+            statements.insert(statements.end(), tree.statements.begin(), tree.statements.end());
         active.erase(path);
         loaded.insert(path);
+        if (!boundary.empty()) confinedSources.insert(std::move(confinement));
     }
 
   public:

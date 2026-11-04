@@ -33,7 +33,9 @@ const char *name(Op op) {
 void verify(const Program &program) {
     auto validType = [&](const Type &initial) {
         std::vector<std::pair<const Type *, unsigned>> work{{&initial, 0}};
+        size_t visited = 0;
         while (!work.empty()) {
+            if (++visited > 4096) return false;
             auto item = work.back();
             work.pop_back();
             const auto &t = *item.first;
@@ -165,6 +167,19 @@ void verify(const Program &program) {
                 if (!validABI(type.args[i], abi.fields[i], depth + 1)) return false;
             return true;
         };
+    std::function<CABIType(const Type &, CABIType)> canonicalABI =
+        [&](const Type &type, CABIType abi) {
+            if (type == I64 && (abi.bits == 0 || abi.bits == 64)) {
+                abi.bits = 64;
+                abi.isSigned = true;
+            } else if (type.kind == TypeKind::Tuple) {
+                if (abi.fields.empty()) abi.fields.resize(type.args.size());
+                for (size_t i = 0; i < type.args.size(); ++i)
+                    abi.fields[i] = canonicalABI(type.args[i], abi.fields[i]);
+            }
+            return abi;
+        };
+    std::map<std::string, const External *> nativeSymbols;
     for (const auto &external : program.externals) {
         if (external.name.empty() || external.name.find('\0') != std::string::npos ||
             external.symbol.find('\0') != std::string::npos ||
@@ -181,6 +196,25 @@ void verify(const Program &program) {
         for (size_t i = 0; i < external.abiParameters.size(); ++i)
             if (!validABI(external.parameters[i], external.abiParameters[i], 0))
                 throw Error({program.sourceFile, 1, 1}, "invalid C ABI parameter descriptor");
+        auto symbol = external.symbol.empty() ? external.name : external.symbol;
+        auto previous = nativeSymbols.find(symbol);
+        if (previous != nativeSymbols.end()) {
+            const auto &other = *previous->second;
+            bool compatible = external.parameters == other.parameters && external.result == other.result &&
+                              external.variadic == other.variadic;
+            if (compatible) {
+                compatible = canonicalABI(external.result, external.abiResult) ==
+                             canonicalABI(other.result, other.abiResult);
+                for (size_t i = 0; compatible && i < external.parameters.size(); ++i) {
+                    auto left = external.abiParameters.empty() ? CABIType{} : external.abiParameters[i];
+                    auto right = other.abiParameters.empty() ? CABIType{} : other.abiParameters[i];
+                    compatible = canonicalABI(external.parameters[i], left) ==
+                                 canonicalABI(other.parameters[i], right);
+                }
+            }
+            if (!compatible)
+                throw Error({program.sourceFile, 1, 1}, "conflicting C ABI native symbol declarations");
+        } else nativeSymbols.emplace(std::move(symbol), &external);
     }
     if (!functions.count(program.entry))
         throw Error({program.sourceFile, 1, 1}, "missing IR entry function");
@@ -603,6 +637,37 @@ void verify(const Program &program) {
 }
 std::string dumpIR(const Program &program) {
     std::ostringstream out;
+    for (const auto &entry : program.nominalLayouts) {
+        out << "nominal " << std::quoted(entry.first) << " = (";
+        for (size_t i = 0; i < entry.second.args.size(); ++i) {
+            if (i) out << ", ";
+            out << entry.second.args[i].str();
+        }
+        out << ")\n";
+    }
+    std::function<std::string(const Type &, const CABIType &)> abiType =
+        [&](const Type &type, const CABIType &abi) -> std::string {
+            if (abi.bits)
+                return "i64 @c_" + std::string(abi.isSigned ? "i" : "u") + std::to_string(abi.bits);
+            if (type.kind != TypeKind::Tuple || abi.fields.empty()) return type.str();
+            std::string text = "(";
+            for (size_t i = 0; i < type.args.size(); ++i) {
+                if (i) text += ", ";
+                text += abiType(type.args[i], abi.fields[i]);
+            }
+            return text + ")";
+        };
+    for (const auto &external : program.externals) {
+        out << "extern " << external.name << "(";
+        for (size_t i = 0; i < external.parameters.size(); ++i) {
+            if (i) out << ", ";
+            out << abiType(external.parameters[i], external.abiParameters.empty()
+                              ? CABIType{} : external.abiParameters[i]);
+        }
+        if (external.variadic) out << (external.parameters.empty() ? "..." : ", ...");
+        out << ") -> " << abiType(external.result, external.abiResult) << " = "
+            << std::quoted(external.symbol.empty() ? external.name : external.symbol) << "\n";
+    }
     for (const auto &f : program.functions) {
         out << "fun " << f.name << "(";
         for (size_t i = 0; i < f.parameters.size(); ++i) {

@@ -188,6 +188,24 @@ int main() {
             external.abiParameters = {{32, true, {}}};
             p.externals.push_back(std::move(external));
         });
+        rejects("C ABI aliases disagree on integer signedness", [](Program &p) {
+            External left{"left", {I64}, I64, false, "shared"};
+            External right{"right", {I64}, I64, false, "shared"};
+            left.abiParameters = {{8, true, {}}};
+            right.abiParameters = {{8, false, {}}};
+            p.externals = {left, right};
+        });
+        {
+            auto compatible = valid();
+            External left{"left", {I64}, I64, false, "shared"};
+            External right{"right", {I64}, I64, false, "shared"};
+            right.abiParameters = {{64, false, {}}};
+            right.abiResult = {64, true, {}};
+            compatible.externals = {left, right};
+            verify(compatible);
+            if (dumpIR(compatible).find("i64 @c_u64") == std::string::npos)
+                throw std::runtime_error("IR dump lost C integer wire type");
+        }
         rejects("invalid nominal registry tag", [](Program &p) {
             p.nominalLayouts["Node"] = Type{TypeKind::Tuple, {Bool}, "Node"};
         });
