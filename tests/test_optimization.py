@@ -81,6 +81,28 @@ def main() -> int:
                 print(nan == nan)
                 print(-0.0 == 0.0)
         """, "true\nfalse\ntrue\n"),
+        ("scalar_reuse", """
+            word repeated(i64, i64) -> i64:
+                over over + dup print rot rot + +
+            word discard_comparison(i64) -> i64:
+                dup 5 < drop
+            fun main() -> unit:
+                let result = stack(20, 22) -> i64:
+                    repeated
+                print(result)
+                let unchanged = stack(42) -> i64:
+                    discard_comparison
+                print(unchanged)
+        """, "42\n84\n42\n"),
+        ("heap_reads", """
+            fun difference(values: [i64]) -> i64:
+                let before = values[0] + 1
+                values[0] = 41
+                let after = values[0] + 1
+                return after - before
+            fun main() -> unit:
+                print(difference([20]))
+        """, "21\n"),
     ]
     rng = random.Random(20261104)
     for index in range(12):
@@ -110,6 +132,24 @@ def main() -> int:
         ("remainder_overflow", "(-9223372036854775807 - 1) % -1", "integer remainder overflow"),
         ("negation_overflow", "-(-9223372036854775807 - 1)", "integer negation overflow"),
     ]
+    trap_sources = [(name, f"fun main() -> unit:\n    print({value})\n", message)
+                    for name, value, message in traps]
+    trap_sources.extend([
+        ("duplicate_checked", """word repeated(i64, i64) -> i64:
+    over over + dup print rot rot + +
+fun main() -> unit:
+    let result = stack(9223372036854775807, 1) -> i64:
+        repeated
+    print(result)
+""", "integer addition overflow"),
+        ("unused_checked", """word discarded(i64, i64) -> i64:
+    over over / drop drop
+fun main() -> unit:
+    let result = stack(42, 0) -> i64:
+        discarded
+    print(result)
+""", "integer division by zero"),
+    ])
     completed = 0
     with tempfile.TemporaryDirectory(prefix="pikaflow optimizer ") as temporary:
         directory = pathlib.Path(temporary)
@@ -131,9 +171,9 @@ def main() -> int:
                 if result.returncode or result.stdout.replace("\r\n", "\n") != expected:
                     raise AssertionError(f"{command}\nexpected {expected!r}\n{result.stdout}\n{result.stderr}")
                 completed += 1
-        for name, expression_text, diagnostic in traps:
+        for name, source, diagnostic in trap_sources:
             path = directory / ("trap_" + name + ".pf")
-            path.write_text(f"fun main() -> unit:\n    print({expression_text})\n", encoding="utf-8")
+            path.write_text(source, encoding="utf-8")
             for command in executions(path):
                 result = run(command)
                 location = re.escape(path.name) + r":2:\d+: runtime error:"
@@ -149,13 +189,25 @@ def main() -> int:
             raise AssertionError("baseline typed IR does not exercise arithmetic/control flow")
         if re.search(r"\b(add|sub|mul|div|mod)\b", optimized.stdout) or "jump.false" in optimized.stdout:
             raise AssertionError("custom typed IR pipeline did not fold arithmetic and the constant branch\n" + optimized.stdout)
+        dynamic = directory / "scalar_reuse.pf"
+        before = run([compiler, "dump-ir", str(dynamic), "-O0"])
+        after = run([compiler, "dump-ir", str(dynamic), "-O2"])
+        if before.returncode or after.returncode:
+            raise AssertionError(before.stderr + after.stderr)
+        if len(re.findall(r"\badd\b", before.stdout)) != 3 or len(re.findall(r"\badd\b", after.stdout)) != 2:
+            raise AssertionError("dynamic checked expression was not reused in custom IR\n" + after.stdout)
+        if not re.search(r"\blt\b", before.stdout) or re.search(r"\blt\b", after.stdout):
+            raise AssertionError("unused scalar comparison survived typed-IR liveness\n" + after.stdout)
+        if len(re.findall(r"\bprint\b", before.stdout)) != len(re.findall(r"\bprint\b", after.stdout)):
+            raise AssertionError("scalar optimization removed a reachable print")
         if native:
             for command in ("emit-ir", "dump-asm"):
                 before = run([compiler, command, str(proof), "-O0"])
                 after = run([compiler, command, str(proof), "-O2"])
                 if before.returncode or after.returncode or "pf_checked_mul" not in before.stdout or "pf_checked_mul" in after.stdout:
                     raise AssertionError(f"{command}: constant checked multiplication survived optimized lowering\n{after.stderr}")
-    print(f"{completed} reference/JIT/native optimizer comparisons passed; typed IR" +
+    modes = "reference/JIT/native" if native else "reference"
+    print(f"{completed} {modes} optimizer comparisons passed; typed IR" +
           (", LLVM IR and assembly effects verified" if native else " effect verified"))
     return 0
 

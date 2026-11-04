@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <deque>
 #include <limits>
+#include <map>
+#include <numeric>
+#include <tuple>
 
 namespace pika {
 namespace {
@@ -101,9 +104,8 @@ void transfer(const Function& function, const Instruction& ins, State& state) {
     if(ins.dst >= 0) state[size_t(ins.dst)] = evaluate(function, ins, state);
 }
 
-bool optimizeFunction(Function& function, OptimizationStats& statistics) {
-    constexpr size_t maximumFacts = 1000000, maximumWork = 8000000;
-    const auto count = function.code.size(), registers = function.registers.size();
+std::vector<bool> blockLeaders(const Function& function) {
+    const auto count = function.code.size();
     std::vector<bool> leaders(count, false);
     leaders[0] = true;
     for(size_t pc = 0; pc < count; ++pc) {
@@ -112,6 +114,172 @@ bool optimizeFunction(Function& function, OptimizationStats& statistics) {
         if((op == Op::Jump || op == Op::JumpFalse || op == Op::Return || op == Op::Panic) && pc + 1 < count)
             leaders[pc + 1] = true;
     }
+    return leaders;
+}
+
+bool scalarExpression(const Function& function, const Instruction& ins) {
+    switch(ins.op) {
+    case Op::Add: case Op::Sub: case Op::Mul: case Op::Div: case Op::Mod: case Op::Neg:
+        return function.registers[size_t(ins.dst)] == I64;
+    case Op::Not: return true;
+    case Op::Eq: case Op::Ne: case Op::Lt: case Op::Le: case Op::Gt: case Op::Ge: {
+        const auto& operand = function.registers[size_t(ins.args[0])];
+        return operand == I64 || operand == Bool;
+    }
+    default: return false;
+    }
+}
+
+void reuseExpressions(Function& function, OptimizationStats& statistics) {
+    const auto leaders = blockLeaders(function);
+    std::vector<size_t> values(function.registers.size());
+    using Key = std::tuple<Op, size_t, size_t>;
+    struct Available { int reg; size_t value; };
+    std::map<Key, Available> expressions;
+    size_t next = values.size();
+    for(size_t pc = 0; pc < function.code.size(); ++pc) {
+        if(leaders[pc]) {
+            expressions.clear();
+            // Incoming registers are independent on every edge, even after a scanned Move.
+            std::iota(values.begin(), values.end(), size_t(0));
+            next = values.size();
+        }
+        auto& ins = function.code[pc];
+        if(ins.dst < 0) continue;
+        const auto destination = size_t(ins.dst);
+        if(scalarExpression(function, ins)) {
+            const Key key{ins.op, values[size_t(ins.args[0])],
+                          ins.args.size() == 2 ? values[size_t(ins.args[1])] : 0};
+            auto found = expressions.find(key);
+            if(found != expressions.end() && values[size_t(found->second.reg)] == found->second.value) {
+                const auto representative = found->second.reg;
+                ins.op = Op::Move;
+                ins.args = {representative};
+                ins.text.clear(); ins.integer = 0; ins.real = 0; ins.target = -1;
+                values[destination] = found->second.value;
+                ++statistics.commonExpressionsReused;
+            } else {
+                values[destination] = next++;
+                if(expressions.size() >= 4096) expressions.clear();
+                expressions[key] = {ins.dst, values[destination]};
+            }
+        } else if(ins.op == Op::Move &&
+                  (function.registers[destination] == I64 || function.registers[destination] == Bool)) {
+            values[destination] = values[size_t(ins.args[0])];
+        } else values[destination] = next++;
+    }
+}
+
+bool discardable(const Function& function, const Instruction& ins) {
+    if(ins.dst < 0 || function.localNames.count(ins.dst)) return false;
+    const auto& type = function.registers[size_t(ins.dst)];
+    if(type != I64 && type != Bool) return false;
+    switch(ins.op) {
+    case Op::ConstI64: case Op::ConstBool: case Op::Zero: case Op::Move: case Op::Not:
+        return true;
+    case Op::Eq: case Op::Ne: case Op::Lt: case Op::Le: case Op::Gt: case Op::Ge:
+        return scalarExpression(function, ins);
+    default: return false;
+    }
+}
+
+bool removeDeadResults(Function& function, OptimizationStats& statistics) {
+    constexpr size_t maximumFacts = 1000000, maximumWork = 8000000;
+    const auto registers = function.registers.size(), count = function.code.size();
+    const auto leaders = blockLeaders(function);
+    struct LiveBlock {
+        size_t begin, end;
+        std::vector<size_t> successors, predecessors;
+        std::vector<unsigned char> incoming;
+        bool queued = true;
+    };
+    std::vector<LiveBlock> blocks;
+    std::vector<size_t> containing(count);
+    for(size_t pc = 0; pc < count; ++pc) {
+        if(leaders[pc]) {
+            if(!blocks.empty()) blocks.back().end = pc;
+            blocks.push_back({pc, count, {}, {}, {}, true});
+        }
+        containing[pc] = blocks.size() - 1;
+    }
+    if(registers && blocks.size() > maximumFacts / registers) return false;
+    std::deque<size_t> queue;
+    for(size_t index = blocks.size(); index-- > 0;) {
+        auto& block = blocks[index];
+        block.incoming.resize(registers);
+        const auto& last = function.code[block.end - 1];
+        if(last.op == Op::Jump || last.op == Op::JumpFalse)
+            block.successors.push_back(containing[size_t(last.target)]);
+        if(last.op != Op::Jump && last.op != Op::Return && last.op != Op::Panic && block.end < count)
+            block.successors.push_back(containing[block.end]);
+        for(auto successor : block.successors) blocks[successor].predecessors.push_back(index);
+        queue.push_back(index);
+    }
+    size_t work = 0;
+    auto spend = [&](size_t amount) {
+        if(amount > maximumWork - work) return false;
+        work += amount;
+        return true;
+    };
+    auto outgoing = [&](const LiveBlock& block, std::vector<unsigned char>& live) {
+        if(!spend(registers)) return false;
+        live.assign(registers, 0);
+        for(auto successor : block.successors) {
+            if(!spend(registers)) return false;
+            for(size_t reg = 0; reg < registers; ++reg) live[reg] |= blocks[successor].incoming[reg];
+        }
+        return true;
+    };
+    auto reverse = [&](const LiveBlock& block, std::vector<unsigned char>& live,
+                       std::vector<bool>* removed) {
+        for(size_t pc = block.end; pc-- > block.begin;) {
+            const auto& ins = function.code[pc];
+            if(!spend(1)) return false;
+            if(ins.dst >= 0 && !live[size_t(ins.dst)] && discardable(function, ins)) {
+                if(removed) (*removed)[pc] = true;
+                continue;
+            }
+            if(ins.dst >= 0) live[size_t(ins.dst)] = 0;
+            if(!spend(ins.args.size())) return false;
+            for(int argument : ins.args) live[size_t(argument)] = 1;
+        }
+        return true;
+    };
+    while(!queue.empty()) {
+        const auto index = queue.front(); queue.pop_front();
+        auto& block = blocks[index]; block.queued = false;
+        std::vector<unsigned char> live;
+        if(!outgoing(block, live) || !reverse(block, live, nullptr) || !spend(registers)) return false;
+        if(live != block.incoming) {
+            block.incoming = std::move(live);
+            for(auto predecessor : block.predecessors) if(!blocks[predecessor].queued) {
+                blocks[predecessor].queued = true;
+                queue.push_back(predecessor);
+            }
+        }
+    }
+    std::vector<bool> removed(count);
+    for(const auto& block : blocks) {
+        std::vector<unsigned char> live;
+        if(!outgoing(block, live) || !reverse(block, live, &removed)) return false;
+    }
+    std::vector<int> relocated(count);
+    std::vector<Instruction> retained;
+    for(size_t pc = 0; pc < count; ++pc) {
+        relocated[pc] = int(retained.size());
+        if(!removed[pc]) retained.push_back(std::move(function.code[pc]));
+    }
+    for(auto& ins : retained)
+        if(ins.op == Op::Jump || ins.op == Op::JumpFalse) ins.target = relocated[size_t(ins.target)];
+    statistics.deadResultsRemoved += count - retained.size();
+    function.code = std::move(retained);
+    return true;
+}
+
+bool optimizeFunction(Function& function, OptimizationStats& statistics) {
+    constexpr size_t maximumFacts = 1000000, maximumWork = 8000000;
+    const auto count = function.code.size(), registers = function.registers.size();
+    const auto leaders = blockLeaders(function);
     std::vector<Block> blocks;
     std::vector<size_t> containing(count);
     for(size_t pc = 0; pc < count; ++pc) {
@@ -212,8 +380,11 @@ Program optimizeIR(const Program& program, OptimizationStats* result) {
     verify(program);
     Program optimized = program;
     OptimizationStats statistics;
-    for(auto& function : optimized.functions)
-        if(!optimizeFunction(function, statistics)) ++statistics.functionsSkipped;
+    for(auto& function : optimized.functions) {
+        if(!optimizeFunction(function, statistics)) { ++statistics.functionsSkipped; continue; }
+        reuseExpressions(function, statistics);
+        if(!removeDeadResults(function, statistics)) ++statistics.livenessSkipped;
+    }
     verify(optimized);
     if(result) *result = statistics;
     return optimized;
