@@ -1,0 +1,81 @@
+cmake_minimum_required(VERSION 3.24)
+project(PikaFlow VERSION 0.1.0 LANGUAGES C CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+option(PIKAFLOW_ENABLE_LLVM "Build LLVM native and JIT backends" ON)
+include(CTest)
+
+add_library(pikaflow_runtime STATIC src/runtime.cpp)
+target_include_directories(pikaflow_runtime PUBLIC include)
+set_target_properties(pikaflow_runtime PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
+add_library(pikaflow_core STATIC src/common.cpp src/lexer.cpp src/parser.cpp
+    src/compiler.cpp src/ir.cpp src/interpreter.cpp)
+target_include_directories(pikaflow_core PUBLIC include)
+target_link_libraries(pikaflow_core PUBLIC pikaflow_runtime)
+
+add_executable(pikaflow src/main.cpp)
+target_link_libraries(pikaflow PRIVATE pikaflow_core)
+target_compile_definitions(pikaflow PRIVATE
+    PF_RUNTIME_LIBRARY="$<TARGET_FILE:pikaflow_runtime>"
+    PF_COMPILER_DRIVER="${CMAKE_CXX_COMPILER}")
+
+if(PIKAFLOW_ENABLE_LLVM)
+    find_package(LLVM REQUIRED CONFIG)
+    message(STATUS "PikaFlow LLVM ${LLVM_PACKAGE_VERSION}: ${LLVM_DIR}")
+    if(NOT LLVM_VERSION_MAJOR EQUAL 24)
+        message(FATAL_ERROR "This PikaFlow revision targets LLVM 24; select the documented LLVM revision")
+    endif()
+    llvm_map_components_to_libnames(PIKAFLOW_LLVM_LIBRARIES
+        core support native nativecodegen passes orcjit executionengine
+        runtimedyld jitlink target mc codegen scalaropts instcombine)
+    add_library(pikaflow_backend STATIC src/backend.cpp)
+    target_include_directories(pikaflow_backend PUBLIC include)
+    target_include_directories(pikaflow_backend SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+    separate_arguments(PIKAFLOW_LLVM_DEFINITIONS NATIVE_COMMAND "${LLVM_DEFINITIONS}")
+    target_compile_options(pikaflow_backend PRIVATE ${PIKAFLOW_LLVM_DEFINITIONS})
+    target_link_libraries(pikaflow_backend PUBLIC pikaflow_core ${PIKAFLOW_LLVM_LIBRARIES})
+    target_link_libraries(pikaflow PRIVATE pikaflow_backend)
+    target_compile_definitions(pikaflow PRIVATE PF_HAS_LLVM=1)
+endif()
+
+if(MSVC)
+    target_compile_options(pikaflow_core PRIVATE /W4 /permissive- /utf-8)
+    target_compile_options(pikaflow_runtime PRIVATE /W4 /permissive- /utf-8)
+    target_compile_options(pikaflow PRIVATE /W4 /permissive- /utf-8)
+else()
+    foreach(target pikaflow_core pikaflow_runtime pikaflow)
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    endforeach()
+endif()
+
+if(BUILD_TESTING)
+    if(PIKAFLOW_ENABLE_LLVM AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/backend_tests.cpp")
+        add_executable(pikaflow_backend_tests tests/backend_tests.cpp)
+        target_link_libraries(pikaflow_backend_tests PRIVATE pikaflow_backend)
+        add_test(NAME llvm_backend COMMAND pikaflow_backend_tests)
+    endif()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime_tests.cpp")
+        add_executable(pikaflow_runtime_tests tests/runtime_tests.cpp)
+        target_link_libraries(pikaflow_runtime_tests PRIVATE pikaflow_runtime)
+        add_test(NAME runtime COMMAND pikaflow_runtime_tests)
+    endif()
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/frontend_tests.cpp")
+        add_executable(pikaflow_frontend_tests tests/frontend_tests.cpp)
+        target_link_libraries(pikaflow_frontend_tests PRIVATE pikaflow_core)
+        add_test(NAME frontend COMMAND pikaflow_frontend_tests)
+    endif()
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_FOUND AND TARGET pikaflow_runtime_tests AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime_failures.py")
+        add_test(NAME runtime_failures COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime_failures.py" "$<TARGET_FILE:pikaflow_runtime_tests>")
+    endif()
+    if(Python3_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cli.py")
+        add_test(NAME compiler COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_cli.py" "$<TARGET_FILE:pikaflow>")
+    endif()
+endif()
+
+install(TARGETS pikaflow pikaflow_runtime RUNTIME DESTINATION bin ARCHIVE DESTINATION lib)
