@@ -11,11 +11,10 @@ import tempfile
 import urllib.parse
 import urllib.request
 
-from formatter import checked_format, split_comment
+from formatter import TOKEN, checked_format, split_comment
 import packages
 
 LIMIT = 4 * 1024 * 1024
-IMPORT = re.compile(r'^(\s*import\s+)("(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\')', re.MULTILINE)
 DECLARATION = re.compile(r"^(\s*)(?:export\s+)?(?:(?:extern\s+)?(fun|word|enum)|(let|var))\s+([A-Za-z_]\w*)")
 KEYWORDS = "fun word enum let var if elif else while for in return match case break continue unsafe import export true false Result i64 f64 bool str unit spawn join".split()
 
@@ -86,7 +85,7 @@ def symbols(source: str) -> list[dict]:
     return found
 
 
-def package_module(source: pathlib.Path, name: str) -> pathlib.Path:
+def package_module(source: pathlib.Path, name: str) -> tuple[pathlib.Path, pathlib.Path]:
     root = packages.project_root(source.parent)
     alias, slash, module = name.partition("/")
     if not packages.NAME.fullmatch(alias):
@@ -94,22 +93,58 @@ def package_module(source: pathlib.Path, name: str) -> pathlib.Path:
     lines = (root / "pika.lock").read_text(encoding="utf-8").splitlines()
     if not lines or lines[0] != packages.LOCK_HEADER:
         raise ValueError("invalid package lock")
+    dependency = None
     for line in lines[1:]:
         fields = line.split("\t")
-        if len(fields) != 3:
+        if (len(fields) != 3 or not fields[1] or "\0" in line
+                or not re.fullmatch(r"[0-9a-f]{64}", fields[2])):
             raise ValueError("invalid package lock entry")
         if fields[0] == alias:
+            if dependency is not None:
+                raise ValueError("duplicate dependency in package lock")
             dependency = (root / fields[1]).resolve()
-            relative = pathlib.Path(module if slash else "lib.pf")
-            if relative.is_absolute() or ".." in relative.parts:
-                raise ValueError("package import escapes package")
-            if not relative.suffix:
-                relative = relative.with_suffix(".pf")
-            result = (dependency / relative).resolve()
-            if not result.is_relative_to(dependency):
-                raise ValueError("package import escapes package")
-            return result
-    raise ValueError(f"package dependency is not locked: {alias}")
+    if dependency is None:
+        raise ValueError(f"package dependency is not locked: {alias}")
+    relative = pathlib.Path(module if slash else "lib.pf")
+    if not module and slash:
+        raise ValueError("package module must be a relative path")
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError("package import escapes package")
+    if not relative.suffix:
+        relative = relative.with_suffix(".pf")
+    return packages.package_source(dependency, dependency / relative), dependency
+
+
+def rewrite_imports(source: str, resolve) -> str:
+    output = []
+    escapes = {"n": "\n", "r": "\r", "t": "\t", "0": "\0", "\\": "\\", "'": "'", '"': '"'}
+    for line in source.splitlines(keepends=True):
+        code, _ = split_comment(line)
+        tokens = list(TOKEN.finditer(code))
+        edits = []
+        for index, token in enumerate(tokens[:-1]):
+            if token[0] != "import" or (index and tokens[index - 1][0] != ";"):
+                continue
+            literal = tokens[index + 1]
+            if literal[0][0] not in "\"'" or literal[0][-1] != literal[0][0]:
+                continue
+            text = literal[0][1:-1]
+            decoded = ""
+            position = 0
+            while position < len(text):
+                char = text[position]
+                if char == "\\":
+                    position += 1
+                    if position == len(text) or text[position] not in escapes:
+                        raise ValueError("unknown string escape in import")
+                    char = escapes[text[position]]
+                decoded += char
+                position += 1
+            edits.append((literal.start(), literal.end(), resolve(decoded)))
+        for start, end, replacement in reversed(edits):
+            line = line[:start] + json.dumps(replacement, ensure_ascii=False) + line[end:]
+        output.append(line)
+    return "".join(output)
 
 
 class Server:
@@ -133,30 +168,37 @@ class Server:
     def diagnostics(self, path: pathlib.Path) -> dict[str, list[dict]]:
         with tempfile.TemporaryDirectory(prefix="pikaflow-lsp-") as directory:
             mapping: dict[pathlib.Path, pathlib.Path] = {}
+            staged_contexts: set[tuple[pathlib.Path, pathlib.Path | None]] = set()
+            active_contexts: set[tuple[pathlib.Path, pathlib.Path | None]] = set()
 
-            def stage(original: pathlib.Path) -> pathlib.Path:
+            def stage(original: pathlib.Path, boundary: pathlib.Path | None = None) -> pathlib.Path:
                 original = original.resolve()
-                if original in mapping:
+                if boundary is not None:
+                    packages.package_source(boundary, original)
+                context = (original, boundary)
+                if context in staged_contexts or context in active_contexts:
                     return mapping[original]
-                if len(mapping) >= 128:
+                if original not in mapping and len(mapping) >= 128:
                     raise ValueError("editor import graph exceeds 128 modules")
-                temporary = pathlib.Path(directory) / f"module{len(mapping)}.pf"
-                mapping[original] = temporary
+                if original not in mapping:
+                    mapping[original] = pathlib.Path(directory) / f"module{len(mapping)}.pf"
+                temporary = mapping[original]
+                active_contexts.add(context)
                 text = self.source(original)
 
-                def replace(match: re.Match) -> str:
-                    # Decode only the source language's normal quoted escapes.
-                    import ast
-                    name = ast.literal_eval(match[2])
+                def replace(name: str) -> str:
                     if name.startswith("std:"):
-                        return match[0]
-                    dependency = (package_module(path, name[4:]) if name.startswith("pkg:")
-                                  else (original.parent / name).resolve())
-                    target = stage(dependency)
-                    return match[1] + json.dumps(target.as_posix(), ensure_ascii=False)
+                        return name
+                    if name.startswith("pkg:"):
+                        dependency, confined = package_module(path, name[4:])
+                    else:
+                        dependency, confined = (original.parent / name).resolve(), boundary
+                    return stage(dependency, confined).as_posix()
 
-                text = IMPORT.sub(replace, text)
+                text = rewrite_imports(text, replace)
                 temporary.write_text(text, encoding="utf-8")
+                active_contexts.remove(context)
+                staged_contexts.add(context)
                 return temporary
 
             staged = stage(path)

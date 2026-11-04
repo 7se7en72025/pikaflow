@@ -121,11 +121,91 @@ class ToolsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             packages.initialize(root, "valid")
-            for key, value in (("entry", []), ("entry", ""), ("version", 42), ("dependencies", [])):
+            for key, value in (("entry", []), ("entry", ""), ("version", 42), ("dependencies", []),
+                               ("name", None), ("name", True)):
                 data = {"name": "valid", key: value}
                 (root / "pika.json").write_text(json.dumps(data), encoding="utf-8")
                 with self.subTest(key=key, value=value), self.assertRaises(ValueError):
                     packages.manifest(root)
+
+    def test_package_hash_is_portable_across_checkout_newlines(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            packages.initialize(root, "portable")
+            (root / "lib.pf").write_bytes(b'export fun value() -> i64:\n    return 42\n')
+            digest = packages.content_hash(root)
+            for path in [root / "pika.json", *root.rglob("*.pf")]:
+                path.write_bytes(path.read_bytes().replace(b"\r\n", b"\n").replace(b"\n", b"\r\n"))
+            self.assertEqual(packages.content_hash(root), digest)
+            (root / "lib.pf").write_bytes(b'export fun value() -> i64:\r\n    return 43\r\n')
+            self.assertNotEqual(packages.content_hash(root), digest)
+
+    def test_package_writes_do_not_follow_reserved_symlinks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            outside, app = root / "outside", root / "app"
+            outside.mkdir()
+            app.mkdir()
+            try:
+                (app / "src").symlink_to(outside, target_is_directory=True)
+            except OSError as error:
+                self.skipTest(f"host cannot create symlinks: {error}")
+            with self.assertRaises(ValueError):
+                packages.initialize(app, "app")
+            self.assertFalse((outside / "main.pf").exists())
+            self.assertFalse((app / "pika.json").exists())
+            app = root / "locked"
+            packages.initialize(app, "locked")
+            (app / "pika.lock").unlink()
+            target = outside / "owned.txt"
+            target.write_text("keep", encoding="utf-8")
+            (app / "pika.lock").symlink_to(target)
+            with self.assertRaisesRegex(ValueError, "symbolic link"):
+                packages.lock(app)
+            self.assertEqual(target.read_text(encoding="utf-8"), "keep")
+            app = root / "dangling"
+            app.mkdir()
+            target = outside / "new.json"
+            (app / "pika.json").symlink_to(target)
+            with self.assertRaises(ValueError):
+                packages.initialize(app, "dangling")
+            self.assertFalse(target.exists())
+
+    def test_package_transitive_and_cached_imports_cannot_escape_the_lock(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            app, library = root / "app", root / "library"
+            packages.initialize(app, "app")
+            packages.initialize(library, "library")
+            data = packages.manifest(app)
+            data["dependencies"] = {"dep": {"path": "../library"}}
+            (app / "pika.json").write_text(json.dumps(data), encoding="utf-8")
+            (root / "outside.pf").write_text('export fun answer() -> i64:\n    return 42\n', encoding="utf-8")
+            (library / "lib.pf").write_text('import "../outside.pf"\n', encoding="utf-8")
+            packages.lock(app)
+            source = app / "src/main.pf"
+            for imports in ('import "pkg:dep"\n', 'import "../../library/lib.pf"; import "pkg:dep"\n'):
+                with self.subTest(imports=imports):
+                    source.write_text(imports + 'fun main() -> unit:\n    print(answer())\n', encoding="utf-8")
+                    result = run("check", "--project", str(app))
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn("escape", result.stderr)
+                    with self.assertRaisesRegex(ValueError, "escape"):
+                        lsp.Server(COMPILER, io.BytesIO()).diagnostics(source)
+            for module in ("out/value.pf", ".hidden/value.pf", "payload.txt"):
+                path = library / module
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('export fun answer() -> i64:\n    return 42\n', encoding="utf-8")
+                (library / "lib.pf").write_text(f'import "{module}"\n', encoding="utf-8")
+                packages.lock(app)
+                for imports in (f'import "pkg:dep/{module}"\n', 'import "pkg:dep"\n'):
+                    with self.subTest(module=module, imports=imports):
+                        source.write_text(imports + 'fun main() -> unit:\n    pass\n', encoding="utf-8")
+                        result = run("check", "--project", str(app))
+                        self.assertNotEqual(result.returncode, 0, result.stdout)
+                        self.assertTrue("excluded" in result.stderr or "locked .pf" in result.stderr, result.stderr)
+                        with self.assertRaisesRegex(ValueError, "excluded|locked .pf"):
+                            lsp.Server(COMPILER, io.BytesIO()).diagnostics(source)
 
     def test_lsp_framing_limits(self):
         stream = io.BytesIO()
@@ -197,6 +277,21 @@ class ToolsTests(unittest.TestCase):
             self.assertTrue(errors)
             self.assertIn(main.as_uri(), errors)
             self.assertEqual(server.diagnostics(library), {})  # Libraries need no artificial source main.
+
+    def test_lsp_imports_after_semicolons_and_source_escape_rules(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "a.pf").write_text('export fun a() -> i64:\n    return 20\n', encoding="utf-8")
+            (root / "b.pf").write_text('export fun b() -> i64:\n    return 22\n', encoding="utf-8")
+            path = root / "main.pf"
+            path.write_text('import "a.pf"; import "b.pf"\nfun main() -> unit:\n'
+                            '    print("; import \'absent.pf\'") # import "missing.pf"\n'
+                            '    print(a() + b())\n', encoding="utf-8")
+            server = lsp.Server(COMPILER, io.BytesIO())
+            self.assertEqual(server.diagnostics(path), {})
+            path.write_text('import "\\x61.pf"\nfun main() -> unit:\n    pass\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "unknown string escape"):
+                server.diagnostics(path)
 
 
 if __name__ == "__main__":

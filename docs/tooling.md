@@ -100,6 +100,8 @@ scripts, registry resolution or version solver run implicitly.
 
 `pika.lock` is a versioned tab-separated file containing alias, dependency path
 relative to the project, and a digest of the manifest plus `.pf` source contents.
+Line endings are canonicalized to LF before hashing, so LF and CRLF Git checkouts
+produce the same lock; all other content bytes remain significant.
 `build/`, `out/` and dot directories are excluded. Commit the manifest and lock.
 Dependency edits require an explicit `deps lock`; project check/run/build commands
 verify the lock before invoking the compiler.
@@ -114,6 +116,17 @@ The compiler resolves aliases from the entry project's nearest `pika.json` and
 paths or symlinks. Calling the compiler directly resolves the lock but does not
 recompute dependency digests; use the project tool for digest verification.
 Dependency aliases occupy one project-wide namespace, so conflicts diagnose.
+
+The same boundary applies to every relative import reached from a package,
+including modules previously imported by an ordinary file path. Package imports
+must name `.pf` files and cannot enter excluded `build/`, `out/`, or dot paths;
+those files have no content digest. A `pkg:` import into another locked dependency
+switches to that dependency's boundary, while bundled `std:` imports stay trusted.
+The language server enforces these boundaries before staging unsaved buffers.
+
+Project creation rejects existing and dangling reserved-file symlinks and a
+symlinked `src` directory. Lock updates reject a symlinked `pika.lock` and replace
+regular locks atomically, preserving the old lock if writing fails.
 
 The checked-in [two-package example](../examples/packages/app/pika.json) runs with:
 

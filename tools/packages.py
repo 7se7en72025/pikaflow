@@ -5,9 +5,32 @@ import hashlib
 import json
 import pathlib
 import re
+import os
+import tempfile
 
 NAME = re.compile(r"[A-Za-z_][A-Za-z_0-9]*\Z")
 LOCK_HEADER = "pikaflow-lock-v1"
+
+
+def package_source(root: pathlib.Path, path: pathlib.Path) -> pathlib.Path:
+    path = path.resolve()
+    try:
+        relative = path.relative_to(root.resolve())
+    except ValueError:
+        raise ValueError("package import cannot escape its locked package") from None
+    if path.suffix != ".pf":
+        raise ValueError("package import must name a locked .pf source")
+    if any(part.startswith(".") or part in ("build", "out") for part in relative.parts):
+        raise ValueError("package import names an excluded, unlocked source")
+    return path
+
+
+def source_bytes(path: pathlib.Path, limit: int) -> bytes:
+    with path.open("rb") as source:
+        data = source.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError(f"package source exceeds {limit // (1024 * 1024)} MiB: {path}")
+    return data
 
 
 def project_root(start: pathlib.Path) -> pathlib.Path:
@@ -20,10 +43,9 @@ def project_root(start: pathlib.Path) -> pathlib.Path:
 
 def manifest(root: pathlib.Path) -> dict:
     path = root / "pika.json"
-    if path.stat().st_size > 1024 * 1024:
-        raise ValueError("pika.json exceeds 1 MiB")
-    data = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(data, dict) or not NAME.fullmatch(str(data.get("name", ""))):
+    data = json.loads(source_bytes(path, 1024 * 1024).decode("utf-8"))
+    if (not isinstance(data, dict) or not isinstance(data.get("name"), str)
+            or not NAME.fullmatch(data["name"])):
         raise ValueError(f"invalid package name in {path}")
     if not isinstance(data.get("dependencies", {}), dict):
         raise ValueError(f"dependencies must be an object in {path}")
@@ -39,6 +61,7 @@ def content_hash(root: pathlib.Path) -> str:
     digest = hashlib.sha256()
     files = [root / "pika.json"]
     pending = [root]
+    entries = 1
     while pending:
         directory = pending.pop()
         for path in directory.iterdir():
@@ -48,14 +71,14 @@ def content_hash(root: pathlib.Path) -> str:
                 raise ValueError(f"package symlinks are not supported: {path}")
             if path.is_dir():
                 pending.append(path)
+                entries += 1
             elif path.suffix == ".pf":
                 files.append(path)
-            if len(pending) + len(files) > 10000:
+                entries += 1
+            if entries > 10000:
                 raise ValueError("package exceeds 10,000 source files/directories")
     for path in sorted(files, key=lambda item: item.relative_to(root).as_posix()):
-        data = path.read_bytes()
-        if len(data) > 16 * 1024 * 1024:
-            raise ValueError(f"package source exceeds 16 MiB: {path}")
+        data = source_bytes(path, 16 * 1024 * 1024).replace(b"\r\n", b"\n").replace(b"\r", b"\n")
         name = path.relative_to(root).as_posix().encode("utf-8")
         digest.update(len(name).to_bytes(8, "big") + name)
         digest.update(len(data).to_bytes(8, "big") + data)
@@ -98,7 +121,6 @@ def resolve(root: pathlib.Path) -> list[tuple[str, pathlib.Path, str]]:
 
 
 def lock_text(root: pathlib.Path) -> str:
-    import os
     lines = [LOCK_HEADER]
     for alias, path, digest in resolve(root):
         try:
@@ -110,13 +132,27 @@ def lock_text(root: pathlib.Path) -> str:
 
 
 def lock(root: pathlib.Path, *, verify: bool = False) -> None:
-    expected = lock_text(root)
     path = root / "pika.lock"
+    if path.is_symlink():
+        raise ValueError("package lock cannot be a symbolic link")
+    expected = lock_text(root)
     if verify:
         if not path.exists() or path.read_text(encoding="utf-8") != expected:
             raise ValueError("package lock is missing or stale; run deps lock")
     else:
-        path.write_text(expected, encoding="utf-8", newline="\n")
+        temporary = None
+        try:
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", newline="\n",
+                                             dir=root, prefix=".pika-lock-", delete=False) as output:
+                temporary = pathlib.Path(output.name)
+                output.write(expected)
+            if path.exists():
+                os.chmod(temporary, path.stat().st_mode)
+            os.replace(temporary, path)
+            temporary = None
+        finally:
+            if temporary is not None:
+                temporary.unlink(missing_ok=True)
 
 
 def initialize(directory: pathlib.Path, name: str | None = None) -> None:
@@ -124,9 +160,10 @@ def initialize(directory: pathlib.Path, name: str | None = None) -> None:
     name = name or re.sub(r"[^A-Za-z_0-9]", "_", directory.name)
     if not NAME.fullmatch(name):
         raise ValueError("package name must be an ASCII identifier")
-    if any((directory / path).exists() for path in ("pika.json", "pika.lock", "src/main.pf")):
+    if any((directory / path).exists() or (directory / path).is_symlink()
+           for path in ("pika.json", "pika.lock", "src/main.pf")):
         raise ValueError("init refuses to replace existing project files")
-    if (directory / "src").exists() and not (directory / "src").is_dir():
+    if (directory / "src").is_symlink() or ((directory / "src").exists() and not (directory / "src").is_dir()):
         raise ValueError("init requires src to be a directory")
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "src").mkdir(exist_ok=True)
