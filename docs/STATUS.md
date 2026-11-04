@@ -1,28 +1,31 @@
 # Implementation status
 
-PikaFlow 0.2 extends the tested core with generic specialization, recursive ADTs,
-guarded/exhaustive patterns, Result propagation, isolated threaded tasks, nested
-C records/scalar callbacks/integer-width annotations, and working formatter,
-editor and local-package tools. Clean release commit `39fcac3` passed **19/19
-Windows native**, **15/15 Windows reference** and **20/20 Linux native** suites.
-Both native hosts passed 216 compiler checks, 133 language-extension checks,
-120 C ABI executions plus 40 located range failures, and 50 task executions.
-Linux also passed the real GDB test. Exact toolchain/source/binary identities,
-the Windows-only skipped Linux tools case, and complete counts are recorded in
-[validation.md](validation.md).
+PikaFlow 0.3 includes generic recursive ADTs, guarded/exhaustive patterns, Result
+propagation, isolated threaded tasks, C interop and developer tools. It adds named
+module aliases, single-evaluation compound updates, transactional cross-function
+diagnostics, typed-IR dataflow optimization, compiler semantic navigation/rename
+and exact-commit Git package restoration. These are implemented source paths with
+focused regression tests; complete host-suite results are recorded by frozen
+revision in [validation.md](validation.md).
+
+The clean `39fcac3` results are the historical 0.2 baseline. Their 19/19 Windows
+native, 15/15 reference and 20/20 Linux suites are retained as history, not reused
+as an automatic full-suite claim for later source revisions.
 
 ## Approved target
 
 - C++ compiler; indentation-based structured syntax plus explicit stack blocks.
+- Named module namespaces, source binding metadata and single-evaluation updates.
 - Static types, inferred local types, typed shared operand-stack contracts.
 - Functions, recursion, closures, pipelines, arrays, tuples, strings, modules.
 - Inferred/explicit generic specialization, recursive nominal enums and guarded
   exhaustive matches.
 - Checked arithmetic, recoverable `Result` values, explicit unsafe C boundary.
 - Custom typed IR, reference interpreter, LLVM IR and native object generation,
-  optimization, ORC JIT, source debug information.
+  CFG/dataflow optimization, ORC JIT, source debug information.
 - Precise non-moving mark/sweep runtime, roots for live managed values.
-- Isolated real-thread tasks, formatter, scoped LSP support and local package locks.
+- Isolated real-thread tasks, formatter, compiler-backed LSP navigation/rename,
+  local/exact-commit Git packages and integrity locks.
 - Windows x64 and Linux x64, executable regression tests and IR verification.
 
 ## Implemented and checked core
@@ -34,6 +37,10 @@ examples. Closures, mutation, Result/destructuring patterns, module privacy,
 checked arithmetic, generics, recursive enum graphs and explicit unsafe memory/foreign calls have executable
 regression coverage. The LLVM backend includes optimization, native assembly and
 object emission, linking and source debug metadata.
+The custom IR optimizer propagates constants over executable CFG edges, preserves
+checked failures/effects and verifies its output before LLVM lowering. Namespace,
+assignment-order and semantic-index tests cover private exports, qualified generic
+types/calls, captures, shadowing, writes and exact identifier positions.
 
 The C boundary supports natural-layout nested records, scalar noncapturing
 callbacks, scalar/pointer calls, explicit integer boundary widths and supported
@@ -58,10 +65,14 @@ host-specific suite results are maintained in [validation.md](validation.md).
 
 ## Delivered tooling and task contracts
 
-The formatter preserves real compiler tokens. The language server advertises
-only its implemented document-level capabilities. Package management uses local
-path dependencies and deterministic integrity locks, without a network registry
-or publishing service. Real worker threads copy capture/result graphs between
+The formatter preserves real compiler tokens. The language server supports
+incremental changes, compiler-backed hover/definition/references and verified
+capture-avoiding rename alongside diagnostics, formatting and completion.
+Grouped project contexts keep package/name resolution scoped to the appropriate
+manifest. Its advertised subset and limits are documented in [editor.md](editor.md).
+Packages use local paths or exact Git commits, deterministic locks and explicit
+fetch/offline verification, without a registry, version solver or install hooks.
+Real worker threads copy capture/result graphs between
 isolated heaps and join at function-scope exit; they do not share managed mutable
 state. Concurrent collection and a borrow checker are not part of this model.
 

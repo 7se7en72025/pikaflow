@@ -3,6 +3,10 @@
 Start with the [build instructions](../README.md), then run the full CTest suite
 for the build you changed. An interpreter-only build is useful for fast frontend
 work; it cannot establish native lowering, C ABI or source-debugger correctness.
+For a quick Windows edit/build/check loop, use
+`scripts/build.ps1 -InterpreterOnly -BuildOnly -Jobs 2`, then the affected focused
+test. `-BuildOnly` deliberately skips CTest; run the complete suite once the
+change is integrated.
 
 ## Follow one program through the compiler
 
@@ -10,6 +14,8 @@ work; it cannot establish native lowering, C ABI or source-debugger correctness.
 build/native/pikaflow.exe dump-tokens examples/hello.pf
 build/native/pikaflow.exe dump-ast examples/hello.pf
 build/native/pikaflow.exe dump-ir examples/hello.pf
+build/native/pikaflow.exe dump-ir examples/hello.pf -O2
+build/native/pikaflow.exe symbols examples/modules/qualified.pf
 build/native/pikaflow.exe emit-ir examples/hello.pf -O0 -o build/hello-O0.ll
 build/native/pikaflow.exe emit-ir examples/hello.pf -O2 -o build/hello-O2.ll
 build/native/pikaflow.exe dump-asm examples/hello.pf -O2
@@ -27,14 +33,18 @@ of independent execution paths before studying optimization differences.
 | How are indentation, literals and source spans recognized? | [lexer.cpp](../src/lexer.cpp) | [frontend tests](../tests/frontend_tests.cpp), [libFuzzer harness](../tests/fuzz_parser.cpp) if present; see [fuzzing](fuzzing.md) |
 | How do precedence, structured code and stack blocks become syntax nodes? | [parser.cpp](../src/parser.cpp), [frontend.hpp](../include/pikaflow/frontend.hpp) | Frontend valid/invalid cases; token-preserving formatter tests |
 | Where do names, modules, types, stack effects and closures get checked? | [compiler.cpp](../src/compiler.cpp) | [CLI tests](../tests/test_cli.py), [language extensions](../tests/test_language_extensions.py) |
+| Do namespaces and indexed updates preserve visibility/evaluation order? | Compiler resolvers/assignment lowering and parser lvalues | [Namespace/assignment tests](../tests/test_namespaces_assignments.py) |
+| How do source names retain identity through shadows, captures and generics? | Optional compiler semantic source pass and AST name locations | [Semantic index tests](../tests/test_semantic_symbols.py), [editor tests](../tests/test_editor.py) |
 | What does our own IR guarantee before LLVM sees it? | [ir.hpp](../include/pikaflow/ir.hpp), [ir.cpp](../src/ir.cpp) | [Malformed IR tests](../tests/ir_tests.cpp) |
+| How do constants and executable CFG edges drive our own optimization? | [optimizer.cpp](../src/optimizer.cpp), [optimizer.hpp](../include/pikaflow/optimizer.hpp) | [Optimizer unit tests](../tests/optimizer_tests.cpp), [cross-mode optimizer tests](../tests/test_optimization.py), [pass description](optimization.md) |
 | How can we execute without relying on LLVM lowering? | [interpreter.cpp](../src/interpreter.cpp) | [Interpreter tests](../tests/interpreter_tests.cpp), [arithmetic differential tests](../tests/fuzz_frontend.py) |
 | How do C++ LLVM APIs build types, instructions and control flow? | [backend.cpp](../src/backend.cpp) | [Backend tests](../tests/backend_tests.cpp); inspect emitted O0 IR |
 | How are object generation, target layout, passes and ORC connected? | [backend.cpp](../src/backend.cpp), [CMakeLists.txt](../CMakeLists.txt) | Native/JIT O0/O2 and object/assembly tests |
 | Who owns managed objects, GC roots and task snapshots? | [runtime.cpp](../src/runtime.cpp), [runtime.h](../include/pikaflow/runtime.h) | [Runtime tests](../tests/runtime_tests.cpp), [task tests](../tests/task_tests.cpp) |
 | Does a foreign aggregate really match the host ABI? | Backend C ABI helpers and [host C fixture](../tests/ffi_fixture.c) | [Generated C comparisons](../tests/test_ffi.py); run separately on both hosts |
 | Do debug records actually let a debugger inspect values? | Backend DIBuilder/variable declarations | [Real GDB checks](../tests/test_debugger.py), not only IR metadata checks |
-| How do tools call the compiler without editing user files? | [tools](../tools/pikaflow.py), [LSP](../tools/lsp.py) | [Tool subprocess tests](../tests/test_tools.py) |
+| How do tools preserve unsaved sources and reject rename capture? | [LSP](../tools/lsp.py), [semantic editor operations](../tools/editor.py) and compiler overlays | [Tool tests](../tests/test_tools.py), editor tests and [editor contract](editor.md) |
+| How are Git dependency blobs pinned, verified and restored without hooks? | [Package manager](../tools/packages.py), [Git source reader](../tools/git_sources.py) | [Real local-Git fixture tests](../tests/test_packages.py), [workflow](tooling.md) |
 
 PikaFlow's typed register IR is not LLVM SSA. LLVM lowering initially stores
 virtual registers in local slots; optimization may promote them and introduce
@@ -64,10 +74,14 @@ describes behavior, such as â€œPreserve managed nested records across C returnsâ
 - Trace one captured mutable variable from AST to cell/root to LLVM load/store.
 - Inspect the legality of the project's checked-arithmetic identity transform.
   Build counterexamples involving overflow before adding a new transform.
+- Trace the custom IR's incoming register facts through a loop/backedge and
+  compare `dump-ir -O0`, `dump-ir -O2` and emitted LLVM IR.
 - Compare Windows and SysV parameter/return lowering for one nested C record.
 - Trace how an ORC symbol resolves a runtime function and a generated C callback.
 - Follow an isolated task's snapshot, worker thunk, result import and GC roots.
 - Use a source debugger to inspect both a normal local and a captured cell.
+- Trace one qualified identifier from its exact source token to a compiler
+  binding ID, editor reference and capture-checked rename candidate.
 
 These are investigations on implemented code, not claims that completing them
 automatically qualifies a contribution for LLVM upstream. Upstream changes need

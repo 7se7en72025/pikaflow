@@ -9,15 +9,14 @@ The project draws inspiration from [Pikapika](https://github.com/7se7en72025/pik
 and [Goof](https://github.com/sneaky-potato/goof). Its implementation and language
 rules are developed here rather than merging the two projects' source code.
 
-**Status:** the 0.2 implementation includes generic functions and recursive ADTs,
-guarded matches, Result propagation, isolated threaded tasks, extended C interop,
-and formatter/editor/local-package tools. Native execution targets Windows x64
-and Linux x86-64. See the [validation record](docs/validation.md) for exact tested
-snapshots and [feature status](docs/FEATURES.md) for the supported contracts.
-The frozen clean `39fcac3` release passed **19/19 Windows native**, **15/15 Windows
-reference** and **20/20 Linux native** suites. Both native hosts passed 133
-language-extension checks and 120 generated C ABI comparisons; Linux additionally
-ran the real GDB suite.
+**Status:** PikaFlow 0.3 adds named module namespaces, single-evaluation compound
+updates, cross-function diagnostics, typed-IR dataflow optimization and a compiler
+semantic index for incremental editor navigation and verified rename. It includes
+generic recursive ADTs, Result propagation, isolated threaded tasks, C interop,
+formatting and exact-commit Git/local packages. Native targets are Windows x64
+and Linux x86-64. The [validation record](docs/validation.md) identifies frozen
+source/toolchain results; historical 0.2 counts are separate from 0.3 verification.
+See [feature status](docs/FEATURES.md) for supported contracts and limits.
 
 ## A small hybrid program
 
@@ -61,8 +60,9 @@ interpreter and both JIT/native optimization levels by the language suite.
 ## Build on Windows
 
 Install Git, CMake 3.24 or later, Ninja, Python 3, and Visual Studio C++ build tools
-with the Windows SDK. Use a **Developer PowerShell** when configuring the MSVC
-build. The configured native compiler captures the toolchain/SDK library paths;
+with the Windows SDK. `scripts/build.ps1` locates Visual Studio and initializes
+its toolchain environment. For manual MSVC CMake configuration, use a
+**Developer PowerShell**. The configured native compiler captures SDK library paths;
 subsequent language `build` commands can run from ordinary PowerShell.
 
 The reference interpreter does not require LLVM:
@@ -75,6 +75,15 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Interpr
 
 The script configures, builds, and runs CTest. `ExecutionPolicy Bypass` applies to
 that script process; it does not change the machine's execution policy.
+For a development iteration, `-BuildOnly` skips CTest so a focused check can run:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -InterpreterOnly -BuildOnly -Jobs 2
+python tests/test_namespaces_assignments.py build/interpreter/pikaflow.exe
+```
+
+Run the full suite after integrating the change; a build-only result is not test
+evidence.
 
 For the LLVM backend, first build LLVM 24 development libraries. The current
 checkout used for integration is
@@ -143,7 +152,8 @@ The following commands use the Windows LLVM-enabled binary; on Linux use
 | `emit-obj FILE -o OUTPUT` | Write a target object file |
 | `dump-tokens FILE` | Tokens with source locations and indentation markers |
 | `dump-ast FILE` | Parsed syntax tree |
-| `dump-ir FILE` | PikaFlow's typed register/control-flow IR, not LLVM IR |
+| `dump-ir FILE -O0/-O2` | Original/optimized PikaFlow typed IR, before LLVM lowering |
+| `symbols FILE` | Compiler-resolved source definitions, references and types as JSON |
 | `emit-ir FILE -O2` | Verified LLVM IR after the selected optimization pipeline |
 | `dump-asm FILE -O2` | Assembly for the host target |
 
@@ -151,6 +161,10 @@ Text inspection commands accept `-o FILE`. LLVM modes accept `-O0` through `-O3`
 `--debug` requests debug information for emission. Debugger usability is checked
 separately from IR or metadata emission. Output paths that refer to a loaded
 source file, including hard links, are rejected.
+The [typed-IR optimizer](docs/optimization.md) propagates integer/boolean constants
+over the CFG, folds safe arithmetic/branches and removes unreachable instructions
+before LLVM lowering. Checked failures and reachable effects are preserved; LLVM
+optimization remains a separate stage.
 
 ## Language and runtime features
 
@@ -162,6 +176,9 @@ source file, including hard links, are rejected.
   recursive/mutually recursive payloads and GC-managed cycles.
 - Branches, loops, loop control, guarded nested patterns and exhaustive enum
   matches; Result `?` returns errors early with a checked error type.
+- Named module aliases qualify functions, generic calls, types, constructors,
+  exported externs and stack words. Indexed `+=` and related updates evaluate
+  their base, index and right-hand side once, in order.
 - Real-thread `spawn`/`join` with typed handles, isolated graph snapshots and
   automatic joins at function-scope exit.
 - Checked integer arithmetic, bounds checks, recoverable Result helpers, and
@@ -169,6 +186,10 @@ source file, including hard links, are rejected.
 - A precise non-moving mark-and-sweep collector, explicit unsafe raw-memory
   helpers, persistent GC root handles, and C symbol aliases.
 - Private-by-default modules, explicit exports, and source standard-library modules.
+
+[`examples/modules/qualified.pf`](examples/modules/qualified.pf) demonstrates
+`import "math.pf" as math` and `math.twice(21)`. Bounded semantic recovery reports
+independent function-body errors while discarding failed compilation transactions.
 
 The [language extension reference](docs/language-extensions.md) specifies syntax,
 inference, recursive types and expansion limits. Task heap isolation and unsafe
@@ -230,11 +251,24 @@ python tools/pikaflow.py --compiler build/native/pikaflow.exe interpret --projec
 ```
 
 Formatting verifies compiler-token equivalence before replacing a file. The stdio
-language server supplies unsaved-document/import diagnostics, formatting, document
-symbols and keyword/declaration completion. It advertises only those capabilities.
-Local path packages use deterministic content locks and `pkg:` imports; this is
-not a network registry or publishing service. See [tooling.md](docs/tooling.md)
-for editor configuration, manifest examples and precise limits.
+language server supports incremental/full document changes, unsaved diagnostics,
+formatting, symbols/completion, compiler-backed hover, definitions, references
+and verified rename. Renames are checked against the candidate binding graph to
+reject capture and stay within the editable workspace. Multi-project workspaces
+are indexed by project context. See [editor.md](docs/editor.md) for the advertised
+protocol subset and limits.
+
+Packages may use local paths or exact Git commit pins. Restore reviewed Git pins
+explicitly, then build offline from the verified cache:
+
+```powershell
+python tools/pikaflow.py deps fetch --locked --project my_project
+python tools/pikaflow.py deps check --locked --offline --project my_project
+python tools/pikaflow.py --compiler build/native/pikaflow.exe interpret --locked --project my_project
+```
+
+There is no package registry or publishing service. [tooling.md](docs/tooling.md)
+specifies manifests, pin/lock integrity, fetching and editor setup.
 
 ## Install and continue development
 

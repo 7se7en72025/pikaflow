@@ -147,6 +147,9 @@ standard-library modules from the development or installed library layout.
 generic calls, enum types/constructors, foreign declarations and typed words.
 The compiler resolves qualified names to the same concrete declarations before
 IR lowering, so namespaces do not introduce a runtime lookup mechanism.
+Compound indexed updates keep one AST lvalue and evaluate base, index, old value
+and right-hand side once in order; they are not desugared by duplicating a
+potentially effectful lvalue expression.
 
 An extern source alias is independent of its actual C symbol, allowing a name
 such as `libc_free` to refer to `"free"`. Calling conventions, argument layout,
@@ -166,6 +169,11 @@ LLVM configuration/library set is versioned as a unit; following LLVM main requi
 deliberate rebuilds, adaptation, and tests rather than assuming compatibility.
 
 Tokens, AST, custom IR, LLVM IR, and target assembly are independently inspectable.
+At optimized levels, the typed register IR first passes through verified integer/
+boolean constant propagation, checked arithmetic/branch folding and unreachable
+instruction removal. This dataflow analysis accounts for mutable registers and
+loop backedges; LLVM's optimization pipeline remains a separate stage.
+[Optimization details](optimization.md)
 Compiler errors retain filename/line/column and a source caret. Parser recovery
 collects up to 20 independent top-level errors. Semantic function-body checking
 uses transactions: a failed function discards emitted code/specializations/layouts,
@@ -173,6 +181,15 @@ independent functions are checked, and any errors prevent producing a Program.
 Lexical and declaration/signature validation still fail at the first error.
 Resource limits prevent pathological nesting from
 exhausting the native parser stack.
+
+An optional compiler semantic source pass reuses the module/export tables and
+AST lexical scopes to emit definition/reference IDs. It includes writes,
+qualified aliases/types, capture references and unused generic templates, while
+omitting synthetic entry/argument names as rename targets. This powers editor
+hover, definitions, references and candidate-checked rename; the editor does not
+infer bindings with a separate regex parser. Incremental/unsaved buffers use
+original-path compiler overlays. Workspace groups are checked in their project
+contexts. [Editor contract](editor.md)
 
 Output protection rejects loaded source paths and equivalent hard links before
 writing. Native linking launches the compiler driver with structured arguments
@@ -189,13 +206,13 @@ does not dispatch automatically on pushes or pull requests.
 | Decision | Current direction | Later work |
 |---|---|---|
 | Native platforms | Windows x64 and Linux x64 targets | Additional targets need separate ABI/runtime tests |
-| Optimization | LLVM pipelines plus observable/custom-pass work | Further passes need legality checks and regression cases |
+| Optimization | Verified typed-IR constant/CFG propagation plus LLVM pipelines and checked identities | Heap/interprocedural/floating-point custom analyses require separate legality tests |
 | Debugging | Real GDB scalar/captured-local stepping/watch tests and Windows CodeView inspection | Managed visualization, optimized-code quality and graphical IDE integration remain unverified |
 | Standard library | Numeric, sequence, and ASCII/byte-string source modules | Additional APIs require specified contracts/tests |
 | Generics | Inferred/explicit module-level monomorphization; recursive nominal ADTs | Bounded specialization/type expansion; no runtime generic dispatch |
 | Formatter | Compiler-token-equivalent formatting with atomic replacement | No expression/comment reflow |
-| LSP | Compiler diagnostics, formatting, symbols and completion | Advertised protocol capabilities are documented and tested separately |
-| Package management | Local path dependencies with deterministic content locks | No network registry/publishing service |
+| LSP | Compiler diagnostics, incremental sync, semantic hover/navigation/references/verified rename, formatting and completion | Bounded project contexts and advertised methods; no claim of every protocol extension/editor |
+| Package management | Local paths and exact-commit Git pins with deterministic locks, explicit fetching and verified offline use | No registry service, version solver, publishing or install hooks |
 | Concurrency | Snapshot-isolated real threads, typed joins and independent heaps | No shared managed heap, cancellation or thread pool |
 
 The project's ambition is measured through specified semantics, working programs,
