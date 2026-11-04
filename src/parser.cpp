@@ -376,11 +376,19 @@ class Parser {
             if (is("export")) throw Error(peek().location, "duplicate export modifier");
             auto result = statement(stack);
             if (result->kind != Stmt::Kind::Function && result->kind != Stmt::Kind::Word
-                && result->kind != Stmt::Kind::Extern && result->kind != Stmt::Kind::Enum
+                && result->kind != Stmt::Kind::Extern && result->kind != Stmt::Kind::Enum && result->kind != Stmt::Kind::TypeAlias
                 && result->kind != Stmt::Kind::Let && result->kind != Stmt::Kind::Var)
                 throw Error(start.location, "only functions, words, extern declarations and variables may be exported");
             result->exported = true;
             return result;
+        }
+        if (accept("type")) {
+            if (indentation[position] != 0) throw Error(start.location, "type aliases must be declared at module scope");
+            auto result = std::make_shared<Stmt>(Stmt::Kind::TypeAlias, start.location);
+            auto name = expect(TokenKind::Name, "a type alias name");
+            result->name = name.text; result->nameLocation = name.location;
+            result->typeParameters = typeParameters(&result->typeParameterLocations);
+            expect("="); result->type = type(); finishSimple(); return result;
         }
         if (is("enum") || is("record")) {
             bool record = take().text == "record";
@@ -528,7 +536,7 @@ class Parser {
             if (indentation[position] == 0 && token.location.column == 1 && token.kind == TokenKind::Name
                 && (token.text == "fun" || token.text == "fn" || token.text == "word"
                     || token.text == "extern" || token.text == "import" || token.text == "export"
-                    || token.text == "let" || token.text == "var" || token.text == "enum" || token.text == "record")) return;
+                    || token.text == "let" || token.text == "var" || token.text == "enum" || token.text == "record" || token.text == "type")) return;
             ++position;
         }
     }
@@ -642,6 +650,7 @@ const char* statementName(Stmt::Kind kind) {
     case Stmt::Kind::Match: return "Match";
     case Stmt::Kind::Unsafe: return "Unsafe";
     case Stmt::Kind::Enum: return "Enum";
+    case Stmt::Kind::TypeAlias: return "TypeAlias";
     }
     return "Unknown";
 }
@@ -668,6 +677,7 @@ void dumpStatements(std::ostream& out, const std::vector<StmtPtr>& stmts, unsign
         for (const auto& parameter : stmt->typeParameters) out << " [" << parameter << "]";
         if (stmt->exported) out << " [export]";
         if (stmt->annotated) out << ": " << stmt->type.str();
+        if (stmt->kind == Stmt::Kind::TypeAlias) out << " = " << stmt->type.str();
         if (stmt->kind == Stmt::Kind::Function || stmt->kind == Stmt::Kind::Word || stmt->kind == Stmt::Kind::Extern) out << " -> " << stmt->returnType.str();
         out << " @" << stmt->location.line << ':' << stmt->location.column << '\n';
         for (const auto& parameter : stmt->parameters) out << std::string((depth + 1) * 2, ' ') << "Parameter " << parameter.name << ": " << parameter.type.str() << '\n';

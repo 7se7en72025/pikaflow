@@ -1,0 +1,14 @@
+export type Vec[T] = [T]
+type IntPoint = Point[i64]
+
+record Point[T]:
+    x: T
+    y: T
+
+fun first[T](values: Vec[T]) -> T:
+    return values[0]
+
+fun main() -> unit:
+    let point: IntPoint = Point(y: 22, x: 20)
+    let coordinates: Vec[i64] = [point.x, point.y]
+    print(first(coordinates) + coordinates[1])

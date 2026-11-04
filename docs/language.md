@@ -77,6 +77,51 @@ Strings support `\n`, `\r`, `\t`, `\0`, `\\`, `\"`, and `\'` escapes. `len(text)
 counts bytes, and indexing a string returns an unsigned byte represented as
 `i64`. Unicode character indexing is not implemented.
 
+## Transparent type aliases
+
+```text
+export type Vec[T] = [T]
+type IntPoint = Point[i64]
+```
+
+Aliases are module-level names for existing types. They introduce no runtime
+representation or nominal identity: `Vec[i64]` and `[i64]` are the same type.
+They work in annotations, function signatures, fields and explicit type arguments.
+An alias does not create a constructor; construct `Point(x: 20, y: 22)` and annotate
+it with `IntPoint`. Generic functions can infer through aliases.
+
+Aliases and nominal declarations share the type namespace. Value functions and
+local bindings may use the same spelling in their separate namespace. Type
+parameters shadow module type names. `export type` supports direct/qualified
+imports and ordinary module privacy. An alias's right-hand side resolves in its
+defining module. A public alias can name an otherwise private nominal type as an
+opaque handle; it does not export that type's constructors or record fields.
+
+Forward aliases are allowed. Every alias declaration is validated even when
+unused. Generic signatures are checked with symbolic type parameters, including
+alias arity and C boundary restrictions, before specialization. Direct and
+indirect transparent cycles are rejected. Recursion through nominal records
+is allowed, for example `type Children[T] = [Node[T]]` with a `Node[T]` record
+containing a `Children[T]` field. Generic record receiver annotations may use
+aliases without losing their field identity.
+
+There are at most 1,024 alias declarations, with a 64-level structural expansion
+limit and a 4,096-node expansion bound checked before duplicating substituted
+arguments. Expansion also consumes the compiler's shared type-work budget.
+These bounds reject exponential types with a diagnostic.
+
+An alias may name an external-only C wire type, such as `type CInt = c_i32`, or
+a nested C-compatible tuple. Its integer-width metadata is preserved in external
+declarations. Ordinary source parameters, values and record fields still cannot
+use C wire integer types. Pointer-to-wire-width annotations remain unsupported,
+as with the direct annotations. Aliasing a managed record does not make it a C
+ABI record. See [C interoperability](ffi.md) for the supported boundary types.
+
+The source index records alias declarations, their type parameters and exact
+written references, including module prefixes and dependencies in alias right-hand
+sides. Expanded implementation types do not create additional source references.
+See [the executable example](../examples/type_aliases.pf).
+
 ## Nominal records and named fields
 
 ```text

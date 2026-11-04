@@ -29,7 +29,7 @@ struct Expr {
 };
 struct Stmt {
     enum class Kind { Function, Word, Let, Var, Assign, Expression, Return, If,
-        While, For, Import, Extern, Break, Continue, StackOp, Match, Unsafe, Enum };
+        While, For, Import, Extern, Break, Continue, StackOp, Match, Unsafe, Enum, TypeAlias };
     Kind kind;
     Location location;
     Location nameLocation;

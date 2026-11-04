@@ -100,8 +100,26 @@ class Compiler {
     size_t declarationSymbol(const StmtPtr &statement, const std::string &kind) {
         auto source = sourceDeclarations.find(locationKey(statement->nameLocation));
         const auto &definition = source == sourceDeclarations.end() ? statement : source->second;
-        auto symbol = addSymbol(definition->name, kind, definition->nameLocation,
-                                (kind == "enum" || kind == "record") ? Type{TypeKind::Named, {}, definition->name} : sourceFunctionType(*definition));
+        auto existing = symbolIds.find(locationKey(definition->nameLocation) + ":" + kind);
+        if (existing != symbolIds.end()) return existing->second;
+        Type type = kind == "typeAlias" ? definition->type :
+            (kind == "enum" || kind == "record") ? Type{TypeKind::Named, {}, definition->name} : sourceFunctionType(*definition);
+        if (!typeAliases.empty() && kind != "typeAlias" && kind != "enum" && kind != "record") {
+            std::map<std::string, Type> parameters;
+            for (const auto &name : definition->typeParameters) parameters[name] = Type{TypeKind::Named, {}, name};
+            type = expandAliases(type, parameters, definition->nameLocation);
+        }
+        std::string detail;
+        if (kind == "typeAlias") {
+            detail = "type " + definition->name;
+            if (!definition->typeParameters.empty()) {
+                detail += "[";
+                for (size_t i = 0; i < definition->typeParameters.size(); ++i) detail += (i ? "," : "") + definition->typeParameters[i];
+                detail += "]";
+            }
+            detail += " = " + definition->type.str();
+        }
+        auto symbol = addSymbol(definition->name, kind, definition->nameLocation, type, detail);
         if (symbol != size_t(-1)) program.symbols[symbol].generic = !definition->typeParameters.empty();
         return symbol;
     }
@@ -136,8 +154,8 @@ class Compiler {
                                                 type.name == "c_i32" || type.name == "c_u32" || type.name == "c_i64" || type.name == "c_u64");
                 if (!cWidth) {
                     aliasUse(type.name, type.qualifierLocation);
-                    if (auto definition = enumDeclaration(type.name, type.sourceLocation))
-                        symbolUse(declarationSymbol(definition, definition->isRecord ? "record" : "enum"), type.sourceLocation);
+                    if (auto definition = typeDeclaration(type.name, type.sourceLocation))
+                        symbolUse(declarationSymbol(definition, definition->kind == Stmt::Kind::TypeAlias ? "typeAlias" : definition->isRecord ? "record" : "enum"), type.sourceLocation);
                 }
             }
         }
@@ -286,6 +304,14 @@ class Compiler {
     void indexStatement(const StmtPtr &statement) {
         indexStep(statement->location);
         const auto &s = *statement;
+        if (s.kind == Stmt::Kind::TypeAlias) {
+            declarationSymbol(statement, "typeAlias"); indexScopes.emplace_back();
+            for (size_t i = 0; i < s.typeParameters.size(); ++i) {
+                Location location = i < s.typeParameterLocations.size() ? s.typeParameterLocations[i] : Location{};
+                indexScopes.back().types[s.typeParameters[i]] = addSymbol(s.typeParameters[i], "typeParameter", location, Type{TypeKind::Named, {}, s.typeParameters[i]});
+            }
+            indexType(s.type, true); indexScopes.pop_back(); return;
+        }
         if (s.kind == Stmt::Kind::Function || s.kind == Stmt::Kind::Word || s.kind == Stmt::Kind::Extern || s.kind == Stmt::Kind::Enum) {
             std::string kind = s.kind == Stmt::Kind::Enum ? (s.isRecord ? "record" : "enum") : s.kind == Stmt::Kind::Extern ? "extern" : s.kind == Stmt::Kind::Word ? "word" : "function";
             size_t symbol = declarationSymbol(statement, kind);
@@ -405,6 +431,8 @@ class Compiler {
         return count;
     }
     std::map<std::string, StmtPtr> enumDeclarations;
+    std::map<std::string, StmtPtr> typeAliases;
+    std::map<std::string, std::vector<std::string>> exportedTypeAliases;
     std::map<std::string, std::vector<std::string>> exportedEnums;
     std::map<std::string, std::pair<std::string, size_t>> constructors;
     std::map<std::string, std::vector<std::string>> exportedConstructors;
@@ -420,27 +448,42 @@ class Compiler {
         return {found->second, name.substr(dot + 1)};
     }
 
-    StmtPtr enumDeclaration(const std::string &name, Location loc) {
+    StmtPtr typeDeclaration(const std::string &name, Location loc) {
+        auto find = [&](const std::string &key) -> StmtPtr {
+            auto alias = typeAliases.find(key);
+            if (alias != typeAliases.end()) return alias->second;
+            auto nominal = enumDeclarations.find(key);
+            return nominal == enumDeclarations.end() ? StmtPtr{} : nominal->second;
+        };
         auto qualified = qualifiedModule(name, loc);
         if (!qualified.first.empty()) {
-            auto found = enumDeclarations.find(qualified.first + "::" + qualified.second);
-            if (found == enumDeclarations.end()) return {};
-            if (!found->second->exported) fail(loc, "module type '" + name + "' is private");
-            return found->second;
+            auto definition = find(qualified.first + "::" + qualified.second);
+            if (definition && !definition->exported) fail(loc, "module type '" + name + "' is private");
+            return definition;
         }
-        auto own = enumDeclarations.find(loc.file + "::" + name);
-        if (own != enumDeclarations.end()) return own->second;
+        if (auto own = find(loc.file + "::" + name)) return own;
         StmtPtr result;
-        auto visible = exportedEnums.find(name);
-        if (visible == exportedEnums.end()) return {};
-        for (const auto &key : visible->second) {
-            auto candidate = enumDeclarations.at(key);
-            if (imports[loc.file].count(candidate->location.file)) {
-                if (result) fail(loc, "ambiguous imported enum type '" + name + "'");
-                result = candidate;
+        auto consider = [&](const auto &visible) {
+            auto names = visible.find(name);
+            if (names == visible.end()) return;
+            for (const auto &key : names->second) {
+                auto candidate = find(key);
+                if (imports[loc.file].count(candidate->location.file)) {
+                    if (result) fail(loc, "ambiguous imported type '" + name + "'");
+                    result = candidate;
+                }
             }
-        }
+        };
+        consider(exportedEnums); consider(exportedTypeAliases);
         return result;
+    }
+    StmtPtr enumDeclaration(const std::string &name, Location loc) {
+        auto definition = typeDeclaration(name, loc);
+        return definition && definition->kind == Stmt::Kind::Enum ? definition : StmtPtr{};
+    }
+    StmtPtr aliasDeclaration(const std::string &name, Location loc) {
+        auto definition = typeDeclaration(name, loc);
+        return definition && definition->kind == Stmt::Kind::TypeAlias ? definition : StmtPtr{};
     }
     std::pair<StmtPtr, size_t> constructor(const std::string &name, Location loc) {
         auto qualified = qualifiedModule(name, loc);
@@ -506,6 +549,78 @@ class Compiler {
         return reference;
     }
 
+    bool wireTypeName(const std::string &name) {
+        static const std::set<std::string> names{"c_i8", "c_u8", "c_i16", "c_u16", "c_i32", "c_u32", "c_i64", "c_u64"};
+        return names.count(name) != 0;
+    }
+    bool reservedTypeName(const std::string &name) {
+        return reserved(name) || wireTypeName(name) || name == "int" || name == "float" || name == "void" || name == "array";
+    }
+    Location typeOrigin(const Type &type, const Location &fallback) {
+        return type.sourceLocation.file.empty() ? fallback : type.sourceLocation;
+    }
+    Type expandAliasNode(const Type &source, const std::map<std::string, Type> &bindings,
+                         Location loc, std::set<std::string> active, unsigned depth, size_t &nodes) {
+        if (depth > 64) fail(loc, "type alias expansion depth limit (64) exceeded");
+        if (!typeExpansionBudget) fail(loc, "compiler type expansion budget exceeded");
+        --typeExpansionBudget;
+        if (++nodes > 4096) fail(loc, "type alias expansion complexity limit (4096 nodes) exceeded");
+        if (source.kind == TypeKind::Named) {
+            auto bound = bindings.find(source.name);
+            if (bound != bindings.end() && !source.args.empty()) fail(loc, "type parameters do not take type arguments");
+            if (bound != bindings.end() && source.args.empty()) {
+                size_t count = typeNodes(bound->second, loc);
+                if (count - 1 > 4096 - nodes) fail(loc, "type alias expansion complexity limit (4096 nodes) exceeded");
+                if (count > typeExpansionBudget) fail(loc, "compiler type expansion budget exceeded");
+                nodes += count - 1; typeExpansionBudget -= count;
+                return bound->second;
+            }
+            auto definition = aliasDeclaration(source.name, typeOrigin(source, loc));
+            if (definition) {
+                if (source.args.size() != definition->typeParameters.size()) fail(loc, "wrong number of type alias arguments for '" + source.name + "'");
+                std::vector<Type> arguments;
+                for (const auto &argument : source.args) arguments.push_back(expandAliasNode(argument, bindings, loc, active, depth + 1, nodes));
+                auto key = definition->location.file + "::" + definition->name;
+                if (!active.insert(key).second) fail(loc, "cyclic type alias involving '" + definition->name + "'");
+                std::map<std::string, Type> parameters;
+                for (size_t i = 0; i < arguments.size(); ++i) parameters[definition->typeParameters[i]] = std::move(arguments[i]);
+                return expandAliasNode(definition->type, parameters, definition->type.sourceLocation.file.empty() ? definition->location : definition->type.sourceLocation,
+                                       std::move(active), depth + 1, nodes);
+            }
+        }
+        Type result{source.kind, {}, source.name};
+        result.sourceLocation = source.sourceLocation; result.qualifierLocation = source.qualifierLocation;
+        for (const auto &argument : source.args) result.args.push_back(expandAliasNode(argument, bindings, loc, active, depth + 1, nodes));
+        return result;
+    }
+    Type expandAliases(const Type &source, const std::map<std::string, Type> &bindings, Location loc) {
+        (void)typeNodes(source, loc);
+        size_t nodes = 0;
+        return expandAliasNode(source, bindings, loc, {}, 0, nodes);
+    }
+    void validateAliasShape(const Type &type, const std::set<std::string> &variables, Location loc,
+                            bool allowUnit = true, bool allowWire = true) {
+        if (type == Unit && !allowUnit) fail(loc, "unit has no value and cannot be a parameter, binding, or container element");
+        if (type.kind == TypeKind::Named) {
+            if (variables.count(type.name)) {
+                if (!type.args.empty()) fail(loc, "type parameters do not take type arguments");
+                return;
+            }
+            if (wireTypeName(type.name)) {
+                if (!allowWire) fail(loc, "unknown type '" + type.name + "' in ordinary source: C integer width types are only valid in extern declarations");
+                if (!type.args.empty()) fail(loc, "C integer width annotations do not take type arguments");
+                return;
+            }
+            auto definition = enumDeclaration(type.name, typeOrigin(type, loc));
+            if (!definition) fail(loc, "unknown type '" + type.name + "'");
+            if (type.args.size() != definition->typeParameters.size()) fail(loc, "wrong number of nominal type arguments");
+        }
+        for (size_t i = 0; i < type.args.size(); ++i) {
+            bool unit = (type.kind == TypeKind::Function && i + 1 == type.args.size()) ||
+                        type.kind == TypeKind::Pointer || type.kind == TypeKind::Task;
+            validateAliasShape(type.args[i], variables, typeOrigin(type.args[i], loc), unit, allowWire);
+        }
+    }
     bool unresolved(const Type &t) {
         if (t.kind == TypeKind::Named) return true;
         for (const auto &argument : t.args) if (unresolved(argument)) return true;
@@ -513,9 +628,13 @@ class Compiler {
     }
     Type substitute(Type t, const std::map<std::string, Type> &bindings, Location loc,
                     unsigned depth = 0) {
-        if (!typeExpansionBudget--) fail(loc, "compiler type expansion budget exceeded");
+        if (depth == 0 && !typeAliases.empty()) t = expandAliases(t, bindings, loc);
+        if (!typeExpansionBudget) fail(loc, "compiler type expansion budget exceeded");
+        --typeExpansionBudget;
         if (depth > 64) fail(loc, "type expansion exceeds the supported limit");
         if (t.kind == TypeKind::Named) {
+            if (depth && !bindings.count(t.name) && aliasDeclaration(t.name, typeOrigin(t, loc)))
+                return substitute(expandAliases(t, bindings, loc), bindings, loc, depth + 1);
             auto found = bindings.find(t.name);
             if (found != bindings.end() && t.args.empty()) {
                 size_t nodes = typeNodes(found->second, loc);
@@ -523,7 +642,8 @@ class Compiler {
                 typeExpansionBudget -= nodes;
                 return found->second;
             }
-            auto definition = enumDeclaration(t.name, loc);
+            if (wireTypeName(t.name)) fail(loc, "unknown type '" + t.name + "' in ordinary source: C integer width types are only valid in extern declarations");
+            auto definition = enumDeclaration(t.name, typeOrigin(t, loc));
             if (definition) {
                 std::vector<Type> arguments;
                 for (const auto &argument : t.args) arguments.push_back(substitute(argument, bindings, loc, depth + 1));
@@ -534,10 +654,17 @@ class Compiler {
         for (auto &argument : t.args) argument = substitute(argument, bindings, loc, depth + 1);
         return t;
     }
-    Type partialType(Type t, const std::map<std::string, Type> &bindings, Location loc) {
+    Type partialType(Type t, const std::map<std::string, Type> &bindings, Location loc,
+                     const std::set<std::string> &variables, bool expand = true) {
+        if (expand && !typeAliases.empty()) {
+            std::map<std::string, Type> parameters;
+            for (const auto &name : variables) parameters[name] = Type{TypeKind::Named, {}, name};
+            for (const auto &entry : bindings) parameters[entry.first] = entry.second;
+            t = expandAliases(t, parameters, loc);
+        }
         if (t.kind == TypeKind::Named && t.args.empty() && bindings.count(t.name)) return bindings.at(t.name);
-        for (auto &argument : t.args) argument = partialType(argument, bindings, loc);
-        if (t.kind == TypeKind::Named && enumDeclaration(t.name, loc)) {
+        for (auto &argument : t.args) argument = partialType(argument, bindings, loc, variables, false);
+        if (t.kind == TypeKind::Named && !variables.count(t.name) && enumDeclaration(t.name, typeOrigin(t, loc))) {
             bool concrete = true;
             for (const auto &argument : t.args) concrete = concrete && !unresolved(argument);
             if (concrete) return substitute(t, bindings, loc);
@@ -570,8 +697,14 @@ class Compiler {
         for (auto &item : original->elseBody) result->elseBody.push_back(cloneStmt(item, bindings));
         return result;
     }
-    void infer(const Type &pattern, const Type &actual, const std::set<std::string> &variables,
-               std::map<std::string, Type> &bindings, Location loc) {
+    void infer(const Type &input, const Type &actual, const std::set<std::string> &variables,
+               std::map<std::string, Type> &bindings, Location loc, bool expand = true) {
+        Type pattern = input;
+        if (expand && !typeAliases.empty()) {
+            std::map<std::string, Type> parameters;
+            for (const auto &name : variables) parameters[name] = Type{TypeKind::Named, {}, name};
+            pattern = expandAliases(input, parameters, loc);
+        }
         if (pattern.kind == TypeKind::Named && pattern.args.empty() && variables.count(pattern.name)) {
             auto found = bindings.find(pattern.name);
             if (found != bindings.end()) require(actual, found->second, loc, "type parameter '" + pattern.name + "'");
@@ -580,15 +713,15 @@ class Compiler {
         }
         if (pattern.kind == TypeKind::Named && !actual.name.empty() && enumInstances.count(actual.name)) {
             const auto &instance = enumInstances.at(actual.name);
-            auto definition = enumDeclaration(pattern.name, loc);
+            auto definition = enumDeclaration(pattern.name, typeOrigin(pattern, loc));
             if (!definition || definition != instance.declaration || pattern.args.size() != instance.arguments.size())
                 fail(loc, "generic enum argument does not match " + pattern.str());
-            for (size_t i = 0; i < pattern.args.size(); ++i) infer(pattern.args[i], instance.arguments[i], variables, bindings, loc);
+            for (size_t i = 0; i < pattern.args.size(); ++i) infer(pattern.args[i], instance.arguments[i], variables, bindings, loc, false);
             return;
         }
         if (pattern.kind != actual.kind || pattern.name != actual.name || pattern.args.size() != actual.args.size())
             fail(loc, "generic argument does not match " + pattern.str() + ": received " + actual.str());
-        for (size_t i = 0; i < pattern.args.size(); ++i) infer(pattern.args[i], actual.args[i], variables, bindings, loc);
+        for (size_t i = 0; i < pattern.args.size(); ++i) infer(pattern.args[i], actual.args[i], variables, bindings, loc, false);
     }
     Declaration specialize(const Declaration &generic, const std::vector<Type> &explicitTypes,
                            const std::vector<int> *arguments, const Type *expected, Location loc) {
@@ -661,7 +794,7 @@ class Compiler {
             "true",   "false",    "and",    "or",        "not",       "dup",        "swap",
             "drop",   "over",     "rot",    "neg",       "ok",        "err",        "is_ok",
             "unwrap", "error",    "range",  "alloc_i64", "alloc_f64", "alloc_bool", "free",
-            "load",   "store",    "cstr",   "pin",       "unpin", "enum", "record", "task", "spawn", "join", "c_callback", "offset"};
+            "load",   "store",    "cstr",   "pin",       "unpin", "enum", "record", "type", "task", "spawn", "join", "c_callback", "offset"};
         return names.count(name) != 0;
     }
     bool cScalar(const Type &t) {
@@ -678,7 +811,15 @@ class Compiler {
                 return false;
         return true;
     }
+    bool containsWireType(const Type &type) {
+        if (type.kind == TypeKind::Named && wireTypeName(type.name)) return true;
+        for (const auto &argument : type.args) if (containsWireType(argument)) return true;
+        return false;
+    }
     std::pair<Type, CABIType> externType(const Type &source, Location loc) {
+        return externExpandedType(typeAliases.empty() ? source : expandAliases(source, {}, loc), loc);
+    }
+    std::pair<Type, CABIType> externExpandedType(const Type &source, Location loc) {
         if (source.kind == TypeKind::Named) {
             static const std::map<std::string, std::pair<unsigned, bool>> widths = {
                 {"c_i8", {8, true}}, {"c_u8", {8, false}}, {"c_i16", {16, true}},
@@ -693,11 +834,12 @@ class Compiler {
         if (source.kind == TypeKind::Tuple && source.name.empty()) {
             Type type{TypeKind::Tuple}; CABIType abi;
             for (const auto &field : source.args) {
-                auto normalized = externType(field, loc);
+                auto normalized = externExpandedType(field, loc);
                 type.args.push_back(normalized.first); abi.fields.push_back(normalized.second);
             }
             return {type, abi};
         }
+        if (containsWireType(source)) fail(loc, "unknown type in this extern position: C wire widths require scalar or plain-tuple positions in extern declarations");
         return {substitute(source, {}, loc), {}};
     }
     CABIType canonicalABI(const Type &type, CABIType descriptor) {
@@ -1393,21 +1535,40 @@ class Compiler {
         return ordered;
     }
     std::vector<std::map<std::string, Type>> sourceScopes;
+    std::set<std::string> sourceVariables;
     Type sourceSubstitute(Type type, const std::map<std::string, Type> &bindings) {
+        if (!typeAliases.empty()) {
+            std::map<std::string, Type> parameters;
+            for (const auto &name : sourceVariables) parameters[name] = Type{TypeKind::Named, {}, name};
+            for (const auto &entry : bindings) parameters[entry.first] = entry.second;
+            return expandAliases(type, parameters, typeOrigin(type, {program.sourceFile, 1, 1}));
+        }
         if (type.kind == TypeKind::Named && type.args.empty() && bindings.count(type.name)) return bindings.at(type.name);
         for (auto &argument : type.args) argument = sourceSubstitute(argument, bindings);
         return type;
     }
-    void sourceInfer(const Type &pattern, const Type &actual, const std::set<std::string> &variables,
-                     std::map<std::string, Type> &bindings) {
+    void sourceInfer(const Type &input, const Type &actual, const std::set<std::string> &variables,
+                     std::map<std::string, Type> &bindings, bool expand = true) {
+        Type pattern = input;
+        if (expand && !typeAliases.empty()) {
+            std::map<std::string, Type> parameters;
+            for (const auto &name : sourceVariables) parameters[name] = Type{TypeKind::Named, {}, name};
+            for (const auto &name : variables) parameters[name] = Type{TypeKind::Named, {}, name};
+            pattern = expandAliases(input, parameters, typeOrigin(input, {program.sourceFile, 1, 1}));
+        }
         if (pattern.kind == TypeKind::Named && pattern.args.empty() && variables.count(pattern.name)) {
-            if (!bindings.count(pattern.name)) bindings[pattern.name] = actual;
+            auto previous = bindings.find(pattern.name);
+            if (previous == bindings.end() || (previous->second.kind == TypeKind::Named && previous->second.name == pattern.name && previous->second.args.empty()))
+                bindings[pattern.name] = actual;
             return;
         }
         if (pattern.kind == actual.kind && pattern.name == actual.name && pattern.args.size() == actual.args.size())
-            for (size_t i = 0; i < pattern.args.size(); ++i) sourceInfer(pattern.args[i], actual.args[i], variables, bindings);
+            for (size_t i = 0; i < pattern.args.size(); ++i) sourceInfer(pattern.args[i], actual.args[i], variables, bindings, false);
     }
-    std::pair<StmtPtr, std::map<std::string, Type>> sourceRecord(const Type &type, Location location) {
+    std::pair<StmtPtr, std::map<std::string, Type>> sourceRecord(const Type &input, Location location) {
+        Type type = sourceSubstitute(input, {});
+        if (type.kind == TypeKind::Named && sourceVariables.count(type.name) && type.args.empty())
+            fail(location, "generic field receivers need a resolvable nominal record type; annotate the receiver");
         auto instance = enumInstances.find(type.name);
         StmtPtr definition;
         std::vector<Type> arguments = type.args;
@@ -1458,7 +1619,7 @@ class Compiler {
         const auto &e = *value;
         if (e.kind == Expr::Kind::Name) {
             for (auto scope = sourceScopes.rbegin(); scope != sourceScopes.rend(); ++scope) {
-                auto found = scope->find(e.text); if (found != scope->end()) return found->second;
+                auto found = scope->find(e.text); if (found != scope->end()) return sourceSubstitute(found->second, {});
             }
             if (auto target = declaration(e.text, e.location)) return sourceFunctionType(*target->ast);
             return Unit;
@@ -1486,14 +1647,17 @@ class Compiler {
             if (callee->kind == Expr::Kind::Name) {
                 for (auto scope = sourceScopes.rbegin(); scope != sourceScopes.rend(); ++scope) {
                     auto found = scope->find(callee->text);
-                    if (found != scope->end()) return found->second.kind == TypeKind::Function && !found->second.args.empty()
-                        ? found->second.args.back() : Unit;
+                    if (found != scope->end()) {
+                        Type callable = sourceSubstitute(found->second, {});
+                        return callable.kind == TypeKind::Function && !callable.args.empty() ? callable.args.back() : Unit;
+                    }
                 }
                 auto target = constructor(callee->text, callee->location);
                 if (target.first && target.first->isRecord) {
                     const auto &definition = target.first;
                     std::map<std::string, Type> bindings;
                     const auto variables = std::set<std::string>(definition->typeParameters.begin(), definition->typeParameters.end());
+                    for (const auto &name : variables) bindings[name] = Type{TypeKind::Named, {}, name};
                     for (size_t i = 0; i < explicitTypes.size() && i < definition->typeParameters.size(); ++i) bindings[definition->typeParameters[i]] = explicitTypes[i];
                     for (size_t i = 1; i < e.items.size(); ++i) {
                         auto argument = e.items[i];
@@ -1511,6 +1675,7 @@ class Compiler {
                     auto definition = function->ast;
                     std::map<std::string, Type> bindings;
                     const auto variables = std::set<std::string>(definition->typeParameters.begin(), definition->typeParameters.end());
+                    for (const auto &name : variables) bindings[name] = Type{TypeKind::Named, {}, name};
                     for (size_t i = 0; i < explicitTypes.size() && i < definition->typeParameters.size(); ++i) bindings[definition->typeParameters[i]] = explicitTypes[i];
                     for (size_t i = 0; i < arguments.size() && i < definition->parameters.size(); ++i)
                         sourceInfer(definition->parameters[i].type, arguments[i], variables, bindings);
@@ -1629,7 +1794,7 @@ class Compiler {
                 proveField(definition, field, argument->nameLocation); argument = argument->items.at(0);
             }
             const auto &parameter = variant->parameters[field];
-            Type hint = partialType(parameter.type, bindings, parameter.location);
+            Type hint = partialType(parameter.type, bindings, parameter.location, variables);
             values[field] = expr(argument, unresolved(hint) ? nullptr : &hint);
             infer(parameter.type, type(values[field]), variables, bindings, parameter.location);
         }
@@ -1779,7 +1944,7 @@ class Compiler {
                             const Type *expectedArgument = nullptr;
                             if (i <= target->ast->parameters.size()) {
                                 const auto &parameter = target->ast->parameters[i - 1];
-                                hint = partialType(parameter.type, bindings, parameter.location);
+                                hint = partialType(parameter.type, bindings, parameter.location, variables);
                                 if (hint != Unit && !unresolved(hint)) expectedArgument = &hint;
                             }
                             arguments.push_back(expr(e.items[i], expectedArgument));
@@ -2381,6 +2546,8 @@ class Compiler {
             emit(Op::StoreCell, Unit, {cell, value}, s.location);
             break;
         }
+        case Stmt::Kind::TypeAlias:
+            fail(s.location, "type aliases must be declared at module scope");
         case Stmt::Kind::Word:
             fail(s.location, "word declarations must be at module scope");
         case Stmt::Kind::Unsafe: {
@@ -2549,10 +2716,22 @@ class Compiler {
         SyntaxTree tree; tree.filename = source.filename;
         for (const auto &statement : source.statements) tree.statements.push_back(moduleStatement(statement));
         for (const auto &statement : tree.statements) {
+            if (statement->kind == Stmt::Kind::TypeAlias) {
+                const auto &s = *statement;
+                std::string key = s.location.file + "::" + s.name;
+                if (reservedTypeName(s.name) || typeAliases.count(key) || enumDeclarations.count(key) || moduleAliases[s.location.file].count(s.name))
+                    fail(s.nameLocation, "duplicate or reserved type alias '" + s.name + "'");
+                for (const auto &parameter : s.typeParameters)
+                    if (reservedTypeName(parameter)) fail(s.nameLocation, "reserved alias type parameter '" + parameter + "'");
+                if (typeAliases.size() >= 1024) fail(s.nameLocation, "type alias declaration limit (1024) exceeded");
+                typeAliases[key] = statement;
+                if (s.exported) exportedTypeAliases[s.name].push_back(key);
+                continue;
+            }
             if (statement->kind != Stmt::Kind::Enum) continue;
             const auto &s = *statement;
             const std::string key = s.location.file + "::" + s.name;
-            if (reserved(s.name) || enumDeclarations.count(key) || moduleAliases[s.location.file].count(s.name)) fail(s.location, "duplicate or reserved enum name '" + s.name + "'");
+            if (reserved(s.name) || enumDeclarations.count(key) || typeAliases.count(key) || moduleAliases[s.location.file].count(s.name)) fail(s.location, "duplicate or reserved enum name '" + s.name + "'");
             for (const auto &parameter : s.typeParameters) if (reserved(parameter)) fail(s.location, "reserved enum type parameter '" + parameter + "'");
             enumDeclarations[key] = statement;
             if (s.exported) exportedEnums[s.name].push_back(key);
@@ -2563,6 +2742,15 @@ class Compiler {
                 constructors[variantKey] = {key, i};
                 if (s.exported) exportedConstructors[variant->name].push_back(variantKey);
             }
+        }
+        for (const auto &item : typeAliases) {
+            const auto &definition = item.second;
+            std::map<std::string, Type> parameters;
+            for (const auto &name : definition->typeParameters) parameters[name] = Type{TypeKind::Named, {}, name};
+            size_t nodes = 0;
+            (void)typeNodes(definition->type, definition->location);
+            Type expanded = expandAliasNode(definition->type, parameters, definition->location, {item.first}, 0, nodes);
+            validateAliasShape(expanded, {definition->typeParameters.begin(), definition->typeParameters.end()}, definition->location);
         }
         for (const auto &item : enumDeclarations)
             if (item.second->typeParameters.empty()) enumType(item.second, {}, item.second->location, 0);
@@ -2580,7 +2768,7 @@ class Compiler {
                 }
             }
             auto &s = *resolvedStatement;
-            if (s.kind == Stmt::Kind::Enum) continue;
+            if (s.kind == Stmt::Kind::Enum || s.kind == Stmt::Kind::TypeAlias) continue;
             if (s.kind == Stmt::Kind::Import) {
                 continue;
             }
@@ -2638,6 +2826,13 @@ class Compiler {
                 definition = std::make_shared<Stmt>(*statement);
                 definition->returnType = substitute(s.returnType, {}, s.location);
                 for (auto &parameter : definition->parameters) parameter.type = substitute(parameter.type, {}, parameter.location);
+            } else {
+                std::map<std::string, Type> parameters;
+                const std::set<std::string> variables{s.typeParameters.begin(), s.typeParameters.end()};
+                for (const auto &name : variables) parameters[name] = Type{TypeKind::Named, {}, name};
+                validateAliasShape(expandAliases(s.returnType, parameters, s.location), variables, s.location, true, false);
+                for (const auto &parameter : s.parameters)
+                    validateAliasShape(expandAliases(parameter.type, parameters, parameter.location), variables, parameter.location, false, false);
             }
             std::vector<Type> params;
             for (auto &parameter : definition->parameters)
@@ -2646,7 +2841,7 @@ class Compiler {
             if (s.name == entryFunction && s.location.file == tree.filename) {
                 irName = "main";
                 if (s.kind != Stmt::Kind::Function || !s.typeParameters.empty() || !params.empty() ||
-                    (s.returnType != Unit && s.returnType != I64))
+                    (definition->returnType != Unit && definition->returnType != I64))
                     fail(s.location, entryFunction == "main" ? "main must take no parameters and return unit or i64; entry must be a non-generic structured function"
                          : "selected entry '" + entryFunction + "' must be a non-generic function taking no parameters and returning unit or i64");
             }
@@ -2661,10 +2856,12 @@ class Compiler {
             fail({tree.filename, 1, 1}, entryFunction == "main" ? "program requires fun main() -> unit or i64"
                  : "program requires selected entry function '" + entryFunction + "'");
         for (const auto &declaration : declarations) if (!declaration.ast->typeParameters.empty()) {
+            sourceVariables = {declaration.ast->typeParameters.begin(), declaration.ast->typeParameters.end()};
             sourceScopes.emplace_back();
             for (const auto &parameter : declaration.ast->parameters) sourceScopes.back()[parameter.name] = parameter.type;
             sourceBody(declaration.ast->body, false); sourceScopes.pop_back();
         }
+        sourceVariables.clear();
         std::vector<std::pair<Location, std::string>> errors;
         auto keys = [](const auto &map) {
             std::set<std::string> result;
@@ -2712,7 +2909,7 @@ class Compiler {
         if (indexSymbols) {
             bestEffortFields = true;
             for (const auto &declaration : declarations) if (declaration.ast->typeParameters.empty()) {
-                sourceScopes.emplace_back();
+                sourceScopes.emplace_back(); sourceVariables.clear();
                 for (const auto &parameter : declaration.ast->parameters) sourceScopes.back()[parameter.name] = parameter.type;
                 sourceBody(declaration.ast->body, false); sourceScopes.pop_back();
             }

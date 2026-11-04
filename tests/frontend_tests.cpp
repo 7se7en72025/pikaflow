@@ -132,6 +132,11 @@ int main() {
         const auto &underscoreArms = underscorePatterns.statements[0]->body[0]->body;
         require(underscoreArms[0]->expression->items[0]->kind == Expr::Kind::Member && underscoreArms[0]->expression->items[0]->text == "Boxed" && underscoreArms[1]->expression->items[0]->text == "_"
             && underscoreArms[2]->name == "_", "qualified underscore and constructor patterns must remain distinct from a wildcard");
+        const auto aliases = tree("export type Vec[T]=[T]\ntype Integer=i64\n");
+        require(aliases.statements[0]->kind == Stmt::Kind::TypeAlias && aliases.statements[0]->exported
+            && aliases.statements[0]->type.kind == TypeKind::Array && aliases.statements[0]->type.args[0].name == "T", "generic type alias syntax missing");
+        require(tree("type First=i64; type Second=First\n").statements.size() == 2, "same-line module aliases rejected");
+        reject("fun main():\n    type Local=i64\n", "module scope");
         const auto record = tree("export record Point[T]:\n    x:T\n    y:T\nfun main():\n    let p = Point(y:22,x:20)\n    p.x += 1\n    print(p.y)\n");
         require(record.statements[0]->isRecord && record.statements[0]->body[0]->parameters.size() == 2, "record declaration missing");
         require(record.statements[1]->body[0]->expression->items[1]->kind == Expr::Kind::NamedArgument, "record labels missing");
