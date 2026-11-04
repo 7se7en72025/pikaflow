@@ -72,7 +72,10 @@ and direct-import privacy rules apply to generic declarations just as to concret
 functions.
 
 Expansion is bounded to 64 active instantiations and 256 distinct specializations
-per compilation. Uninferred/conflicting arguments, unbounded type growth and
+per compilation. Types are limited to 4096 nodes; substitution has a shared
+one-million-node expansion budget. These checks also bound exponentially growing
+type shapes, rather than relying only on a recursion-depth limit.
+Uninferred/conflicting arguments, unbounded type growth and
 invalid operations diagnose instead of generating unchecked IR.
 
 `case pattern if condition:` evaluates the guard after a pattern succeeds and
@@ -99,3 +102,19 @@ implicit conversion between error types.
 `tests/test_language_extensions.py` exercises positive and negative source
 programs through the reference interpreter and, when LLVM is enabled, JIT/native
 execution at both optimization levels.
+
+## C integer boundary widths
+
+Extern signatures may spell `c_i8`, `c_u8`, `c_i16`, `c_u16`, `c_i32`, `c_u32`,
+`c_i64` and `c_u64`, including fields of nested natural-layout C tuple records.
+These annotations describe the foreign ABI. Their source-language carrier is
+`i64`; they do not introduce unsigned source arithmetic or implicitly narrow
+ordinary PikaFlow variables. The LLVM backend performs the target-specific
+narrowing, range checks and sign/zero extension. `c_u64` preserves all 64 bits in
+the signed carrier (`-1` represents `UINT64_MAX`).
+
+Aliases of one native symbol must agree on ABI widths and narrow signedness.
+Ordinary `i64`, `c_i64` and `c_u64` share the same 64-bit calling representation.
+Width annotations are restricted to extern scalar/record positions; use
+`ptr[unit]` for byte-addressed foreign buffers rather than `ptr[c_i8]`.
+Source callbacks retain the ordinary scalar-width signature contract.

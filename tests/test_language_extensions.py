@@ -254,6 +254,10 @@ CASES = {
 }
 
 NEGATIVE = {
+    "abi_width_conflict": ('extern fun one(value:c_i8)->c_i8 = "same_symbol"\nextern fun two(value:c_i16)->c_i16 = "same_symbol"\nfun main():\n    pass\n', "conflicting declarations"),
+    "abi_sign_conflict": ('extern fun one(value:c_i8)->c_i8 = "same_symbol"\nextern fun two(value:c_u8)->c_u8 = "same_symbol"\nfun main():\n    pass\n', "conflicting declarations"),
+    "abi_source_carrier": ('fun main():\n    let value:c_i8=1\n', "unknown type"),
+    "abi_pointer_width": ('extern fun one(value:ptr[c_i8])->unit\nfun main():\n    pass\n', "unknown type"),
     "task_recursive_pointer": ("enum Node:\n    Link(children:[Node])\n    Foreign(memory:ptr[i64])\nfun worker()->Node:\n    return Link([])\nfun main():\n    spawn(worker)\n", "result cannot contain"),
     "enum_exhaustiveness": ("enum Option[T]:\n    Some(value:T)\n    None\nfun main():\n    match Some(42):\n        case Some(x):\n            print(x)\n", "non-exhaustive enum match"),
     "enum_guard_exhaustiveness": ("enum Flag:\n    Yes\n    No\nfun main():\n    match Yes():\n        case Yes() if true:\n            pass\n        case No():\n            pass\n", "non-exhaustive enum match"),
@@ -268,6 +272,8 @@ NEGATIVE = {
     "generic_not_generic": ("fun id(x:i64)->i64:\n    return x\nfun main():\n    id::[i64](1)\n", "generic function"),
     "generic_body_type": ("fun add[T](x:T)->T:\n    return x+1\nfun main():\n    add(true)\n", "requires bool"),
     "generic_depth": ("fun grow[T](x:T)->i64:\n    return grow([x])\nfun main():\n    grow(1)\n", "limit"),
+    "generic_exponential_growth": ("fun grow[T](x:T)->i64:\n    return grow((x,x))\nfun main():\n    grow(1)\n", "type complexity limit"),
+    "enum_exponential_growth": ("enum Grow[T]:\n    More(value:Grow[(T,T)])\n    Empty\nfun main():\n    let x:Grow[i64]=Empty()\n", "type complexity limit"),
     "guard_type": ("fun main():\n    match 42:\n        case x if x:\n            print(x)\n", "match guard requires bool"),
     "guard_exhaustiveness": ("fun f(x:bool)->i64:\n    match x:\n        case true if false:\n            return 1\n        case false:\n            return 2\nfun main():\n    pass\n", "does not return"),
     "guard_binding_scope": ("fun main():\n    match 1:\n        case x if true:\n            print(x)\n    print(x)\n", "unknown name"),
@@ -316,6 +322,13 @@ def main():
         (root / "private.pf").write_text("enum Secret:\n    Hidden(value:i64)\nexport fun answer()->i64:\n    return 42\n", encoding="utf-8")
         path.write_text('import "private.pf"\nfun main():\n    Hidden(42)\n', encoding="utf-8")
         run([compiler, "check", str(path)], diagnostic="unknown function"); count += 1
+        for name, source in {
+            "abi_widths": 'extern fun narrow(value:c_i8, nested:(c_u16,(c_i32,c_u8)))->c_u32\nfun main():\n    unsafe:\n        narrow(42,(42,(42,42)))\n',
+            "abi_alias_64": 'extern fun one(value:i64)->i64 = "same_symbol"\nextern fun two(value:c_u64)->c_i64 = "same_symbol"\nfun main():\n    pass\n',
+            "abi_nested_alias_64": 'extern fun one(value:(i64,(i64,bool)))->i64 = "same_symbol"\nextern fun two(value:(c_u64,(c_i64,bool)))->c_u64 = "same_symbol"\nfun main():\n    pass\n',
+        }.items():
+            path = root / (name + ".pf"); path.write_text(source, encoding="utf-8")
+            run([compiler, "check", str(path)]); count += 1
     print(f"{count} language extension checks passed ({'LLVM enabled' if native else 'interpreter'})")
 
 

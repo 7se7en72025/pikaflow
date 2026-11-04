@@ -49,6 +49,17 @@ class Compiler {
     unsigned serial = 0;
     std::map<std::string, Declaration> specializations;
     unsigned instantiationDepth = 0;
+    size_t typeExpansionBudget = 1000000;
+    size_t typeNodes(const Type &type, Location loc) {
+        size_t count = 0;
+        std::vector<const Type *> pending{&type};
+        while (!pending.empty()) {
+            const Type *next = pending.back(); pending.pop_back();
+            if (++count > 4096) fail(loc, "type complexity limit (4096 nodes) exceeded");
+            for (const auto &argument : next->args) pending.push_back(&argument);
+        }
+        return count;
+    }
     std::map<std::string, StmtPtr> enumDeclarations;
     std::map<std::string, std::vector<std::string>> exportedEnums;
     std::map<std::string, std::pair<std::string, size_t>> constructors;
@@ -127,10 +138,16 @@ class Compiler {
     }
     Type substitute(Type t, const std::map<std::string, Type> &bindings, Location loc,
                     unsigned depth = 0) {
+        if (!typeExpansionBudget--) fail(loc, "compiler type expansion budget exceeded");
         if (depth > 64) fail(loc, "type expansion exceeds the supported limit");
         if (t.kind == TypeKind::Named) {
             auto found = bindings.find(t.name);
-            if (found != bindings.end() && t.args.empty()) return found->second;
+            if (found != bindings.end() && t.args.empty()) {
+                size_t nodes = typeNodes(found->second, loc);
+                if (nodes > typeExpansionBudget) fail(loc, "compiler type expansion budget exceeded");
+                typeExpansionBudget -= nodes;
+                return found->second;
+            }
             auto definition = enumDeclaration(t.name, loc);
             if (definition) {
                 std::vector<Type> arguments;
@@ -283,7 +300,50 @@ class Compiler {
                 return false;
         return true;
     }
+    std::pair<Type, CABIType> externType(const Type &source, Location loc) {
+        if (source.kind == TypeKind::Named) {
+            static const std::map<std::string, std::pair<unsigned, bool>> widths = {
+                {"c_i8", {8, true}}, {"c_u8", {8, false}}, {"c_i16", {16, true}},
+                {"c_u16", {16, false}}, {"c_i32", {32, true}}, {"c_u32", {32, false}},
+                {"c_i64", {64, true}}, {"c_u64", {64, false}}};
+            auto width = widths.find(source.name);
+            if (width != widths.end()) {
+                if (!source.args.empty()) fail(loc, "C integer width annotations do not take type arguments");
+                return {I64, CABIType{width->second.first, width->second.second, {}}};
+            }
+        }
+        if (source.kind == TypeKind::Tuple && source.name.empty()) {
+            Type type{TypeKind::Tuple}; CABIType abi;
+            for (const auto &field : source.args) {
+                auto normalized = externType(field, loc);
+                type.args.push_back(normalized.first); abi.fields.push_back(normalized.second);
+            }
+            return {type, abi};
+        }
+        return {substitute(source, {}, loc), {}};
+    }
+    CABIType canonicalABI(const Type &type, CABIType descriptor) {
+        if (type == I64) {
+            if (!descriptor.bits) descriptor.bits = 64;
+            if (descriptor.bits == 64) descriptor.isSigned = true;
+        } else if (type.kind == TypeKind::Tuple) {
+            if (descriptor.fields.empty()) descriptor.fields.resize(type.args.size());
+            for (size_t i = 0; i < type.args.size(); ++i) descriptor.fields[i] = canonicalABI(type.args[i], descriptor.fields[i]);
+        }
+        return descriptor;
+    }
+    bool sameExternalABI(const External &left, const External &right) {
+        if (left.parameters != right.parameters || left.result != right.result || left.variadic != right.variadic) return false;
+        if (canonicalABI(left.result, left.abiResult) != canonicalABI(right.result, right.abiResult)) return false;
+        for (size_t i = 0; i < left.parameters.size(); ++i) {
+            CABIType a = left.abiParameters.empty() ? CABIType{} : left.abiParameters[i];
+            CABIType b = right.abiParameters.empty() ? CABIType{} : right.abiParameters[i];
+            if (canonicalABI(left.parameters[i], a) != canonicalABI(right.parameters[i], b)) return false;
+        }
+        return true;
+    }
     void validateType(const Type &t, Location loc, bool allowUnit = false, unsigned depth = 0) {
+        if (depth == 0) (void)typeNodes(t, loc);
         if (depth > 64)
             fail(loc, "type nesting exceeds the supported limit");
         if (t.kind == TypeKind::Named) fail(loc, "unresolved type '" + t.str() + "'");
@@ -1805,7 +1865,18 @@ class Compiler {
         for (const auto &item : enumDeclarations)
             if (item.second->typeParameters.empty()) enumType(item.second, {}, item.second->location, 0);
         for (auto &statement : tree.statements) {
-            auto resolvedStatement = statement->kind == Stmt::Kind::Extern ? cloneStmt(statement, {}) : statement;
+            auto resolvedStatement = statement;
+            std::vector<CABIType> parameterABI;
+            CABIType resultABI;
+            if (statement->kind == Stmt::Kind::Extern) {
+                resolvedStatement = std::make_shared<Stmt>(*statement);
+                auto normalizedResult = externType(statement->returnType, statement->location);
+                resolvedStatement->returnType = normalizedResult.first; resultABI = normalizedResult.second;
+                for (auto &parameter : resolvedStatement->parameters) {
+                    auto normalized = externType(parameter.type, parameter.location);
+                    parameter.type = normalized.first; parameterABI.push_back(normalized.second);
+                }
+            }
             auto &s = *resolvedStatement;
             if (s.kind == Stmt::Kind::Enum) continue;
             if (s.kind == Stmt::Kind::Import) {
@@ -1828,6 +1899,8 @@ class Compiler {
                 ext.symbol = s.expression ? s.expression->text : s.name;
                 ext.result = s.returnType;
                 ext.variadic = s.variadic;
+                ext.abiParameters = parameterABI;
+                ext.abiResult = resultABI;
                 for (auto &p : s.parameters) {
                     if (!cType(p.type))
                         fail(p.location, "extern argument requires a scalar, pointer, or flat "
@@ -1838,9 +1911,7 @@ class Compiler {
                 if (externals.count(externalKey) || byModule.count(externalKey) || constructors.count(externalKey))
                     fail(s.location, "duplicate extern declaration");
                 for (const auto &previous : program.externals)
-                    if (previous.symbol == ext.symbol &&
-                        (previous.parameters != ext.parameters || previous.result != ext.result ||
-                         previous.variadic != ext.variadic))
+                    if (previous.symbol == ext.symbol && !sameExternalABI(previous, ext))
                         fail(s.location,
                              "conflicting declarations for native symbol '" + ext.symbol + "'");
                 externals[externalKey] = ext;
