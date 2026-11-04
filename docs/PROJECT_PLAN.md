@@ -1,11 +1,11 @@
 # PikaFlow completion plan and live engineering log
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).  
-**Last updated:** 2026-11-04 22:07 IST.
+**Last updated:** 2026-11-04 22:39 IST.
 
-**Status:** the documented PikaFlow 0.2 completion contract is delivered and
-verified. Tested implementation: clean `39fcac3`; closeout commits change evidence
-and documentation only. Supported boundaries remain explicit in [FEATURES.md](FEATURES.md).
+**Status:** 0.2 is verified at `39fcac3`. Following the user's renewed completion
+request, the 0.3 continuation below is active. Historical 0.2 completion records
+remain unchanged; new features require their own tests and clean-host evidence.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -21,6 +21,37 @@ working examples, editor/project tools, a reproducible installation, and passing
 Windows x64/Linux x86-64 native and interpreter checks. Each feature needs valid
 examples, negative diagnostics, relevant edge cases, and cross-mode execution
 where applicable. Preserve explicit unsafe boundaries and source-file protection.
+
+## 0.3 completion continuation — 2026-11-04
+
+The renewed audit found stale statements in the main language reference and
+unfinished source/editor/package workflows. Correct these in code and docs;
+do not relabel an unsupported feature as complete.
+
+| Milestone | Acceptance | Initial estimate | State |
+|---|---|---|---|
+| Namespaces and updates | Qualified functions/types/constructors/words; privacy; compound indexed assignment evaluates base/index/RHS once | 1–3 h | Implemented; new source regressions under integration |
+| Diagnostics | Collect independent function-body errors with rollback and a cap; never return partial invalid IR | 0.5–2 h | Implemented; signature errors remain fail-fast |
+| Semantic source index | Exact declaration/use positions for values, captures, generic templates, types and aliases; optional compile-only metadata | 1–3 h | In progress |
+| Editor workflows | Native unsaved-source overlays; incremental UTF-16 edits; hover, definition, references; rename rejects binding capture and returns versioned client edits | 1–3 h | Implemented integration; review/tests in progress |
+| Pinned Git packages | Exact commits, raw-object cache validation, offline checks, fresh-clone restoration, isolated Git configuration and no lifecycle scripts | 1–2 h | Implemented; 9 Git fixture tests pass on Windows/Linux |
+| Typed IR optimization | Bounded CFG constant propagation, checked arithmetic folding, branch simplification; side effects/traps/source metadata preserved | 1–3 h | Focused tests pass; cross-mode integration underway |
+| Closeout | Current examples/reference, full frozen Windows/Linux suites, updated install/benchmark/evidence and focused pushed commits | 1–3 h | Pending |
+
+Current estimates are engineering ranges, not a commitment to idle for that time.
+No remote registry service, publication or arbitrary extra architecture is implied.
+
+### 0.3 timestamped log (IST)
+
+- 22:23: audit resumed; stale ADT/Result/reference statements and unfinished module
+  aliases/indexed updates identified.
+- 22:35: qualified imports, transactional updates and cross-function diagnostic
+  rollback checked; pinned Git fixture checks passing.
+- 22:39: Windows evolving reference run passes 18/19 suites; newly added
+  stack-word shadowing regression is being checked against a fresh compiler.
+  Optimizer, old language/runtime suites, Git packages and overlay-based tools pass.
+
+The complete 0.2 baseline and earlier timing/evidence follow for history.
 
 The reference hosts and LLVM 24 remain the supported targets. Other architectures,
 unrestricted C++ ABI compatibility, distributed/concurrent collection, a registry
