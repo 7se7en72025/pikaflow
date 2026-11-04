@@ -230,3 +230,8 @@ def initialize(directory: pathlib.Path, name: str | None = None) -> None:
     (directory / "src/main.pf").write_text('fun main() -> unit:\n    print("Hello, PikaFlow!")\n',
                                             encoding="utf-8")
     lock(directory)
+    try:
+        with (directory / ".gitignore").open("x", encoding="utf-8", newline="\n") as ignore:
+            ignore.write(".pika/\nbuild/\nout/\n")
+    except FileExistsError:
+        pass

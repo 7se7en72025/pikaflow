@@ -1,5 +1,6 @@
 param(
     [switch]$InterpreterOnly,
+    [switch]$BuildOnly,
     [string]$LLVMDir,
     [ValidateRange(1, 64)][int]$Jobs = 2
 )
@@ -39,5 +40,7 @@ if ($InterpreterOnly) {
 if ($LASTEXITCODE -ne 0) { throw "CMake configuration failed ($LASTEXITCODE)." }
 & cmake --build $buildDir --parallel $Jobs
 if ($LASTEXITCODE -ne 0) { throw "Build failed ($LASTEXITCODE)." }
-& ctest --test-dir $buildDir --output-on-failure
-if ($LASTEXITCODE -ne 0) { throw "Tests failed ($LASTEXITCODE)." }
+if (-not $BuildOnly) {
+    & ctest --test-dir $buildDir --output-on-failure
+    if ($LASTEXITCODE -ne 0) { throw "Tests failed ($LASTEXITCODE)." }
+}

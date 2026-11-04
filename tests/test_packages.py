@@ -20,6 +20,19 @@ COMPILER = pathlib.Path(sys.argv.pop(1)).resolve() if len(sys.argv) > 1 and not 
 GIT = shutil.which("git")
 
 
+class ProjectTemplate(unittest.TestCase):
+    def test_init_ignores_generated_cache_without_replacing_existing_rules(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            fresh, existing = root / "fresh", root / "existing"
+            packages.initialize(fresh, "fresh")
+            self.assertEqual((fresh / ".gitignore").read_text(), ".pika/\nbuild/\nout/\n")
+            existing.mkdir()
+            (existing / ".gitignore").write_text("personal-rule\n", encoding="utf-8")
+            packages.initialize(existing, "existing")
+            self.assertEqual((existing / ".gitignore").read_text(), "personal-rule\n")
+
+
 @unittest.skipUnless(GIT, "Git is required for local repository fixtures")
 class GitPackages(unittest.TestCase):
     def setUp(self):
