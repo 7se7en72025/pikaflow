@@ -69,6 +69,16 @@ def main() -> int:
     deps.add_argument("--locked", action="store_true", help="preserve the existing dependency lock")
     deps.add_argument("--offline", action="store_true", help="never fetch a missing Git cache")
     commands.add_parser("lsp", help="start the stdio language server")
+    tests = commands.add_parser("test", help="run compiler-resolved test_* functions in separate processes")
+    tests.add_argument("--project", default=".", type=pathlib.Path)
+    tests.add_argument("--backend", choices=("interpret", "jit", "native"), default="interpret")
+    tests.add_argument("-O", choices=("0", "1", "2", "3"), default="0")
+    tests.add_argument("--filter", default="*")
+    tests.add_argument("--list", action="store_true")
+    tests.add_argument("--timeout", type=float, default=30)
+    tests.add_argument("--jobs", type=int, default=1)
+    tests.add_argument("--json-report", type=pathlib.Path)
+    tests.add_argument("--junit", type=pathlib.Path)
     for command in ("check", "interpret", "run", "build"):
         project = commands.add_parser(command, help=f"{command} the locked project entry")
         project.add_argument("--project", default=".", type=pathlib.Path)
@@ -104,6 +114,9 @@ def main() -> int:
         elif args.command == "lsp":
             from lsp import serve
             return serve(compiler_path(args.compiler))
+        elif args.command == "test":
+            from project_tests import run_project
+            return run_project(compiler_path(args.compiler), args)
         else:
             root = packages.project_root(args.project)
             packages.lock(root, verify=True)

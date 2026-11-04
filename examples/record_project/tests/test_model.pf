@@ -1,0 +1,22 @@
+import "std:testing"
+import "../src/model.pf" as model
+
+fun test_counter() -> unit:
+    let counter: model.IntCounter = model.make(40)
+    model.bump(counter, 2)
+    assert_equal(counter.value, 42)
+
+fun test_generic_record() -> unit:
+    let counter = model.Counter(value: "hello")
+    assert_equal(counter.value, "hello")
+
+fun test_task_snapshot() -> unit:
+    let counter = model.make(1)
+    let worker = fn() -> i64:
+        counter.value += 5
+        gc()
+        return counter.value
+    let pending = spawn(worker)
+    counter.value = 9
+    assert_equal(join(pending), 6)
+    assert_equal(counter.value, 9)

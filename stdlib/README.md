@@ -7,12 +7,23 @@ the standard-library prefix:
 import "std:numeric"
 import "std:sequences"
 import "std:strings"
+import "std:testing"
 ```
 
 The complete example is [`examples/stdlib.pf`](../examples/stdlib.pf).
 The compiler locates installed modules under `share/pikaflow/stdlib` and uses the
 configured source library for development builds. Ordinary relative-path imports
 remain available for user modules.
+
+## `testing.pf`
+
+| Export | Behavior |
+|---|---|
+| `assert_true(bool) -> unit` | Panic if the condition is false |
+| `assert_equal[T](actual:T, expected:T) -> unit` | Use the concrete type's equality operator; print operands and panic on mismatch |
+| `assert_close(f64, f64, tolerance:f64) -> unit` | Require a nonnegative absolute tolerance; panic if the comparison fails |
+
+See [project testing](../docs/testing.md) for isolated test functions and reports.
 
 ## `numeric.pf`
 

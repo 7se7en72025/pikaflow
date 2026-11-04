@@ -17,7 +17,7 @@ LOCK_HEADER = "pikaflow-lock-v1"
 def linked(path: pathlib.Path) -> bool:
     try:
         info = path.lstat()
-    except FileNotFoundError:
+    except (FileNotFoundError, NotADirectoryError):
         return False
     # Windows junctions use the mount-point reparse tag rather than symlink mode.
     return stat.S_ISLNK(info.st_mode) or getattr(info, "st_reparse_tag", 0) == 0xA0000003
@@ -219,16 +219,21 @@ def initialize(directory: pathlib.Path, name: str | None = None) -> None:
     if not NAME.fullmatch(name):
         raise ValueError("package name must be an ASCII identifier")
     if any((directory / path).exists() or linked(directory / path)
-           for path in ("pika.json", "pika.lock", "src/main.pf")):
+           for path in ("pika.json", "pika.lock", "src/main.pf", "tests/test_main.pf")):
         raise ValueError("init refuses to replace existing project files")
     if linked(directory / "src") or ((directory / "src").exists() and not (directory / "src").is_dir()):
         raise ValueError("init requires src to be a directory")
+    if linked(directory / "tests") or ((directory / "tests").exists() and not (directory / "tests").is_dir()):
+        raise ValueError("init requires tests to be a directory")
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "src").mkdir(exist_ok=True)
+    (directory / "tests").mkdir(exist_ok=True)
     (directory / "pika.json").write_text(json.dumps({"name": name, "version": "0.1.0",
         "entry": "src/main.pf", "dependencies": {}}, indent=2) + "\n", encoding="utf-8")
     (directory / "src/main.pf").write_text('fun main() -> unit:\n    print("Hello, PikaFlow!")\n',
                                             encoding="utf-8")
+    (directory / "tests/test_main.pf").write_text('import "std:testing"\n\n'
+        'fun test_arithmetic() -> unit:\n    assert_equal(20 + 22, 42)\n', encoding="utf-8")
     lock(directory)
     try:
         with (directory / ".gitignore").open("x", encoding="utf-8", newline="\n") as ignore:

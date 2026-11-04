@@ -1,0 +1,10 @@
+export record Counter[T]:
+    value: T
+
+export type IntCounter = Counter[i64]
+
+export fun make(seed: i64) -> IntCounter:
+    return Counter(value: seed)
+
+export fun bump(counter: IntCounter, amount: i64) -> unit:
+    counter.value += amount

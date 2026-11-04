@@ -1,0 +1,21 @@
+# Small assertions for project test_* functions. Failed assertions panic in the worker.
+export fun assert_true(condition: bool) -> unit:
+    if not condition:
+        panic("assert_true failed")
+
+export fun assert_equal[T](actual: T, expected: T) -> unit:
+    if actual != expected:
+        print(actual)
+        print(expected)
+        panic("assert_equal failed: actual and expected differ")
+
+export fun assert_close(actual: f64, expected: f64, tolerance: f64) -> unit:
+    if not (tolerance >= 0.0):
+        panic("assert_close requires a nonnegative tolerance")
+    if actual == expected:
+        return
+    var difference = actual - expected
+    if difference < 0.0:
+        difference = -difference
+    if not (difference <= tolerance):
+        panic("assert_close failed")

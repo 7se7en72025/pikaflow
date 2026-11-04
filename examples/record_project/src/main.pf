@@ -1,0 +1,17 @@
+import "model.pf" as model
+
+fun main() -> unit:
+    let counter: model.IntCounter = model.make(40)
+    model.bump(counter, 2)
+    print(counter.value)
+    let worker = fn() -> i64:
+        counter.value += 1
+        gc()
+        return counter.value
+    let pending = spawn(worker)
+    counter.value += 10
+    print(join(pending))
+    print(counter.value)
+    let squared = stack(6) -> i64:
+        dup *
+    print(squared)

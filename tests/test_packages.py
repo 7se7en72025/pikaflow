@@ -21,6 +21,23 @@ GIT = shutil.which("git")
 
 
 class ProjectTemplate(unittest.TestCase):
+    def test_init_preserves_existing_tests_and_rejects_nondirectory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            (root / "tests").mkdir()
+            source = root / "tests/test_main.pf"
+            source.write_text("user-owned test\n")
+            with self.assertRaisesRegex(ValueError, "replace"):
+                packages.initialize(root, "preserved")
+            self.assertEqual(source.read_text(), "user-owned test\n")
+            self.assertFalse((root / "pika.json").exists())
+            source.unlink()
+            (root / "tests").rmdir()
+            (root / "tests").write_text("user file")
+            with self.assertRaisesRegex(ValueError, "tests"):
+                packages.initialize(root, "preserved")
+            self.assertEqual((root / "tests").read_text(), "user file")
+
     def test_init_ignores_generated_cache_without_replacing_existing_rules(self):
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
