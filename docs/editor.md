@@ -87,8 +87,9 @@ The server allows 32 open documents and a 4 MiB UTF-8 buffer/message limit. Over
 manifests allow 256 absolute-path records, 4 MiB per source, 128 MiB total source
 text and 65,536 bytes per filename. Duplicate, relative, truncated and oversized
 records are rejected by the compiler. Compiler subprocesses have a 30-second
-timeout. Oversized/deeply nested JSON fails through protocol errors rather than
-an unhandled parser exception.
+timeout. JSON is limited to 128 container levels before decoding, independently
+of the Python runtime's recursion limit. Oversized/deeply nested JSON fails
+through protocol errors rather than an unhandled parser exception.
 
 ## Checks
 

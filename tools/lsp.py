@@ -54,6 +54,23 @@ def read_message(stream) -> dict | None:
     content = stream.read(size)
     if len(content) != size:
         raise ValueError("truncated LSP message")
+    depth, quoted, escaped = 0, False, False
+    for byte in content:
+        if quoted:
+            if escaped:
+                escaped = False
+            elif byte == 92:
+                escaped = True
+            elif byte == 34:
+                quoted = False
+        elif byte == 34:
+            quoted = True
+        elif byte in (91, 123):
+            depth += 1
+            if depth > 128:
+                raise ValueError("LSP JSON nesting exceeds 128 container levels")
+        elif byte in (93, 125):
+            depth -= 1
     try:
         result = json.loads(content)
     except RecursionError:

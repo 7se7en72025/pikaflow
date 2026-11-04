@@ -94,6 +94,18 @@ class EditorWorkflows(unittest.TestCase):
         for context in (None, [], {"includeDeclaration": 1}):
             with self.subTest(context=context), self.assertRaises(ValueError):
                 server.editor.request("textDocument/references", {**params, "context": context}, main)
+        for levels, accepted in ((127, True), (128, False)):
+            content = b'{"jsonrpc":"2.0","params":' + b"[" * levels + b"0" + b"]" * levels + b"}"
+            framed = f"Content-Length: {len(content)}\r\n\r\n".encode() + content
+            if accepted:
+                self.assertEqual(lsp.read_message(io.BytesIO(framed))["jsonrpc"], "2.0")
+            else:
+                with self.assertRaisesRegex(ValueError, "nesting"):
+                    lsp.read_message(io.BytesIO(framed))
+        literal = io.BytesIO()
+        lsp.write_message(literal, {"method": "test", "params": {"text": '["\\' * 2000}})
+        literal.seek(0)
+        self.assertEqual(lsp.read_message(literal)["params"]["text"], '["\\' * 2000)
         content = b'{"jsonrpc":"2.0","params":' + b"[" * 2000 + b"0" + b"]" * 2000 + b"}"
         framed = f"Content-Length: {len(content)}\r\n\r\n".encode() + content
         with self.assertRaisesRegex(ValueError, "nesting"):
