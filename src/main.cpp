@@ -131,6 +131,29 @@ std::string symbolJSON(const pika::Program &program, const std::set<std::string>
     output << "]}\n";
     return output.str();
 }
+std::string optimizationJSON(const pika::Program &program) {
+    pika::OptimizationStats stats;
+    const auto optimized = pika::optimizeIR(program, &stats);
+    auto instructions = [](const pika::Program &value) {
+        size_t count = 0;
+        for (const auto &function : value.functions) count += function.code.size();
+        return count;
+    };
+    std::ostringstream output;
+    output << "{\"schema_version\":1,\"source\":" << json(program.sourceFile)
+           << ",\"before\":{\"functions\":" << program.functions.size()
+           << ",\"instructions\":" << instructions(program)
+           << "},\"after\":{\"functions\":" << optimized.functions.size()
+           << ",\"instructions\":" << instructions(optimized)
+           << "},\"statistics\":{\"constants_folded\":" << stats.constantsFolded
+           << ",\"branches_folded\":" << stats.branchesFolded
+           << ",\"unreachable_removed\":" << stats.unreachableRemoved
+           << ",\"functions_skipped\":" << stats.functionsSkipped
+           << ",\"common_expressions_reused\":" << stats.commonExpressionsReused
+           << ",\"dead_results_removed\":" << stats.deadResultsRemoved
+           << ",\"liveness_skipped\":" << stats.livenessSkipped << "}}\n";
+    return output.str();
+}
 fs::path executablePath(const char *executable) {
     fs::path executablePath = fs::absolute(fs::u8path(executable));
 #ifdef _WIN32
@@ -365,6 +388,7 @@ void help() {
               << "  dump-tokens   inspect lexer output\n"
               << "  dump-ast      inspect syntax tree\n"
               << "  dump-ir       inspect custom typed IR\n"
+              << "  opt-report    emit typed-IR optimization counts as JSON; supports only -o OUTPUT\n"
               << "  dump-asm      inspect target machine assembly\n"
               << "  --version     show compiler/backend version\n";
 }
@@ -401,6 +425,8 @@ int runCLI(int argc, char **argv) {
         std::vector<std::string> links, loads;
         for (int i = 3; i < argc; ++i) {
             std::string option = argv[i];
+            if (command == "opt-report" && option != "-o")
+                throw std::runtime_error("opt-report supports only -o OUTPUT; it always analyzes the full typed-IR pipeline");
             if (option == "--entry") {
                 if (++i >= argc) throw std::runtime_error("--entry requires a function name");
                 entryFunction = argv[i];
@@ -415,6 +441,8 @@ int runCLI(int argc, char **argv) {
                 if (++i >= argc)
                     throw std::runtime_error("-o requires output path");
                 output = argv[i];
+                if (command == "opt-report" && output.empty())
+                    throw std::runtime_error("opt-report requires a nonempty output path after -o");
             } else if (option == "--link" || option == "--load") {
                 if (++i >= argc)
                     throw std::runtime_error(option + " requires a library path");
@@ -485,6 +513,8 @@ int runCLI(int argc, char **argv) {
                 }
                 if (command == "symbols")
                     text = symbolJSON(program, modules.files());
+                else if (command == "opt-report")
+                    text = optimizationJSON(program);
                 else if (command == "dump-ir")
                     text = pika::dumpIR(optimization ? pika::optimizeIR(program) : program);
                 else if (command == "interpret")
@@ -536,9 +566,12 @@ int runCLI(int argc, char **argv) {
                     throw std::runtime_error("unknown command: " + command);
             }
         }
-        if (output.empty())
+        if (output.empty()) {
             std::cout << text;
-        else
+            std::cout.flush();
+            if (!std::cout)
+                throw std::runtime_error("failed writing standard output");
+        } else
             write(fs::u8path(output), text);
         return 0;
     } catch (const pika::Error &error) {

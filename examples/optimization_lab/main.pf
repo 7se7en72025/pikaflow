@@ -1,0 +1,20 @@
+word repeated_sum(i64, i64) -> i64:
+    dup 0 < drop
+    over over + rot rot + +
+
+fun calculate(value: i64, choose_bonus: bool) -> i64:
+    let first = value + 7
+    let repeated = value + 7
+    var total = first + repeated
+    if choose_bonus:
+        total = total + 6
+    else:
+        total = total + 4
+    return total
+
+fun main() -> unit:
+    let doubled = stack(20, 22) -> i64:
+        repeated_sum
+    print(doubled)
+    print(calculate(14, true))
+    print(calculate(-9, false))

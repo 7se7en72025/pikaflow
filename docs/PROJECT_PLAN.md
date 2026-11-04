@@ -2,7 +2,7 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 05:03 IST.
+**Last updated:** 2026-11-05 05:08 IST.
 
 **Status:** verified 0.4.0 is preserved below. The user requested continued
 overnight work; a new compiler-engineering milestone is active. It adds bounded
@@ -49,6 +49,15 @@ No production behavior is considered verified by the earlier 0.4.0 suite alone.
   split across semantic fuzzing, LLVM constant folding/contract, and CLI analysis.
   Root reserves shared CMake/version integration and this plan. Each agent first
   confirms a concrete design and runs meaningful checks before integration.
+
+
+- 05:08: `opt-report` and its seven CLI tests pass on fresh Windows reference
+  and an isolated Linux reference build. Native Windows report/optimizer suites
+  pass (135 execution comparisons), and LLVM backend unit tests pass. Reports
+  use full compilation/source protection and do not execute panic/overflow inputs.
+  The optimization lab prints `84,48,0`, reports 50 to 48 instructions, one CSE
+  reuse and two dead scalar results. These are focused candidate checks, not
+  frozen final whole-host results.
 
 ## 0.4 expansion — 2026-11-05
 

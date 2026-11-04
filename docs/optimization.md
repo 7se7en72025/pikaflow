@@ -22,6 +22,43 @@ liveness passes skipped by their bounds. Register types, parameter registers,
 function names, source locations, debug binding names, nominal layouts, C ABI descriptors, and editor
 symbol metadata remain attached to that copy.
 
+## Machine-readable report
+
+```powershell
+pikaflow opt-report examples/optimization_lab/main.pf
+pikaflow opt-report examples/optimization_lab/main.pf -o build/optimization.json
+```
+
+`opt-report FILE [-o FILE]` compiles and verifies the source and imported modules,
+runs the complete typed-IR optimizer once, then emits JSON. It works without
+LLVM and does not execute the source program, load foreign libraries or run
+LLVM optimization. The command always compares the original IR with the full
+typed-IR pipeline: all `-O` flags are rejected, including `-O0`. Other flags
+besides `-o` are also rejected rather than silently ignored. A source entry
+function is required under ordinary compilation rules.
+
+Schema version 1 contains:
+
+- `schema_version`: integer `1`; `source`: the canonical primary source filename.
+- `before` and `after`: total `functions` and `instructions`, including imports
+  and generated specializations present in the compiled Program.
+- `statistics`: nonnegative integer counters `constants_folded`,
+  `branches_folded`, `unreachable_removed`, `functions_skipped`,
+  `common_expressions_reused`, `dead_results_removed` and `liveness_skipped`.
+
+The report contains aggregate counts, without per-instruction or per-function
+arrays. Its size is bounded by these fixed fields and the source filename;
+optimization retains the analysis budgets below. Counts describe compiler
+transformations, not execution frequency, elapsed time or a performance gain.
+Skipped functions/passes remain visible in the counters. The verified input
+Program is not modified.
+
+Output defaults to stdout. `-o` uses the shared text-output path, which protects
+loaded source files, equivalent hard links, project manifests/locks and package
+caches before writing. Invalid source and write/flush failures return nonzero;
+compilation errors do not replace an existing report. The destination's parent
+directory must already exist. Reports are not automatically cached or published.
+
 ## Dataflow over the CFG
 
 The pass forms basic blocks at branch targets and after terminators. It tracks

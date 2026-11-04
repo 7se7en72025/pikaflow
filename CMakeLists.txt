@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(PikaFlow VERSION 0.4.0 LANGUAGES C CXX)
+project(PikaFlow VERSION 0.5.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -201,6 +201,10 @@ if(BUILD_TESTING)
     if(Python3_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_optimization.py")
         add_test(NAME optimization_semantics COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_optimization.py" "$<TARGET_FILE:pikaflow>")
+    endif()
+    if(Python3_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_opt_report.py")
+        add_test(NAME optimization_report COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_opt_report.py" "$<TARGET_FILE:pikaflow>")
     endif()
     if(Python3_FOUND AND Python3_VERSION VERSION_GREATER_EQUAL 3.10 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_packages.py")
         add_test(NAME git_packages COMMAND "${Python3_EXECUTABLE}"
