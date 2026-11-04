@@ -156,6 +156,11 @@ if(BUILD_TESTING)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_benchmark.py")
     endif()
     if(PIKAFLOW_ENABLE_LLVM AND Python3_FOUND)
+        if(Python3_VERSION VERSION_GREATER_EQUAL 3.10)
+            add_test(NAME installed_layout COMMAND "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_install.py"
+                "${CMAKE_CURRENT_BINARY_DIR}" "${CMAKE_COMMAND}")
+        endif()
         add_test(NAME c_abi_generated COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ffi.py" "$<TARGET_FILE:pikaflow>"
             "$<TARGET_FILE:pikaflow_ffi_fixture>" "$<TARGET_LINKER_FILE:pikaflow_ffi_fixture>")

@@ -1,7 +1,7 @@
 # PikaFlow completion plan and live engineering log
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).  
-**Last updated:** 2026-11-04 21:47 IST.  
+**Last updated:** 2026-11-04 21:55 IST.  
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -53,13 +53,13 @@ added to predict a finish time. Integration failures may change these ranges.
 | 1C | Real structured tasks: isolated capture snapshots, thread-local GC, typed spawn/join, automatic cleanup, real parallel-execution test | Runtime agent | 2–5 h | Implemented; standalone/interpreter/sanitizer checks pass |
 | 1D | Nested natural-layout C records and noncapturing C callback wrappers; host-C cross-checks on both ABIs | Backend agent | 2–4 h | Implemented; Linux 80 executions and Windows earlier 76 pass |
 | 1E | Actual debugger breakpoint/backtrace/scalar-local checks; fix metadata when a watch fails | Backend agent | 0.5–2 h | GDB scalar/captured watches pass; automated regression added |
-| 1F | Signed/unsigned 8/16/32/64-bit extern annotations, checked narrowing, nested records and host-C comparisons | Backend/language/runtime | 1–3 h | In progress; descriptor verification implemented |
+| 1F | Signed/unsigned 8/16/32/64-bit extern annotations, checked narrowing, nested records and host-C comparisons | Backend/language/runtime | 1–3 h | Implemented; both hosts pass 120 executions / 40 range failures |
 | 2A | Comment-preserving formatter with compiler-token equivalence, idempotence and check mode | Root | 0.5–1.5 h | Implemented; Windows tool checks pass |
 | 2B | Standard-protocol language server: unsaved diagnostics, formatting, document symbols/completion, lifecycle and UTF-16 tests | Root | 1–3 h | Implemented; protocol and unsaved-import checks pass |
-| 2C | Project initialization, dependency manifests, deterministic local dependency locks, package imports, stale/cycle/conflict tests | Root | 1–2 h | Implemented; integrity/symlink review fixes underway |
-| 3A | Integrate shared types/opcodes, audit failure/resource boundaries, complete examples/docs and install tools | All; root integrates | 1–3 h | Pending |
-| 3B | Full Windows/Linux native/interpreter suites; new language, task, C ABI and editor/project integration checks | All | 1–3 h | Pending |
-| 3C | Refresh bounded sanitizer/fuzz evidence, output-checked benchmark report and clean install/relocation checks | Root/runtime | 0.5–2 h | Pending |
+| 2C | Project initialization, dependency manifests, deterministic local dependency locks, package imports, stale/cycle/conflict tests | Root | 1–2 h | Implemented; 14 tool checks include integrity/junction fixes |
+| 3A | Integrate shared types/opcodes, audit failure/resource boundaries, complete examples/docs and install tools | All; root integrates | 1–3 h | Implemented; showcase and relocated tools checked |
+| 3B | Full Windows/Linux native/interpreter suites; new language, task, C ABI and editor/project integration checks | All | 1–3 h | Windows 18/18 pass; frozen final host runs next |
+| 3C | Refresh bounded sanitizer/fuzz evidence, output-checked benchmark report and clean install/relocation checks | Root/runtime | 0.5–2 h | New fuzz/install pass; final benchmark pending |
 | 4 | Review feature claims, record exact clean snapshots, final commit/push and user-facing run instructions | Root | 0.5–1 h | Pending |
 
 **Initial calendar planning range:** roughly 6–14 active hours with parallel work,
@@ -78,7 +78,7 @@ waiting out a timer. Successful tests may finish some milestones much sooner.
 - [x] Editor integration config and protocol-level subprocess tests.
 - [x] Small multi-package example with reproducible locks and invalid-lock tests.
 - [x] Contributor guide mapping language features to LLVM/runtime source/tests.
-- [ ] A final showcase exercising modules, generic/ADT logic, stack programming,
+- [x] A final showcase exercising modules, generic/ADT logic, stack programming,
   tasks and native compilation together where semantics permit.
 - [ ] Repeatable benchmark evidence; report regressions and noisy startup timing.
 
@@ -124,6 +124,15 @@ this file and Git history are the durable resume points if the session stops.
 | 21:46 | Windows focused native checks pass: 127 language checks, 120 C ABI executions, 40 located width-range failures, 50 task/pointer executions + 4 rejections | Backend reports exact execution, not merely LLVM verification; final host suites pending |
 | 21:46 | Package/LSP review fixes committed; 13 tool tests pass | `c5a2c41`; normalized lock hashing, safe writes, confined cached imports, unsaved semicolon imports |
 | 21:47 | Final resource review extends generic bounds to generated nominal names; independent frontend fuzz refresh scheduled | Keep new regression tests paired with a fresh compiler binary |
+| 21:50 | Generated-name guards and final showcase committed | `f09cef2`, `0e0dfb9`; 53 interpreter language checks, including showcase |
+| 21:51 | Refreshed parser fuzzing completed 80,430 executions / 49 seconds with no crash artifacts or ASan/UBSan finding | `650964e`; exact archive/log/binary provenance recorded |
+| 21:52 | Windows native integration passes all 18 suites in 56.34 seconds | 216 CLI, 133 language, 14 tools, 50 task executions + 4 rejections, 47 runtime fatal and 10 task fatal cases |
+| 21:54 | C-width/nested-record backend completed both-host focused verification and committed | `1f9e0c7`; 120 ABI executions, 40 located range failures, 3 callback rejections; SysV rounded-padding regression checked |
+| 21:55 | New repeatable installed-layout test passes on Windows | Relocated Unicode prefix selects installed stdlib/runtime/tools, runs tasks and links without developer-shell variables |
+
+**21:55 estimate update:** feature implementation advanced faster than the initial
+planning range. Remaining clean-host verification, benchmark/evidence refresh and
+final packaging review are estimated at 20–60 minutes if no new failure appears.
 
 Update this log after meaningful milestones, failures, estimate changes and pushes.
 Mark delivery only with the corresponding commit and test evidence.
