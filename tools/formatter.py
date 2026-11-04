@@ -6,7 +6,7 @@ import re
 import subprocess
 import tempfile
 
-TOKEN = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[A-Za-z_]\w*|\.\.\.|::|->|\|>|==|!=|<=|>=|\.\.|\S''')
+TOKEN = re.compile(r'''"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|[A-Za-z_]\w*|\.\.\.|::|->|\|>|==|!=|<=|>=|[+*/%\-]=|\.\.|\S''')
 
 
 def split_comment(line: str) -> tuple[str, str]:

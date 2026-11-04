@@ -19,6 +19,8 @@ KEYWORDS = "fun word enum let var if elif else while for in return match case br
 
 
 def path_from_uri(uri: str) -> pathlib.Path:
+    if not isinstance(uri, str):
+        raise ValueError("document URI must be a string")
     parsed = urllib.parse.urlsplit(uri)
     if parsed.scheme != "file" or parsed.netloc not in ("", "localhost"):
         raise ValueError("only local file: document URIs are supported")
@@ -72,7 +74,7 @@ def read_message(stream) -> dict | None:
         elif byte in (93, 125):
             depth -= 1
     try:
-        result = json.loads(content)
+        result = json.loads(content.decode("utf-8"))
     except RecursionError:
         raise ValueError("LSP JSON nesting exceeds the parser limit") from None
     if not isinstance(result, dict) or result.get("jsonrpc") != "2.0":

@@ -58,6 +58,31 @@ class ToolsTests(unittest.TestCase):
             self.assertNotEqual(run("fmt", str(path)).returncode, 0)
             self.assertEqual(path.read_text(encoding="utf-8"), source)
 
+    def test_formatter_compound_updates_keep_tokens_and_behavior(self):
+        source = ('fun main()->unit:\n  var value=20\n  let values=[20]\n'
+                  '  value+=2;values[0]+=2\n  value-=1;values[0]-=1\n'
+                  '  value*=2;values[0]*=2\n  value/=2;values[0]/=2\n'
+                  '  value%=10;values[0]%=10\n  print(value);print(values[0])\n')
+        formatted = formatter.checked_format(COMPILER, source)
+        self.assertEqual(formatter.format_text(formatted), formatted)
+        for operator in ("+=", "-=", "*=", "/=", "%="):
+            self.assertIn(f"value {operator} ", formatted)
+            self.assertIn(f"values[0] {operator} ", formatted)
+        with tempfile.TemporaryDirectory() as directory:
+            path = pathlib.Path(directory) / "updates.pf"
+            path.write_text(source, encoding="utf-8")
+            self.assertEqual(run("fmt", str(path)).returncode, 0)
+            self.assertEqual(run("fmt", str(path), "--check").returncode, 0)
+            result = subprocess.run([str(COMPILER), "interpret", str(path)], capture_output=True,
+                                    text=True, encoding="utf-8", timeout=15)
+            self.assertEqual((result.returncode, result.stdout), (0, "1\n1\n"), result.stderr)
+            edits = lsp.Server(COMPILER, io.BytesIO())
+            edits.handle({"method": "initialize", "params": {}})
+            edits.documents[path.resolve()] = {"text": source, "version": 1}
+            result = edits.handle({"method": "textDocument/formatting", "params": {
+                "textDocument": {"uri": path.resolve().as_uri()}}})
+            self.assertEqual(result[0]["newText"], formatted)
+
     def test_package_init_lock_import_staleness_and_no_overwrite(self):
         with tempfile.TemporaryDirectory(prefix="pika-包-") as directory:
             root = pathlib.Path(directory)
@@ -260,6 +285,31 @@ class ToolsTests(unittest.TestCase):
                         b"Content-Length: 10\r\n\r\n{}"):
             with self.subTest(payload=payload), self.assertRaises(ValueError):
                 lsp.read_message(io.BytesIO(payload))
+        for encoding in ("utf-16", "utf-16-le", "utf-32", "utf-32-be"):
+            content = json.dumps({"jsonrpc": "2.0", "method": "initialize"}).encode(encoding)
+            framed = f"Content-Length: {len(content)}\r\n\r\n".encode() + content
+            with self.subTest(encoding=encoding), self.assertRaises(ValueError):
+                lsp.read_message(io.BytesIO(framed))
+
+    def test_lsp_invalid_uri_request_preserves_server(self):
+        request = io.BytesIO()
+        lsp.write_message(request, {"id": 0, "method": "initialize", "params": {}})
+        invalid = [42, True, None, [], {}]
+        for identifier, uri in enumerate(invalid, 1):
+            lsp.write_message(request, {"id": identifier, "method": "textDocument/documentSymbol",
+                "params": {"textDocument": {"uri": uri}}})
+        lsp.write_message(request, {"id": 99, "method": "shutdown"})
+        lsp.write_message(request, {"method": "exit"})
+        result = subprocess.run([sys.executable, str(TOOL), "--compiler", str(COMPILER), "lsp"],
+                                input=request.getvalue(), capture_output=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        stream, responses = io.BytesIO(result.stdout), {}
+        while (message := lsp.read_message(stream)) is not None:
+            responses[message["id"]] = message
+        for identifier in range(1, len(invalid) + 1):
+            self.assertEqual(responses[identifier]["error"]["code"], -32602)
+            self.assertIn("URI must be a string", responses[identifier]["error"]["message"])
+        self.assertIsNone(responses[99]["result"])
 
     def test_lsp_unsaved_buffers_utf16_and_editor_features(self):
         with tempfile.TemporaryDirectory(prefix="lsp-包-") as directory:
