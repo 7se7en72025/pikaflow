@@ -1,0 +1,40 @@
+"""Check fatal runtime errors in subprocesses, including their diagnostics."""
+import pathlib
+import subprocess
+import sys
+
+
+def main():
+    executable = pathlib.Path(sys.argv[1]).resolve()
+    cases = {
+        "add-overflow": "addition overflow",
+        "sub-overflow": "subtraction overflow",
+        "mul-overflow": "multiplication overflow",
+        "div-zero": "division by zero",
+        "div-overflow": "division overflow",
+        "mod-overflow": "remainder overflow",
+        "neg-overflow": "negation overflow",
+        "float-overflow": "outside i64 range",
+        "float-nan": "outside i64 range",
+        "bounds": "out of bounds",
+        "negative-index": "out of bounds",
+        "type-mismatch": "incompatible type",
+        "negative-size": "negative allocation size",
+        "invalid-reference": "invalid or expired",
+        "root-order": "reverse order",
+        "panic": "explicit panic",
+        "result-failure": "operation failed",
+    }
+    for case, expected in cases.items():
+        result = subprocess.run(
+            [str(executable), case], capture_output=True, text=True, timeout=10
+        )
+        if result.returncode != 1 or "runtime error:" not in result.stderr or expected not in result.stderr:
+            raise AssertionError(
+                f"{case}: exit={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+            )
+    print(f"{len(cases)} runtime failure cases passed")
+
+
+if __name__ == "__main__":
+    main()
