@@ -1,6 +1,6 @@
-import "../stdlib/numeric.pf"
-import "../stdlib/sequences.pf"
-import "../stdlib/strings.pf"
+import "std:numeric"
+import "std:sequences"
+import "std:strings"
 
 fun main() -> unit:
     print(unwrap(abs_checked(-42)))

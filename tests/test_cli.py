@@ -6,6 +6,7 @@ execution at O0/O2. Every subprocess has a timeout, including malformed inputs.
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import re
 import subprocess
@@ -179,6 +180,85 @@ def main() -> int:
                     print(nan != nan)
                     print(nan < 1.0)
             """, "false\ntrue\nfalse\n"),
+            ("short_circuit_stack", """
+                fun main() -> unit:
+                    stack(10):
+                        pass
+                    let first = false and stack() -> bool:
+                        1 + true
+                    let first_value = stack() -> i64:
+                        pass
+                    print(first)
+                    print(first_value)
+                    stack(10):
+                        pass
+                    let second = true and stack() -> bool:
+                        1 + true
+                    let second_value = stack() -> i64:
+                        pass
+                    print(second)
+                    print(second_value)
+            """, "false\n10\ntrue\n11\n"),
+            ("loop_stack_exits", """
+                fun main() -> unit:
+                    stack(0):
+                        pass
+                    for number in range(1, 10):
+                        if number == 2:
+                            continue
+                        stack:
+                            number +
+                        if number == 5:
+                            break
+                    let total = stack() -> i64:
+                        pass
+                    print(total)
+                    let count = stack(0) -> i64:
+                        dup 10 <
+                        while:
+                            1 + dup 3 ==
+                            if:
+                                break
+                            dup 10 <
+                    print(count)
+            """, "13\n3\n"),
+            ("closure_shadow_and_loop", """
+                fun zero() -> i64:
+                    return 0
+                fun main() -> unit:
+                    let value = 1
+                    let read = fun() -> i64:
+                        return value
+                    if true:
+                        let value = 2
+                        print(read())
+                        print(value)
+                    print(read())
+                    let functions = [zero, zero]
+                    for index in range(2):
+                        let capture = fun() -> i64:
+                            return index
+                        functions[index] = capture
+                    gc()
+                    print(functions[0]())
+                    print(functions[1]())
+            """, "1\n2\n1\n0\n1\n"),
+            ("conversion_limits", """
+                fun main() -> unit:
+                    print(i64(-9223372036854775808.0))
+                    print(i64(9223372036854774784.0))
+            """, "-9223372036854775808\n9223372036854774784\n"),
+            ("panic_terminates", """
+                fun fail() -> i64:
+                    panic("unused failure")
+                fun choose(value: bool) -> i64:
+                    if value:
+                        return 42
+                    else:
+                        panic("unused failure")
+                fun main() -> unit:
+                    print(choose(true))
+            """, "42\n"),
         ]
         for name, source_text, expected in extra_cases:
             source = directory / f"{name}.pf"
@@ -263,6 +343,11 @@ def main() -> int:
             ("pattern_scope", "fun main():\n    match [1]:\n        case [bound]:\n            pass\n    print(bound)\n", "unknown name"),
             ("word_contract", "word bad(i64) -> i64:\n    dup\nfun main():\n    return\n", "undeclared stack outputs"),
             ("loop_stack", "fun main():\n    while false:\n        stack(1):\n            pass\n", "different stack heights"),
+            ("stack_local_scope", "fun main():\n    stack:\n        let hidden = 42\n    print(hidden)\n", "unknown name"),
+            ("builtin_function", "fun len(value: i64) -> i64:\n    return value\nfun main():\n    return\n", "reserved"),
+            ("builtin_binding", "fun main():\n    let print = 1\n", "reserved"),
+            ("unit_parameter", "fun invalid(value: unit):\n    return\nfun main():\n    return\n", "unit"),
+            ("unit_array_parameter", "fun invalid(values: [unit]):\n    return\nfun main():\n    return\n", "unit"),
         ]
         for name, source_text, fragment in negative_cases:
             source = directory / f"invalid_{name}.pf"
@@ -291,6 +376,9 @@ def main() -> int:
             ("unwrap_error", "let failure: Result[i64, str] = err(\"expected failure\")\n    print(unwrap(failure))", "expected failure"),
             ("raw_bounds", "unsafe:\n        let p = alloc_i64(1)\n        print(load(p, 1))", "bounds"),
             ("result_error_access", "let good: Result[i64, str] = ok(1)\n    print(error(good))", "error"),
+            ("conversion_nan", "print(i64(0.0 / 0.0))", "outside i64"),
+            ("conversion_infinity", "print(i64(1.0 / 0.0))", "outside i64"),
+            ("conversion_upper", "print(i64(9223372036854775808.0))", "outside i64"),
         ]
         for name, body, fragment in runtime_failures:
             source = directory / f"failure_{name}.pf"
@@ -319,6 +407,67 @@ def main() -> int:
         result = run([compiler, "check", str(private)])
         require(result.returncode != 0 and "private_helper" in result.stderr, "private module symbol leaked")
         completed += 2
+
+        first_module = directory / "first extern module.pf"
+        second_module = directory / "second extern module.pf"
+        first_module.write_text('extern fun hidden_c(value: f64) -> f64 = "fabs"\nexport fun first() -> i64:\n    unsafe:\n        return i64(hidden_c(-20.0))\n', encoding="utf-8")
+        second_module.write_text('extern fun hidden_c(value: f64) -> f64 = "fabs"\nexport fun second() -> i64:\n    unsafe:\n        return i64(hidden_c(-22.0))\n', encoding="utf-8")
+        private_extern = directory / "private extern.pf"
+        private_extern.write_text('import "first extern module.pf"\nfun main():\n    unsafe:\n        print(hidden_c(-1.0))\n', encoding="utf-8")
+        result = run([compiler, "check", str(private_extern)])
+        require(result.returncode != 0 and "unknown function" in result.stderr and "hidden_c" in result.stderr,
+                "private extern alias leaked into importer: " + result.stderr)
+        completed += 1
+        duplicate_extern = directory / "duplicate private externs.pf"
+        duplicate_extern.write_text('import "first extern module.pf"\nimport "second extern module.pf"\nfun main():\n    print(first())\n    print(second())\n', encoding="utf-8")
+        successful(run([compiler, "interpret", str(duplicate_extern)]), "20\n22\n", "module-local extern aliases")
+        completed += 1
+        if llvm:
+            successful(run([compiler, "run", str(duplicate_extern), "-O2"]), "20\n22\n", "JIT module-local extern aliases")
+            completed += 1
+
+        standard_import = directory / "standard prefix.pf"
+        standard_import.write_text('import "std:numeric"\nfun main():\n    print(unwrap(abs_checked(-42)))\n', encoding="utf-8")
+        successful(run([compiler, "interpret", str(standard_import)]), "42\n", "std: import prefix")
+        completed += 1
+        unicode_source = directory / "पिका_日本語.pf"
+        unicode_source.write_text("fun main():\n    print(42)\n", encoding="utf-8")
+        successful(run([compiler, "interpret", str(unicode_source)]), "42\n", "Unicode source path")
+        completed += 1
+
+        protected = directory / "protected source.pf"
+        original_source = "fun main():\n    print(42)\n"
+        protected.write_text(original_source, encoding="utf-8")
+        for command in ("dump-tokens", "dump-ast", "dump-ir", "emit-ir", "emit-obj", "build"):
+            result = run([compiler, command, str(protected), "-o", str(protected)])
+            require(result.returncode != 0 and "overwrite" in result.stderr,
+                    command + " accepted source overwrite: " + result.stderr)
+            require(protected.read_text(encoding="utf-8") == original_source,
+                    command + " damaged protected source")
+            completed += 1
+        hard_link = directory / "hard linked output.pf"
+        try:
+            os.link(protected, hard_link)
+        except (OSError, NotImplementedError):
+            pass
+        else:
+            result = run([compiler, "dump-tokens", str(protected), "-o", str(hard_link)])
+            require(result.returncode != 0 and "overwrite" in result.stderr,
+                    "hard-linked source overwrite was accepted: " + result.stderr)
+            require(protected.read_text(encoding="utf-8") == original_source,
+                    "hard-linked output damaged protected source")
+            completed += 1
+        imported_source = directory / "protected dependency.pf"
+        imported_text = "export fun dependency() -> i64:\n    return 42\n"
+        imported_source.write_text(imported_text, encoding="utf-8")
+        importer = directory / "protected importer.pf"
+        importer.write_text('import "protected dependency.pf"\nfun main():\n    print(dependency())\n', encoding="utf-8")
+        result = run([compiler, "dump-ir", str(importer), "-o", str(imported_source)])
+        require(result.returncode != 0 and "overwrite" in result.stderr,
+                "imported-source overwrite was accepted: " + result.stderr)
+        require(imported_source.read_text(encoding="utf-8") == imported_text,
+                "output damaged imported source")
+        completed += 1
 
         if llvm:
             ffi = str(examples / "ffi.pf")

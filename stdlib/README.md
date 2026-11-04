@@ -1,15 +1,18 @@
 # PikaFlow standard-library modules
 
-These modules are ordinary PikaFlow source. Import their exported names with
-paths relative to the importing file, for example:
+These modules are ordinary PikaFlow source. Import their exported names through
+the standard-library prefix:
 
 ```text
-import "../stdlib/numeric.pf"
-import "../stdlib/sequences.pf"
-import "../stdlib/strings.pf"
+import "std:numeric"
+import "std:sequences"
+import "std:strings"
 ```
 
 The complete example is [`examples/stdlib.pf`](../examples/stdlib.pf).
+The compiler locates installed modules under `share/pikaflow/stdlib` and uses the
+configured source library for development builds. Ordinary relative-path imports
+remain available for user modules.
 
 ## `numeric.pf`
 

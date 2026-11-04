@@ -53,6 +53,33 @@ int main() {
             auto closure=instruction(Op::MakeClosure,1);closure.text="main";
             f.code.insert(f.code.begin()+1,closure);
         });
+        rejects("cell store destination",[](Program& p){
+            auto& f=p.functions[0];f.registers.push_back(Type::cell(I64));
+            f.code={instruction(Op::ConstI64,0),instruction(Op::MakeCell,3,{0}),
+                instruction(Op::StoreCell,1,{3,0}),instruction(Op::Return,-1,{1})};
+        });
+        rejects("array store destination",[](Program& p){
+            auto& f=p.functions[0];f.registers.push_back(Type::array(I64));
+            f.code={instruction(Op::ConstI64,0),instruction(Op::MakeArray,3,{0}),
+                instruction(Op::SetIndex,1,{3,0,0}),instruction(Op::Return,-1,{1})};
+        });
+        rejects("jump destination",[](Program& p){
+            auto& f=p.functions[0];auto branch=instruction(Op::Jump,1);branch.target=2;
+            f.code={instruction(Op::ConstI64,0),branch,instruction(Op::Return,-1,{1})};
+        });
+        rejects("conditional jump destination",[](Program& p){
+            auto& f=p.functions[0];auto branch=instruction(Op::JumpFalse,0,{2});branch.target=2;
+            f.code={instruction(Op::ConstBool,2),branch,instruction(Op::Return,-1,{0})};
+        });
+        rejects("captured direct callee",[](Program& p){
+            auto& f=p.functions[0];auto call=instruction(Op::Call,0);call.text="captured";
+            f.code={call,instruction(Op::Return,-1,{0})};
+            Function captured;captured.name="captured";captured.result=I64;
+            captured.registers={Type::cell(I64),I64};
+            auto capture=instruction(Op::Capture,0);capture.integer=0;
+            captured.code={capture,instruction(Op::LoadCell,1,{0}),instruction(Op::Return,-1,{1})};
+            p.functions.push_back(std::move(captured));
+        });
         std::cout<<"Typed IR verification tests passed\n";
         return 0;
     } catch(const std::exception& error) {std::cerr<<error.what()<<'\n';return 1;}

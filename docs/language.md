@@ -55,6 +55,12 @@ let values: [i64] = []
 `let values = [1]` followed by `values[0] = 2` is valid. `var` permits reassignment
 to a value of the same type. Names obey lexical block scope.
 
+Language keywords, canonical type names, and runtime built-in names are reserved
+for function/word declarations, parameters, and local bindings. For example,
+declaring a function named `len` or a variable named `print` is rejected rather
+than inconsistently shadowing the built-in operation. Stack-block locals also
+obey block scope; sharing the operand stack does not expose their local bindings.
+
 Integer and floating-point operands do not implicitly mix. Use `f64(value)` or
 `i64(value)` explicitly. Float-to-integer conversion truncates toward zero and
 fails for non-finite or out-of-range inputs. Integer addition, subtraction,
@@ -273,13 +279,28 @@ algebraic data types and `?` propagation syntax are not implemented.
 ## Modules and foreign calls
 
 `import "relative/path.pf"` loads another source file relative to the importer.
+`import "std:numeric"`, `"std:sequences"`, and `"std:strings"` resolve the bundled
+source library in development builds and installed compiler layouts.
 `export fun ...` and `export word ...` expose symbols; other declarations stay
 private. Import cycles and ambiguous exported names diagnose. Named import aliases
 are parsed but explicitly rejected by the compiler.
+Extern source aliases are also module-local; an imported module's private extern
+declaration is not exposed to its importer. Export an ordinary wrapper function
+when a module needs to offer a checked interface around foreign code.
 
 ```text
 extern fun pf_checked_add(a: i64, b: i64) -> i64
 ```
+
+A source alias can refer to a differently named foreign symbol. This is useful
+when the C symbol conflicts with a reserved language helper:
+
+```text
+extern fun libc_free(pointer: ptr[unit]) -> unit = "free"
+```
+
+The alias is the name used in PikaFlow calls; the string is the actual linker/JIT
+symbol. Empty symbols and embedded NUL bytes are rejected.
 
 Extern declarations use the platform C calling convention. Scalar and pointer
 signatures and limited scalar variadic calls can be emitted by the LLVM backend;
