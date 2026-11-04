@@ -63,9 +63,11 @@ def main() -> int:
     init = commands.add_parser("init", help="create a project without replacing files")
     init.add_argument("directory", nargs="?", default=".", type=pathlib.Path)
     init.add_argument("--name")
-    deps = commands.add_parser("deps", help="resolve/check deterministic local dependencies")
-    deps.add_argument("action", choices=("lock", "check"))
+    deps = commands.add_parser("deps", help="lock/fetch/check reproducible path and pinned Git dependencies")
+    deps.add_argument("action", choices=("lock", "fetch", "check"))
     deps.add_argument("--project", default=".", type=pathlib.Path)
+    deps.add_argument("--locked", action="store_true", help="preserve the existing dependency lock")
+    deps.add_argument("--offline", action="store_true", help="never fetch a missing Git cache")
     commands.add_parser("lsp", help="start the stdio language server")
     for command in ("check", "interpret", "run", "build"):
         project = commands.add_parser(command, help=f"{command} the locked project entry")
@@ -73,6 +75,7 @@ def main() -> int:
         project.add_argument("-O", choices=("0", "1", "2", "3"), default="0")
         project.add_argument("-o", type=pathlib.Path)
         project.add_argument("--debug", action="store_true")
+        project.add_argument("--locked", action="store_true", help="verify the lock offline (always enabled)")
     args = parser.parse_args()
     try:
         if args.command == "init":
@@ -80,8 +83,9 @@ def main() -> int:
             print(f"Created {args.directory.resolve()}")
         elif args.command == "deps":
             root = packages.project_root(args.project)
-            packages.lock(root, verify=args.action == "check")
-            print("Dependencies verified" if args.action == "check" else "Wrote pika.lock")
+            verify = args.action != "lock" or args.locked
+            packages.lock(root, verify=verify, fetch=args.action == "fetch", offline=args.offline)
+            print("Dependencies verified" if verify else "Wrote pika.lock")
         elif args.command == "fmt":
             compiler = compiler_path(args.compiler)
             changes = []
@@ -109,6 +113,8 @@ def main() -> int:
                 raise ValueError("entry must remain inside its project")
             command = [str(compiler_path(args.compiler)), args.command, str(entry), "-O" + args.O]
             if args.o:
+                if pathlib.Path(os.path.abspath(args.o)).is_relative_to(root / ".pika") or args.o.resolve().is_relative_to((root / ".pika").resolve()):
+                    raise ValueError("output cannot overwrite the dependency cache")
                 command.extend(("-o", str(args.o.resolve())))
             if args.debug:
                 command.append("--debug")

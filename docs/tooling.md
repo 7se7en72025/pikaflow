@@ -92,11 +92,11 @@ existing project files. A manifest uses this format:
 }
 ```
 
-Package names/aliases are ASCII identifiers. The delivered manager supports
-local-path dependencies, including transitive dependencies, and deterministic
-SHA-256 locks. It rejects cycles, conflicting aliases, symlinked package trees,
-oversized source files and deep dependency graphs. No downloads, lifecycle
-scripts, registry resolution or version solver run implicitly.
+Package names/aliases are ASCII identifiers. Dependencies may be local paths or
+Git sources pinned to exact commits, including transitive dependencies. The
+manager rejects cycles, conflicting aliases, symlinked package trees, oversized
+sources and dependency graphs deeper than 64. There are no lifecycle scripts,
+registry services, branch/tag tracking or implicit version selection.
 
 `pika.lock` is a versioned tab-separated file containing alias, dependency path
 relative to the project, and a digest of the manifest plus `.pf` source contents.
@@ -106,7 +106,8 @@ produce the same lock; all other content bytes remain significant.
 Build/output directory exclusions and source-extension hashing compare ASCII
 case-insensitively, so Windows filename lookup cannot expose an unhashed source.
 Dependency edits require an explicit `deps lock`; project check/run/build commands
-verify the lock before invoking the compiler.
+verify the lock offline before invoking the compiler. `--locked` makes that
+existing project-command behavior explicit; it never enables a download.
 
 ```text
 import "pkg:mathkit"          # mathkit/lib.pf
@@ -138,3 +139,89 @@ python tools/pikaflow.py --compiler build/native/pikaflow.exe interpret --projec
 
 It prints `42`. Package sources remain readable `.pf` files using the same module
 privacy/export rules as ordinary relative imports.
+
+## Exact-commit Git dependencies
+
+Use one complete commit ID from `git rev-parse HEAD`, not a branch, tag, shortened
+hash or version range. A dependency specification has exactly `git` and `rev`:
+
+```json
+{
+  "dependencies": {
+    "mathkit": {
+      "git": "https://github.com/your-org/mathkit.git",
+      "rev": "0123456789abcdef0123456789abcdef01234567"
+    }
+  }
+}
+```
+
+Replace that example URL and commit with the actual package repository and full
+commit. SHA-1 commits have 40 hexadecimal digits; SHA-256 Git repositories use
+64. The repository root must contain `pika.json`; `pkg:mathkit` imports its
+`lib.pf`, and module suffixes use the normal package import rules.
+
+```powershell
+# Author an intentional dependency update. This may fetch missing pinned sources.
+python tools/pikaflow.py deps lock --project my_project
+git -C my_project add pika.json pika.lock
+
+# On a fresh project clone, restore only sources already recorded by that lock.
+python tools/pikaflow.py deps fetch --locked --project my_project
+
+# These commands do not contact remotes or invoke Git, and work without Git installed.
+python tools/pikaflow.py deps check --locked --offline --project my_project
+python tools/pikaflow.py --compiler build/native/pikaflow.exe interpret --locked --project my_project
+```
+
+`deps fetch` always preserves the existing lock, even when `--locked` is omitted.
+Changed or newly added origins/revisions are rejected before fetching them;
+use `deps lock` for a reviewed manifest update. `deps lock --offline` can update
+path dependencies or already-cached Git pins without network access.
+`deps lock --locked` only checks the existing lock offline. Missing caches fail
+with a restore command instead of triggering a build-time download.
+
+Git must be available in an absolute `PATH` directory outside the project for fetching. Only HTTPS
+URLs without embedded credentials/query strings/fragments and explicit local
+repository paths are accepted. SSH, `file:` URLs, custom remote helpers, network
+share paths and drive-relative paths are rejected. A local fixture declaration
+can use `{"git": "../mathkit", "rev": "<actual full commit>"}`. Local origins
+are resolved relative to the declaring source repository; local-path dependencies
+inside a Git repository must remain within that pinned repository. Remote HTTPS
+packages may declare other HTTPS Git dependencies or internal monorepo path
+dependencies. Dependency aliases still form one conflict-checked project-wide
+namespace.
+
+Fetches run unattended with global/system Git configuration, credential helpers,
+templates, hooks, lazy fetching and user-provided `GIT_*` settings disabled.
+There are no credential prompts; for a private repository, clone it yourself
+using your preferred authentication and declare that local Git repository.
+Git's [upload-pack security contract](https://git-scm.com/docs/git-upload-pack#_security)
+supports serving local repositories without executing their repository hooks.
+
+Sources live under project-local `.pika/deps/<origin-and-revision-hash>/`; ignore
+`.pika/` in version control. The compiler's three-column lock format stays the
+same: alias, cached relative directory, SHA-256 source digest. The manager fetches
+into a temporary bare repository, reads raw blobs, and materializes ordinary
+files. It never performs checkout, runs filters, exports attributes, initializes
+submodules or installs scripts. In particular, Git's
+[archive export attributes](https://git-scm.com/docs/git-archive#_attributes)
+cannot omit or rewrite dependency source files.
+
+The reserved `.pika-source.json` cache record identifies the origin and revision,
+preserves the raw commit and records file modes/object IDs. Offline verification
+hashes every blob and reconstructs Git trees against the pinned commit, then
+checks the normal SHA-256 dependency lock. Editing a cache and rewriting its own
+metadata cannot certify different source as the original commit. Cache symlinks,
+junctions, Git links, case-colliding names and unsafe portable paths are rejected.
+Each Git package is limited to 10,000 files, 16 MiB per file, 128 MiB materialized
+content and 64 path levels. Each Git subprocess has a 120-second timeout.
+
+Corrupt caches fail without being overwritten. Review and remove only the named
+cache directory, then run `deps fetch --locked` to restore the pinned source.
+Project-tool build outputs cannot target `.pika/`. A source checkout of the
+project plus its committed manifest/lock is sufficient to restore dependencies;
+offline builds additionally need the corresponding verified cache directories.
+`tests/test_packages.py` exercises these workflows with real local Git fixtures,
+including a fresh cache, transitive sources, both object formats and tampering;
+the tests never contact the internet.

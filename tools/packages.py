@@ -1,4 +1,4 @@
-"""Deterministic local-path packages. No implicit downloads or install scripts."""
+"""Reproducible local-path and exact-commit Git packages, without install hooks."""
 from __future__ import annotations
 
 import hashlib
@@ -8,6 +8,7 @@ import re
 import os
 import stat
 import tempfile
+import git_sources
 
 NAME = re.compile(r"[A-Za-z_][A-Za-z_0-9]*\Z")
 LOCK_HEADER = "pikaflow-lock-v1"
@@ -95,12 +96,32 @@ def content_hash(root: pathlib.Path) -> str:
     return digest.hexdigest()
 
 
-def resolve(root: pathlib.Path) -> list[tuple[str, pathlib.Path, str]]:
+def read_lock(root: pathlib.Path) -> dict[str, tuple[str, str]]:
+    path = root / "pika.lock"
+    if linked(path):
+        raise ValueError("package lock cannot be a symbolic link")
+    if not path.is_file():
+        raise ValueError("package lock is missing or stale; run deps lock")
+    lines = source_bytes(path, 1024 * 1024).decode("utf-8").splitlines()
+    if not lines or lines[0] != LOCK_HEADER:
+        raise ValueError("unsupported package lock format")
+    entries = {}
+    for line in lines[1:]:
+        fields = line.split("\t")
+        if (len(fields) != 3 or not NAME.fullmatch(fields[0]) or not fields[1]
+                or "\0" in line or not re.fullmatch(r"[0-9a-f]{64}", fields[2]) or fields[0] in entries):
+            raise ValueError("invalid or duplicate package lock entry")
+        entries[fields[0]] = (fields[1], fields[2])
+    return entries
+
+
+def resolve(root: pathlib.Path, *, fetch: bool = False, locked=None) -> list[tuple[str, pathlib.Path, str]]:
+    root = root.resolve()
     found: dict[str, pathlib.Path] = {}
     active: set[pathlib.Path] = set()
     visited: set[pathlib.Path] = set()
 
-    def visit(directory: pathlib.Path, depth: int) -> None:
+    def visit(directory: pathlib.Path, depth: int, original=None, boundary=None) -> None:
         if directory in active:
             raise ValueError(f"cyclic package dependency: {directory}")
         if depth > 64:
@@ -112,27 +133,52 @@ def resolve(root: pathlib.Path) -> list[tuple[str, pathlib.Path, str]]:
         for alias, specification in sorted(data.get("dependencies", {}).items()):
             if not NAME.fullmatch(alias):
                 raise ValueError(f"invalid dependency name: {alias}")
-            if not isinstance(specification, dict) or set(specification) != {"path"}:
-                raise ValueError(f"dependency {alias} requires exactly a local path")
-            if not isinstance(specification["path"], str) or not specification["path"] or "\0" in specification["path"]:
-                raise ValueError(f"dependency {alias} path must be a string")
-            dependency = (directory / specification["path"]).resolve()
+            if not isinstance(specification, dict):
+                raise ValueError(f"dependency {alias} requires a local path or pinned Git source")
+            if set(specification) == {"path"}:
+                value = specification["path"]
+                if not isinstance(value, str) or not value or "\0" in value:
+                    raise ValueError(f"dependency {alias} path must be a string")
+                dependency = (directory / value).resolve()
+                if boundary is not None and not dependency.is_relative_to(boundary):
+                    raise ValueError("path dependencies inside Git sources cannot escape their pinned repository")
+                next_original = (dependency if boundary is None else (original / value).absolute()) if original is not None else None
+                next_boundary = boundary
+            elif set(specification) == {"git", "rev"}:
+                revision = specification["rev"]
+                if not isinstance(revision, str) or not re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", revision):
+                    raise ValueError("Git dependencies require an exact full 40- or 64-hex commit")
+                revision = revision.lower()
+                if original is None and not str(specification["git"]).lower().startswith("https://"):
+                    raise ValueError("Git dependencies inside HTTPS sources must use HTTPS origins")
+                identity, local, address = git_sources.origin(root, original or directory, specification["git"])
+                dependency = git_sources.cache_path(root, identity, revision)
+                if locked is not None and (alias not in locked or locked[alias][0] != git_sources.relative(dependency, root)):
+                    raise ValueError("Git origin or revision is not locked; run deps lock explicitly")
+                dependency = git_sources.materialize(root, identity, local, address, revision, fetch)
+                next_original, next_boundary = local, dependency
+            else:
+                raise ValueError(f"dependency {alias} requires exactly path or git plus rev")
             if any(char in str(dependency) for char in "\t\r\n"):
                 raise ValueError("dependency paths cannot contain tab/newline characters")
             if alias in found and found[alias] != dependency:
                 raise ValueError(f"conflicting dependency alias: {alias}")
             found[alias] = dependency
-            visit(dependency, depth + 1)
+            if locked is not None:
+                expected = (git_sources.relative(dependency, root), content_hash(dependency))
+                if locked.get(alias) != expected:
+                    raise ValueError("package lock is missing or stale; run deps lock")
+            visit(dependency, depth + 1, next_original, next_boundary)
         active.remove(directory)
         visited.add(directory)
 
-    visit(root, 0)
+    visit(root, 0, root)
     return [(alias, path, content_hash(path)) for alias, path in sorted(found.items())]
 
 
-def lock_text(root: pathlib.Path) -> str:
+def lock_text(root: pathlib.Path, *, fetch: bool = False, locked=None) -> str:
     lines = [LOCK_HEADER]
-    for alias, path, digest in resolve(root):
+    for alias, path, digest in resolve(root, fetch=fetch, locked=locked):
         try:
             relative = pathlib.Path(os.path.relpath(path, root)).as_posix()
         except ValueError:
@@ -141,11 +187,13 @@ def lock_text(root: pathlib.Path) -> str:
     return "\n".join(lines) + "\n"
 
 
-def lock(root: pathlib.Path, *, verify: bool = False) -> None:
+def lock(root: pathlib.Path, *, verify: bool = False, fetch: bool = False, offline: bool = False) -> None:
+    root = root.resolve()
     path = root / "pika.lock"
     if linked(path):
         raise ValueError("package lock cannot be a symbolic link")
-    expected = lock_text(root)
+    locked = read_lock(root) if verify else None
+    expected = lock_text(root, fetch=(fetch or not verify) and not offline, locked=locked)
     if verify:
         if not path.exists() or path.read_text(encoding="utf-8") != expected:
             raise ValueError("package lock is missing or stale; run deps lock")
