@@ -11,6 +11,14 @@ class Parser {
     const std::vector<Token>& tokens;
     std::string filename;
     size_t position = 0;
+    unsigned nesting = 0;
+    struct NestingGuard {
+        unsigned& depth;
+        NestingGuard(unsigned& value, const Location& location) : depth(value) {
+            if (++depth > 128) throw Error(location, "maximum parser nesting depth exceeded");
+        }
+        ~NestingGuard() { --depth; }
+    };
     const Token& peek(size_t ahead = 0) const {
         return tokens[std::min(position + ahead, tokens.size() - 1)];
     }
@@ -50,6 +58,7 @@ class Parser {
         throw Error(peek().location, "expected end of statement, found " + description(peek()));
     }
     Type type() {
+        NestingGuard guard(nesting, peek().location);
         if (accept("[")) { Type element = type(); expect("]"); return Type::array(std::move(element)); }
         if (accept("(")) {
             std::vector<Type> elements;
@@ -112,6 +121,7 @@ class Parser {
         return result;
     }
     std::vector<StmtPtr> suite(bool stack = false) {
+        NestingGuard guard(nesting, peek().location);
         expect(":");
         expect(TokenKind::Newline, "a newline after ':'");
         while (is(TokenKind::Newline)) take();
@@ -140,6 +150,7 @@ class Parser {
         return 0;
     }
     ExprPtr expression(int minimum = 0) {
+        NestingGuard guard(nesting, peek().location);
         ExprPtr left = unary();
         for (;;) {
             const int binding = precedence(peek().text);
@@ -153,6 +164,7 @@ class Parser {
         return left;
     }
     ExprPtr unary() {
+        NestingGuard guard(nesting, peek().location);
         if (is("-") || is("+") || is("not") || is("!")) {
             Token op = take();
             if (op.text == "-" && is(TokenKind::Integer)) {
@@ -289,6 +301,7 @@ class Parser {
     StmtPtr statement(bool stack = false) {
         Token start = peek();
         if (accept("export")) {
+            if (is("export")) throw Error(peek().location, "duplicate export modifier");
             auto result = statement(stack);
             if (result->kind != Stmt::Kind::Function && result->kind != Stmt::Kind::Word
                 && result->kind != Stmt::Kind::Let && result->kind != Stmt::Kind::Var)

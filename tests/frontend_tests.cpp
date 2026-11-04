@@ -120,6 +120,10 @@ int main() {
         reject("let x = -9223372036854775809\n", "i64 range");
         reject("fun f(a: i64, a: bool):\n    return\n", "duplicate parameter");
         reject("let x: imaginary = 1\n", "unknown type");
+        reject("let x = " + std::string(1000, '(') + "1" + std::string(1000, ')') + "\n", "nesting depth");
+        reject("let x = " + std::string(1000, '!') + "true\n", "nesting depth");
+        reject("let x: " + std::string(1000, '[') + "i64" + std::string(1000, ']') + " = []\n", "nesting depth");
+        reject("export export fun main():\n    return\n", "duplicate export");
         reject("fun main():\n    match 1:\n        case _:\n            return\n        case 2:\n            return\n", "wildcard case");
 
         // Deterministic malformed-input smoke test: every input must terminate or diagnose.
