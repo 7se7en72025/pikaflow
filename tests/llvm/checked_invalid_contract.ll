@@ -41,5 +41,5 @@ declare i64 @pf_checked_sub(i64, ...) #0
 declare fastcc i64 @pf_checked_div(i64, i64) #0
 declare i64 @pf_checked_mod(i64, i64) #1
 declare i64 @some_other_add(i64, i64) #0
-attributes #0 = { "pikaflow.checked-arithmetic"="v1" }
-attributes #1 = { "pikaflow.checked-arithmetic"="v2" }
+attributes #0 = { "pikaflow.checked-arithmetic"="v2" }
+attributes #1 = { "pikaflow.checked-arithmetic"="v99" }

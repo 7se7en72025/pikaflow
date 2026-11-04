@@ -13,10 +13,11 @@ def main() -> int:
     plugin, opt, filecheck, lli, llc, compiler, runtime, driver = sys.argv[1:]
     fixtures = pathlib.Path(__file__).resolve().parent / "llvm"
 
-    def run(arguments, expected_exit=0, expected_output=None, input_text=None):
+    def run(arguments, expected_exit=0, expected_output=None, input_text=None, expected_error=None):
         result = subprocess.run(arguments, input=input_text, capture_output=True, text=True,
                                 encoding="utf-8", errors="replace", timeout=90)
-        if result.returncode != expected_exit or (expected_output is not None and result.stdout != expected_output):
+        if (result.returncode != expected_exit or (expected_output is not None and result.stdout != expected_output)
+                or (expected_error is not None and expected_error not in result.stderr)):
             raise AssertionError(f"{arguments}\nexit {result.returncode}, expected {expected_exit}\n{result.stdout}\n{result.stderr}")
         return result
 
@@ -25,6 +26,7 @@ def main() -> int:
         if not re.search(r"LLVM version 24\.", version):
             raise AssertionError(f"plugin tests require matching LLVM 24 tools: {version}")
     execution_runs = 0
+    filecheck_runs = 0
     with tempfile.TemporaryDirectory(prefix="pikaflow LLVM plugin ") as temporary:
         directory = pathlib.Path(temporary)
 
@@ -34,12 +36,21 @@ def main() -> int:
                  "-verify-each", "-S", str(original), "-o", str(destination)])
             return destination
 
-        for name in ("checked_simplify", "checked_invalid_contract", "checked_untrusted"):
+        for name in ("checked_simplify", "checked_invalid_contract", "checked_untrusted",
+                     "checked_legacy_effects", "checked_constants"):
             fixture = fixtures / (name + ".ll")
             transformed = transform(fixture, name)
             run([filecheck, str(fixture)], input_text=transformed.read_text(encoding="utf-8"))
+            filecheck_runs += 1
         wrapped = transform(fixtures / "checked_simplify.ll", "wrapped", "function(pikaflow-checked-simplify)")
         run([filecheck, str(fixtures / "checked_simplify.ll")], input_text=wrapped.read_text(encoding="utf-8"))
+        filecheck_runs += 1
+        version2 = directory / "identities-v2.ll"
+        version2.write_text((fixtures / "checked_simplify.ll").read_text(encoding="utf-8")
+                           .replace('"v1"', '"v2"'), encoding="utf-8")
+        changed = transform(version2, "identities-v2-transformed")
+        run([filecheck, str(fixtures / "checked_simplify.ll")], input_text=changed.read_text(encoding="utf-8"))
+        filecheck_runs += 1
         loaded_only = transform(fixtures / "checked_simplify.ll", "loaded_only", "verify")
         if "call i64 @pf_checked_add(i64 %x, i64 0)" not in loaded_only.read_text(encoding="utf-8"):
             raise AssertionError("loading the plugin unexpectedly enabled a transform without selecting its pipeline")
@@ -62,26 +73,55 @@ def main() -> int:
             for entry in ("main",) + traps:
                 run([lli, "-O0", "--entry-function=" + entry, str(module)], expected_exit=0 if entry == "main" else 77)
                 execution_runs += 1
-        untrusted = fixtures / "checked_untrusted.ll"
-        changed = transform(untrusted, "untrusted_execution")
-        for module in (untrusted, changed):
-            run([lli, "-O0", str(module)])
-            execution_runs += 1
+        for name in ("checked_untrusted", "checked_legacy_effects"):
+            original = fixtures / (name + ".ll")
+            changed = transform(original, name + "-execution")
+            for module in (original, changed):
+                run([lli, "-O0", str(module)])
+                execution_runs += 1
+
+        # Execute both modules against the actual C++ runtime, through lli and
+        # native llc objects. Each argv count selects one located fatal path.
+        runtime_shared = directory / "runtime.so"
+        run([driver, "-shared", "-Wl,--whole-archive", runtime, "-Wl,--no-whole-archive",
+             "-o", str(runtime_shared), "-pthread"])
+        constants = fixtures / "checked_constants.ll"
+        changed = transform(constants, "constants-execution")
+        diagnostics = ("integer addition overflow", "integer addition overflow",
+            "integer subtraction overflow", "integer subtraction overflow",
+            "integer multiplication overflow", "integer multiplication overflow",
+            "integer multiplication overflow", "integer multiplication overflow",
+            "integer division by zero", "integer division by zero", "integer division overflow",
+            "integer remainder by zero", "integer remainder by zero", "integer remainder overflow")
+        for index, module in enumerate((constants, changed)):
+            object_path = directory / f"constants-{index}.o"
+            executable = directory / f"constants-{index}"
+            run([llc, "-filetype=obj", "-relocation-model=pic", str(module), "-o", str(object_path)])
+            run([driver, str(object_path), runtime, "-o", str(executable), "-pthread"])
+            for command in ([lli, "-O0", "--dlopen=" + str(runtime_shared), str(module)], [str(executable)]):
+                run(command)
+                execution_runs += 1
+                for argument_count, diagnostic in enumerate(diagnostics, 1):
+                    run(command + ["trap"] * argument_count, expected_exit=1,
+                        expected_error="checked-plugin.ll:77:9: runtime error: " + diagnostic)
+                    execution_runs += 1
 
         source = directory / "program.pf"
         source.write_text("fun simplify(value:i64)->i64:\n    return (value * 1) + 0\n"
-                          "fun main()->unit:\n    print(simplify(42))\n", encoding="utf-8")
-        run([compiler, "interpret", str(source)], expected_output="42\n")
+                          "fun main()->unit:\n    print(simplify(42))\n"
+                          "    print((20+22)*3-84)\n    print(-85/2)\n    print(-85%2)\n", encoding="utf-8")
+        expected = "42\n42\n-42\n-1\n"
+        run([compiler, "interpret", str(source)], expected_output=expected)
         execution_runs += 1
         original = directory / "program-original.ll"
         run([compiler, "emit-ir", str(source), "-O0", "-o", str(original)])
         original_text = original.read_text(encoding="utf-8")
-        if '"pikaflow.checked-arithmetic"="v1"' not in original_text:
+        if '"pikaflow.checked-arithmetic"="v2"' not in original_text:
             raise AssertionError("backend did not emit the shared pass's trusted runtime contract")
         # The O0 backend deliberately uses register slots; expose their constants
         # to the function pass without running the compiler's custom IR optimizer.
         optimized = transform(original, "program-optimized", "function(mem2reg,pikaflow-checked-simplify)")
-        checked_calls = r"call i64 @pf_checked_(add|mul)\b"
+        checked_calls = r"call i64 @pf_checked_(add|sub|mul|div|mod)\b"
         if not re.search(checked_calls, original_text) or re.search(checked_calls, optimized.read_text(encoding="utf-8")):
             raise AssertionError("plugin did not simplify the actual backend-emitted checked calls")
         for name, module in (("original", original), ("optimized", optimized)):
@@ -89,9 +129,10 @@ def main() -> int:
             executable = directory / name
             run([llc, "-filetype=obj", "-relocation-model=pic", str(module), "-o", str(object_path)])
             run([driver, str(object_path), runtime, "-o", str(executable), "-lm", "-ldl", "-pthread"])
-            run([str(executable)], expected_output="42\n")
+            run([str(executable)], expected_output=expected)
             execution_runs += 1
-    print(f"LLVM plugin: 4 FileCheck pipelines and {execution_runs} execution checks passed; real PikaFlow IR roundtrip verified")
+    print(f"LLVM plugin: {filecheck_runs} FileCheck pipelines and {execution_runs} execution checks passed; "
+          "v1 effects, v2 constants/fatal locations and real PikaFlow IR roundtrip verified")
     return 0
 
 

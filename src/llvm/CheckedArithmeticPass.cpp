@@ -1,4 +1,5 @@
 #include "CheckedArithmeticPass.hpp"
+#include "llvm/ADT/APInt.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Constants.h"
@@ -8,7 +9,8 @@
 namespace pika {
 namespace {
 constexpr llvm::StringLiteral contract = "pikaflow.checked-arithmetic";
-constexpr llvm::StringLiteral version = "v1";
+constexpr llvm::StringLiteral identityVersion = "v1";
+constexpr llvm::StringLiteral checkedVersion = "v2";
 enum class Operation { None, Add, Sub, Mul, Div, Mod };
 
 Operation operation(llvm::StringRef name) {
@@ -25,11 +27,35 @@ bool checkedSignature(const llvm::Function& function) {
         type->getNumParams() == 2 && type->getReturnType()->isIntegerTy(64) &&
         type->getParamType(0)->isIntegerTy(64) && type->getParamType(1)->isIntegerTy(64);
 }
+
+llvm::ConstantInt* foldConstants(Operation op, const llvm::ConstantInt& left,
+                                 const llvm::ConstantInt& right) {
+    const auto& a = left.getValue();
+    const auto& b = right.getValue();
+    bool overflow = false;
+    llvm::APInt value(64, 0);
+    switch(op) {
+    case Operation::Add: value = a.sadd_ov(b, overflow); break;
+    case Operation::Sub: value = a.ssub_ov(b, overflow); break;
+    case Operation::Mul: value = a.smul_ov(b, overflow); break;
+    case Operation::Div:
+        if(b.isZero()) return nullptr;
+        value = a.sdiv_ov(b, overflow);
+        break;
+    case Operation::Mod:
+        // APInt's remainder alone does not diagnose PikaFlow's MIN % -1 failure.
+        if(b.isZero() || (a.isMinSignedValue() && b.isAllOnes())) return nullptr;
+        value = a.srem(b);
+        break;
+    case Operation::None: return nullptr;
+    }
+    return overflow ? nullptr : llvm::ConstantInt::get(left.getContext(), value);
+}
 } // namespace
 
 void markCheckedArithmeticRuntime(llvm::Function& function) {
     if(operation(function.getName()) != Operation::None && checkedSignature(function))
-        function.addFnAttr(contract, version);
+        function.addFnAttr(contract, checkedVersion);
 }
 
 llvm::PreservedAnalyses CheckedArithmeticPass::run(llvm::Function& function,
@@ -42,17 +68,23 @@ llvm::PreservedAnalyses CheckedArithmeticPass::run(llvm::Function& function,
                 call->getCallingConv() != llvm::CallingConv::C) continue;
             const auto* callee = call->getCalledFunction();
             if(!callee || !checkedSignature(*callee) || call->getFunctionType() != callee->getFunctionType() ||
-                !callee->hasFnAttribute(contract) ||
-                callee->getFnAttribute(contract).getValueAsString() != version) continue;
+                !callee->hasFnAttribute(contract)) continue;
+            const auto version = callee->getFnAttribute(contract).getValueAsString();
+            if(version != identityVersion && version != checkedVersion) continue;
             const auto* constant = llvm::dyn_cast<llvm::ConstantInt>(call->getArgOperand(1));
-            if(!constant) continue;
+            if(!constant || llvm::isa<llvm::UndefValue>(call->getArgOperand(0)) ||
+                llvm::isa<llvm::PoisonValue>(call->getArgOperand(0))) continue;
             const auto op = operation(callee->getName());
             llvm::Value* replacement = nullptr;
-            if((constant->isZero() && (op == Operation::Add || op == Operation::Sub)) ||
-               (constant->isOne() && (op == Operation::Mul || op == Operation::Div)))
+            if(version == checkedVersion) {
+                if(const auto* left = llvm::dyn_cast<llvm::ConstantInt>(call->getArgOperand(0)))
+                    replacement = foldConstants(op, *left, *constant);
+            }
+            if(!replacement && ((constant->isZero() && (op == Operation::Add || op == Operation::Sub)) ||
+                (constant->isOne() && (op == Operation::Mul || op == Operation::Div))))
                 replacement = call->getArgOperand(0);
-            else if((constant->isZero() && op == Operation::Mul) ||
-                    (constant->isOne() && op == Operation::Mod))
+            else if(!replacement && ((constant->isZero() && op == Operation::Mul) ||
+                    (constant->isOne() && op == Operation::Mod)))
                 replacement = llvm::ConstantInt::get(call->getType(), 0);
             if(replacement) {
                 call->replaceAllUsesWith(replacement);

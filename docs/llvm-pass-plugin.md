@@ -44,17 +44,27 @@ attribute on the callee:
 
 ```llvm
 declare i64 @pf_checked_add(i64, i64) #0
-attributes #0 = { "pikaflow.checked-arithmetic"="v1" }
+attributes #0 = { "pikaflow.checked-arithmetic"="v2" }
 ```
 
 The attribute is a **semantic assertion supplied by the IR producer**, not a
-property the plugin proves. For the identities below, the marked functions must
-return the specified value without any other observable effect, failure,
-synchronization, or exception. Other inputs may fail according to PikaFlow's
-checked signed arithmetic rules. Attaching the attribute to a function that logs,
-mutates memory, or fails for an identity input violates this contract. A matching
-name alone never authorizes transformation. PikaFlow's runtime-call lowerer adds
-the attribute to its known checked helpers.
+property the plugin proves. Two versions have deliberately different scope:
+
+- **v1:** only the identities below promise the specified return value without
+  observable effects, failure, synchronization, or exception. Calls with other
+  constant operands remain unchanged; such a function may log for those inputs.
+- **v2:** all successful inputs have PikaFlow's checked signed-i64 arithmetic
+  result and no extra observable effects, failure, synchronization, or exception.
+  Addition, subtraction and multiplication fail when the mathematical result
+  exceeds `[-2^63, 2^63-1]`. Division truncates toward zero; remainder has the
+  dividend's sign. A zero divisor, `INT64_MIN / -1`, and `INT64_MIN % -1` fail.
+  The pass only folds successful inputs and retains the original failing calls,
+  including their diagnostics and any failure-path effects.
+
+The pass reads v1 without upgrading it. PikaFlow's runtime-call producer now
+explicitly emits v2 for its known helpers. A matching name alone never authorizes
+transformation. Marking an arbitrary function v2 while it logs on a successful
+input violates that contract; marking it v1 authorizes only identity rewrites.
 
 | Call with constant right operand | Replacement |
 | --- | --- |
@@ -65,10 +75,18 @@ the attribute to its known checked helpers.
 | `pf_checked_mul(x, 0)` | `0` |
 | `pf_checked_mod(x, 1)` | `0` |
 
-Only the call is erased. Instructions computing its arguments remain, including
-effectful calls and earlier checked failures. Division by zero, signed overflow,
-and `INT64_MIN / -1` or `% -1` retain their runtime checks. The pass does not
-reassociate expressions or apply floating-point identities.
+For v2, two literal `i64` operands also fold to a constant when successful. For
+example, `pf_checked_add(20, 22)` becomes `42`, and
+`pf_checked_mod(-85, 2)` becomes `-1`. The implementation uses LLVM's 64-bit
+`APInt::sadd_ov`, `ssub_ov`, `smul_ov` and `sdiv_ov` rather than overflowing host
+C++ arithmetic. It guards zero before division, and checks `INT64_MIN % -1`
+explicitly before `APInt::srem`: APInt's remainder alone would produce zero for
+that pair, hiding PikaFlow's required failure.
+
+Only the call is erased. Instructions computing arguments remain, including
+effectful calls and earlier checked failures. A chain of newly constant calls can
+fold in instruction order; no reassociation or floating-point identities are
+introduced. Poison and undef operands are left unchanged.
 
 It skips indirect calls, `invoke`, operand bundles, `musttail`, incompatible
 signatures/calling conventions, unknown contract versions, and unrecognized
@@ -81,14 +99,19 @@ IR in the regression suite.
 `ctest --test-dir build/plugin -R '^llvm_pass_plugin$' --output-on-failure` runs
 the real plugin through `opt`, `FileCheck`, `lli`, and `llc`. The test includes:
 
-- Four FileCheck pipelines covering the identities, skipped call forms, invalid
-  contracts, and an unmarked helper with observable side effects.
-- Before/after executions for boundary values and eight fatal checked-arithmetic
+- Seven FileCheck pipelines covering v1/v2 identities, successful constant
+  boundaries, fatal calls, skipped/undef/poison call forms, invalid contracts,
+  and both unmarked and legacy-v1 helpers with observable side effects.
+- Before/after `lli` executions for boundary values and eight fatal IR-helper
   paths, including an overflow before multiplication by zero.
+- Twenty successful constant boundary functions and a five-operation constant
+  chain, plus fourteen fatal cases executed before and after transformation
+  through both `lli` and native `llc` objects against the **actual C++ runtime**.
+  Fatal cases must retain their error text and explicit source location.
 - A PikaFlow interpreter reference and an actual `emit-ir -O0` module transformed
   by the plugin, compiled by `llc`, linked against the real runtime, and executed
   before and after transformation.
 
-The focused Linux LLVM 24 test has 23 execution checks. This verifies the plugin
+The focused Linux LLVM 24 test has 85 execution checks. This verifies the plugin
 and shared backend pass on that toolchain; it does not establish compatibility
 with other LLVM major versions or Windows plugin hosts.

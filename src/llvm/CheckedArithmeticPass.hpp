@@ -4,7 +4,7 @@
 namespace llvm { class Function; }
 
 namespace pika {
-// Opt-in contract: the named checked helpers have no extra effects for identities.
+// Emit the v2 checked-i64 contract; v1 callers retain identity-only compatibility.
 void markCheckedArithmeticRuntime(llvm::Function& function);
 
 class CheckedArithmeticPass : public llvm::OptionalPassInfoMixin<CheckedArithmeticPass> {

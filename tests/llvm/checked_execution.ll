@@ -140,4 +140,4 @@ define i32 @trap_before_zero() {
   ret i32 1
 }
 
-attributes #0 = { "pikaflow.checked-arithmetic"="v1" }
+attributes #0 = { "pikaflow.checked-arithmetic"="v2" }
