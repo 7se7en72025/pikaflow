@@ -153,6 +153,22 @@ int main() {
         reject("let x = " + std::string(1000, '(') + "1" + std::string(1000, ')') + "\n", "nesting depth");
         reject("let x = " + std::string(1000, '!') + "true\n", "nesting depth");
         reject("let x: " + std::string(1000, '[') + "i64" + std::string(1000, ']') + " = []\n", "nesting depth");
+        std::string binaryChain = "1", callChain = "f", indexChain = "a", typeChain = "f", qualifiedName = "module";
+        for (unsigned i = 0; i < 1000; ++i) {
+            binaryChain += "+1"; callChain += "()"; indexChain += "[0]"; typeChain += "::[i64]"; qualifiedName += ".member";
+        }
+        for (const auto& expression : {binaryChain, callChain, indexChain, typeChain, std::string("value") + std::string(1000, '?')})
+            reject("fun main():\n    let value = " + expression + "\n", "expression syntax depth");
+        // Qualification changes one name, rather than adding recursive AST nodes.
+        require(tree("let value = " + qualifiedName + "\n").statements.size() == 1, "flat qualified name rejected");
+        std::string elifChain = "fun main():\n    if false:\n        pass\n";
+        for (unsigned i = 0; i < 1000; ++i) elifChain += "    elif false:\n        pass\n";
+        reject(elifChain, "nesting depth");
+        std::string bounded = "1";
+        for (unsigned i = 0; i < 126; ++i) bounded += "+1";
+        require(tree("let value = " + bounded + "\n").statements[0]->expression->syntaxDepth == 127,
+            "bounded expression chain rejected");
+        reject("let value = -(" + bounded + "+1)\n", "expression syntax depth");
         reject("export export fun main():\n    return\n", "duplicate export");
         reject("fun duplicate[T,T](value:T)->T:\n    return value\n", "duplicate type parameter");
         reject("extern fun missing() -> unit = \"\"\n", "foreign symbol");

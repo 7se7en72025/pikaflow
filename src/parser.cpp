@@ -184,6 +184,14 @@ class Parser {
         if (op == "*" || op == "/" || op == "%") return 7;
         return 0;
     }
+    ExprPtr checkedExpression(ExprPtr value) {
+        value->syntaxDepth = 1;
+        for (const auto& item : value->items)
+            value->syntaxDepth = std::max(value->syntaxDepth, item->syntaxDepth + 1);
+        if (value->syntaxDepth > 128)
+            throw Error(value->location, "maximum expression syntax depth (128) exceeded");
+        return value;
+    }
     ExprPtr expression(int minimum = 0) {
         NestingGuard guard(nesting, peek().location);
         ExprPtr left = unary();
@@ -194,9 +202,9 @@ class Parser {
             auto result = std::make_shared<Expr>(Expr::Kind::Binary, op.location);
             result->text = op.text;
             result->items = {left, expression(binding)};
-            left = std::move(result);
+            left = checkedExpression(std::move(result));
         }
-        return left;
+        return checkedExpression(std::move(left));
     }
     ExprPtr unary() {
         NestingGuard guard(nesting, peek().location);
@@ -216,11 +224,12 @@ class Parser {
             auto result = std::make_shared<Expr>(Expr::Kind::Unary, op.location);
             result->text = op.text;
             result->items.push_back(unary());
-            return result;
+            return checkedExpression(std::move(result));
         }
         return postfix(primary());
     }
     ExprPtr postfix(ExprPtr left) {
+        left = checkedExpression(std::move(left));
         for (;;) {
             if (accept(".")) {
                 if (left->kind != Expr::Kind::Name) throw Error(left->location, "qualified access requires a module alias");
@@ -247,6 +256,7 @@ class Parser {
                 index->items = {left, expression()};
                 expect("]"); left = std::move(index);
             } else break;
+            left = checkedExpression(std::move(left));
         }
         return left;
     }
@@ -314,9 +324,10 @@ class Parser {
         auto result = std::make_shared<Expr>(Expr::Kind::Tuple, first->location);
         result->items.push_back(std::move(first));
         do { result->items.push_back(expression()); } while (accept(","));
-        return result;
+        return checkedExpression(std::move(result));
     }
     StmtPtr conditional(Token start, bool stack) {
+        NestingGuard guard(nesting, start.location);
         auto result = std::make_shared<Stmt>(Stmt::Kind::If, start.location);
         if (!is(":")) result->expression = expression();
         result->body = suite(stack);

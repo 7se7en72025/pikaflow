@@ -338,6 +338,15 @@ class Compiler {
     unsigned serial = 0;
     std::map<std::string, Declaration> specializations;
     unsigned instantiationDepth = 0;
+    unsigned traversalDepth = 0;
+    struct TraversalGuard {
+        unsigned &depth;
+        TraversalGuard(unsigned &active, const Location &location) : depth(active) {
+            if (depth >= 512) throw Error(location, "compiler traversal depth limit (512) exceeded");
+            ++depth;
+        }
+        ~TraversalGuard() { --depth; }
+    };
     size_t typeExpansionBudget = 1000000;
     size_t typeNodes(const Type &type, Location loc) {
         size_t count = 0;
@@ -491,6 +500,7 @@ class Compiler {
     }
     ExprPtr cloneExpr(const ExprPtr &original, const std::map<std::string, Type> &bindings) {
         if (!original) return {};
+        TraversalGuard guard(traversalDepth, original->location);
         auto result = std::make_shared<Expr>(*original);
         result->returnType = substitute(result->returnType, bindings, result->location);
         for (auto &argument : result->typeArguments) argument = substitute(argument, bindings, result->location);
@@ -501,6 +511,7 @@ class Compiler {
         return result;
     }
     StmtPtr cloneStmt(const StmtPtr &original, const std::map<std::string, Type> &bindings) {
+        TraversalGuard guard(traversalDepth, original->location);
         auto result = std::make_shared<Stmt>(*original);
         result->type = substitute(result->type, bindings, result->location);
         result->returnType = substitute(result->returnType, bindings, result->location);
@@ -820,6 +831,7 @@ class Compiler {
         return {visible.begin(), visible.end()};
     }
     bool returns(const std::vector<StmtPtr> &body, bool loopExit = false) {
+        TraversalGuard guard(traversalDepth, body.empty() ? Location{} : body.front()->location);
         for (auto &statement : body) {
             if (statement->kind == Stmt::Kind::Return)
                 return true;
@@ -1334,6 +1346,7 @@ class Compiler {
     int expr(const ExprPtr &expression, const Type *expected = nullptr) {
         if (!expression)
             return -1;
+        TraversalGuard guard(traversalDepth, expression->location);
         const auto &e = *expression;
         auto loc = e.location;
         switch (e.kind) {
@@ -1897,6 +1910,7 @@ class Compiler {
         return false;
     }
     void statement(const StmtPtr &statementValue) {
+        TraversalGuard guard(traversalDepth, statementValue->location);
         const auto &s = *statementValue;
         switch (s.kind) {
         case Stmt::Kind::Let:
@@ -2141,6 +2155,7 @@ class Compiler {
                          const Type &result, const std::vector<StmtPtr> &body,
                          const std::vector<std::pair<std::string, Binding>> &captured, bool word,
                          Location loc) {
+        TraversalGuard guard(traversalDepth, loc);
         validateType(result, loc, true);
         for (const auto &parameter : parameters)
             validateType(parameter.type, parameter.location);

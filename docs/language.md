@@ -373,8 +373,14 @@ diagnostics include their own locations. After declaration/signature validation,
 semantic checking collects up to 20 function-body errors. Failed function
 transactions discard emitted functions, specializations and nominal layouts;
 any semantic error prevents returning executable IR. Lexical and declaration/
-signature errors still stop their phase at the first error. Excessively nested input is rejected rather
-than exhausting the native parser stack. CLI source files are limited to 16 MiB.
+signature errors still stop their phase at the first error. Parser recursion and
+expression AST depth are each limited to 128. The AST bound includes iterative
+binary/postfix chains; long `elif` chains also consume the parser nesting budget.
+The compiler limits combined active syntax traversal to 512 frames across
+expression lowering, statement/function compilation and syntax cloning. This
+budget also applies while compiling generic specializations, alongside the
+separate 64-level generic-instantiation limit. Exceeding a bound produces a
+source diagnostic. CLI source files are limited to 16 MiB.
 Within-function semantic recovery and Unicode display-column tracking remain
 future work.
 

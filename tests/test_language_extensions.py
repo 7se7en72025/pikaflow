@@ -7,7 +7,16 @@ import tempfile
 import textwrap
 
 
+def generic_expression_chain(count):
+    declarations = []
+    for i in range(count):
+        first = f"f{i + 1}(value)" if i + 1 < count else "1"
+        declarations.append(f"fun f{i}[T](value:T)->i64:\n    return " + first + "+1" * 59 + "\n")
+    return "".join(declarations) + "fun main():\n    print(f0(1))\n"
+
+
 CASES = {
+    "generic_bounded_expression_chain": (generic_expression_chain(8), "473\n"),
     "generic_higher_order": ('''
         fun apply[A, B](value: A, operation: fn(A) -> B) -> B:
             return operation(value)
@@ -254,6 +263,7 @@ CASES = {
 }
 
 NEGATIVE = {
+    "generic_combined_traversal_depth": (generic_expression_chain(20), "compiler traversal depth limit"),
     "abi_width_conflict": ('extern fun one(value:c_i8)->c_i8 = "same_symbol"\nextern fun two(value:c_i16)->c_i16 = "same_symbol"\nfun main():\n    pass\n', "conflicting declarations"),
     "abi_sign_conflict": ('extern fun one(value:c_i8)->c_i8 = "same_symbol"\nextern fun two(value:c_u8)->c_u8 = "same_symbol"\nfun main():\n    pass\n', "conflicting declarations"),
     "abi_source_carrier": ('fun main():\n    let value:c_i8=1\n', "unknown type"),

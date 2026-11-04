@@ -17,6 +17,7 @@ struct Expr {
     Location location;
     Location nameLocation;
     std::string text;
+    unsigned syntaxDepth = 1; // Cached by the parser to bound iterative expression chains.
     int64_t integer = 0;
     double real = 0;
     std::vector<ExprPtr> items;
