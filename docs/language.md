@@ -290,6 +290,18 @@ ABI lowering, callbacks, and pointer arithmetic/address-of operators remain
 future work. Declaring an incorrect foreign signature
 does not become safe merely because the program type-checks.
 
+## Source standard library
+
+The modules in [`stdlib/`](../stdlib/) are implemented in PikaFlow itself.
+`numeric.pf` provides recoverable absolute value/division/clamping and a typed
+`square` stack word. `sequences.pf` provides checked sum, minimum, in-place
+insertion sort, and binary search for integer arrays. `strings.pf` provides ASCII
+classification and decimal `parse_i64`, which supports both i64 endpoints and
+returns recoverable errors for invalid/out-of-range input.
+
+See the [library API reference](../stdlib/README.md) for exact contracts and
+[`examples/stdlib.pf`](../examples/stdlib.pf) for imports and use.
+
 ## Diagnostics and resource limits
 
 Frontend/type errors include filename, line, column, source line, and a caret.

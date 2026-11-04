@@ -1,0 +1,36 @@
+# Integer helpers use checked arithmetic. Recoverable operations return Result.
+export fun abs_checked(value: i64) -> Result[i64, str]:
+    if value == -9223372036854775808:
+        return err("absolute value is outside i64 range")
+    if value < 0:
+        return ok(-value)
+    return ok(value)
+
+export fun min_i64(left: i64, right: i64) -> i64:
+    if left < right:
+        return left
+    return right
+
+export fun max_i64(left: i64, right: i64) -> i64:
+    if left > right:
+        return left
+    return right
+
+export fun clamp_i64(value: i64, lower: i64, upper: i64) -> Result[i64, str]:
+    if lower > upper:
+        return err("clamp lower bound exceeds upper bound")
+    if value < lower:
+        return ok(lower)
+    if value > upper:
+        return ok(upper)
+    return ok(value)
+
+export fun safe_divide(numerator: i64, denominator: i64) -> Result[i64, str]:
+    if denominator == 0:
+        return err("division by zero")
+    if numerator == -9223372036854775808 and denominator == -1:
+        return err("division is outside i64 range")
+    return ok(numerator / denominator)
+
+export word square(i64) -> i64:
+    dup *

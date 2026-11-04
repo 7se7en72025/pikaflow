@@ -1,0 +1,31 @@
+import "../stdlib/numeric.pf"
+import "../stdlib/sequences.pf"
+import "../stdlib/strings.pf"
+
+fun main() -> unit:
+    print(unwrap(abs_checked(-42)))
+    print(is_ok(abs_checked(-9223372036854775808)))
+    print(unwrap(clamp_i64(50, 0, 10)))
+    print(unwrap(safe_divide(84, 2)))
+    print(is_ok(safe_divide(1, 0)))
+
+    let squared = stack(7) -> i64:
+        square
+    print(squared)
+
+    let values = [5, 1, 4, 1, 3]
+    sort_in_place(values)
+    print(values)
+    print(sum(values))
+    print(binary_search(values, 4))
+    print(binary_search(values, 9))
+    print(unwrap(min_or_error(values)))
+    let empty: [i64] = []
+    print(error(min_or_error(empty)))
+
+    print(unwrap(parse_i64("9223372036854775807")))
+    print(unwrap(parse_i64("-9223372036854775808")))
+    print(is_ok(parse_i64("9223372036854775808")))
+    print(is_ok(parse_i64("-9223372036854775809")))
+    print(is_ok(parse_i64("12oops")))
+    print(unwrap(parse_i64("+0042")))

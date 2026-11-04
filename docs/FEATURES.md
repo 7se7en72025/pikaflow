@@ -22,6 +22,7 @@ decision is not by itself an implemented or verified feature.
 | LLVM backend | LLVM IR generation/verification, optimization pipelines, object emission, native linking, ORC JIT |
 | Foreign calls | Scalar/pointer declarations and limited scalar varargs in LLVM execution |
 | Unsafe memory | Explicit unsafe blocks, typed raw allocation/load/store/free, C-string exposure, persistent GC root handles |
+| Source standard library | Recoverable numeric helpers, integer sequences/sorting/search, checked decimal parsing, ASCII classification |
 | Developer CLI | `check`, `interpret`, `run`, `emit-ir`, `emit-obj`, `build`, inspection commands |
 
 The end-to-end integration suite in [`tests/test_cli.py`](../tests/test_cli.py)
@@ -40,7 +41,6 @@ and test results.
 | Raw-pointer programming | Checked allocation/load/store/free built-ins exist; arbitrary foreign-address dereference, address-of, and pointer arithmetic do not |
 | Full C ABI interoperability | Aggregate/struct lowering, callbacks, and ownership annotations do not; explicit root handles exist |
 | Full Result/error system | Typed Result alternatives exist; general user-defined ADTs and propagation syntax do not |
-| Broad standard library | Runtime helpers exist; files, networking, collections, and standard-library modules do not |
 | Source debugger experience | LLVM debug support must be verified on target debuggers; debugger usability is not established by emitting metadata |
 | Linux support | CMake/runtime/backend are intended to be portable; a Windows test run does not validate Linux |
 | LLVM main compatibility | One LLVM version/revision is tested at a time; ongoing compatibility requires repeated builds and tests |
@@ -63,3 +63,13 @@ target-specific execution remain necessary.
 No performance claim is established merely by enabling `-O2`; benchmarks must
 record the source, toolchain revision, build flags, machine, output correctness,
 and repeated measurements.
+
+The source library is documented in [`stdlib/README.md`](../stdlib/README.md).
+It provides a bounded set of numeric, sequence, and byte-string operations; it
+does not claim a file/networking/package ecosystem. Additional modules need
+their own specified scope and tests.
+
+`tests/fuzz_frontend.py` generates deterministic arithmetic programs in both
+structured and stack syntax and compares interpreted results with a Python
+reference, including signed division/remainder semantics. It complements the
+malformed-input parser checks; neither is a coverage-guided fuzzing campaign.

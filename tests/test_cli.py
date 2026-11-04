@@ -58,9 +58,10 @@ def main() -> int:
         ("strings.pf", "PikaFlow\n8\n80\ntrue\nescaped\nline\n1.5\n"),
         ("pointers.pf", "42\n42\n"),
         ("patterns.pf", "42\n15\n5\n42\nexpected failure\nten\n"),
+        ("stdlib.pf", "42\nfalse\n10\n42\nfalse\n49\n[1, 1, 3, 4, 5]\n14\n3\n-1\n1\nminimum of empty sequence\n9223372036854775807\n-9223372036854775808\nfalse\nfalse\nfalse\n42\n"),
         ("modules/main.pf", "42\n"),
     ]
-    native_cases = {"hello.pf", "shared_stack.pf", "closures.pf", "arrays.pf", "results.pf", "patterns.pf", "pointers.pf"}
+    native_cases = {"hello.pf", "shared_stack.pf", "closures.pf", "arrays.pf", "results.pf", "patterns.pf", "pointers.pf", "stdlib.pf"}
 
     with tempfile.TemporaryDirectory(prefix="pikaflow cli ") as temporary:
         directory = pathlib.Path(temporary)
@@ -188,6 +189,57 @@ def main() -> int:
                 for optimization in ("-O0", "-O2"):
                     successful(run([compiler, "run", str(source), optimization]), expected, f"JIT {name} {optimization}")
                     completed += 1
+
+        stdlib_directory = examples.parent / "stdlib"
+        string_import = (stdlib_directory / "strings.pf").as_posix()
+        numeric_import = (stdlib_directory / "numeric.pf").as_posix()
+        sequence_import = (stdlib_directory / "sequences.pf").as_posix()
+        standard_source = directory / "standard library boundaries.pf"
+        parse_cases = [
+            ("0", 0), ("-0", 0), ("+0", 0), ("000001", 1), ("-000012", -12),
+            ("9223372036854775807", 9223372036854775807),
+            ("-9223372036854775808", -9223372036854775808),
+            ("9223372036854775808", None), ("-9223372036854775809", None),
+            ("9999999999999999999999999999999999999999", None),
+            ("", None), ("-", None), ("+", None), (" 1", None), ("1 ", None),
+            ("1_2", None), ("1.2", None), ("--1", None), ("+1x", None),
+            ("0x10", None), ("١", None),
+        ]
+        lines = [f'import "{string_import}"', f'import "{numeric_import}"',
+                 f'import "{sequence_import}"', "fun main() -> unit:"]
+        expected_lines = []
+        for index, (text, value) in enumerate(parse_cases):
+            lines += [f'    let parsed_{index} = parse_i64("{text}")',
+                      f"    print(is_ok(parsed_{index}))"]
+            expected_lines.append("true" if value is not None else "false")
+            if value is not None:
+                lines.append(f"    print(unwrap(parsed_{index}))")
+                expected_lines.append(str(value))
+        lines += [
+            "    print(is_ascii_digit(48))", "    print(is_ascii_digit(-1))",
+            "    print(is_ascii_alpha(65))", "    print(is_ascii_alpha(196))",
+            "    print(min_i64(-9223372036854775808, 1))",
+            "    print(max_i64(9223372036854775807, 1))",
+            "    print(is_ok(clamp_i64(2, 5, 1)))",
+            "    print(is_ok(safe_divide(-9223372036854775808, -1)))",
+            "    print(unwrap(safe_divide(-7, 3)))",
+            "    let empty: [i64] = []", "    sort_in_place(empty)",
+            "    print(sum(empty))", "    print(binary_search(empty, 1))",
+            "    let reversed = [5, 4, 3, 2, 1]", "    sort_in_place(reversed)",
+            "    print(reversed)", "    print(binary_search(reversed, 1))",
+            "    print(binary_search(reversed, 5))",
+        ]
+        expected_lines += ["true", "false", "true", "false", "-9223372036854775808",
+                           "9223372036854775807", "false", "false", "-2", "0", "-1",
+                           "[1, 2, 3, 4, 5]", "0", "4"]
+        standard_source.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        successful(run([compiler, "interpret", str(standard_source)]), "\n".join(expected_lines) + "\n", "standard library boundaries")
+        completed += 1
+        if llvm:
+            for optimization in ("-O0", "-O2"):
+                successful(run([compiler, "run", str(standard_source), optimization]),
+                           "\n".join(expected_lines) + "\n", f"JIT standard library boundaries {optimization}")
+                completed += 1
 
         negative_cases = [
             ("mixed_types", "fun main():\n    print(1 + true)\n", "received bool"),

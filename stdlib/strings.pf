@@ -1,0 +1,40 @@
+# Classification and parsing are byte-oriented, not Unicode character operations.
+export fun is_ascii_digit(byte: i64) -> bool:
+    return byte >= 48 and byte <= 57
+
+export fun is_ascii_alpha(byte: i64) -> bool:
+    return (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122)
+
+export fun parse_i64(text: str) -> Result[i64, str]:
+    if len(text) == 0:
+        return err("invalid decimal integer")
+    var start = 0
+    var negative = false
+    var limit = -9223372036854775807
+    if text[0] == 45:
+        negative = true
+        limit = -9223372036854775808
+        start = 1
+    elif text[0] == 43:
+        start = 1
+    if start == len(text):
+        return err("invalid decimal integer")
+
+    # Accumulate negatively: i64 can represent MIN but cannot represent -MIN.
+    let multiply_limit = limit / 10
+    var result = 0
+    for index in range(start, len(text)):
+        let byte = text[index]
+        if not is_ascii_digit(byte):
+            return err("invalid decimal integer")
+        let digit = byte - 48
+        if result < multiply_limit:
+            return err("integer is outside i64 range")
+        result = result * 10
+        if result < limit + digit:
+            return err("integer is outside i64 range")
+        result = result - digit
+
+    if negative:
+        return ok(result)
+    return ok(-result)

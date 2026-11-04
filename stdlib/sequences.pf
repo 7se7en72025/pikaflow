@@ -1,0 +1,39 @@
+# Arrays are fixed-length and mutable. These helpers operate on [i64].
+export fun sum(values: [i64]) -> i64:
+    var total = 0
+    for value in values:
+        total = total + value
+    return total
+
+export fun min_or_error(values: [i64]) -> Result[i64, str]:
+    if len(values) == 0:
+        return err("minimum of empty sequence")
+    var minimum = values[0]
+    for value in values:
+        if value < minimum:
+            minimum = value
+    return ok(minimum)
+
+export fun sort_in_place(values: [i64]) -> unit:
+    # Insertion sort preserves equal-element ordering and uses constant extra space.
+    for index in range(1, len(values)):
+        let current = values[index]
+        var insertion = index
+        while insertion > 0 and values[insertion - 1] > current:
+            values[insertion] = values[insertion - 1]
+            insertion = insertion - 1
+        values[insertion] = current
+
+export fun binary_search(values: [i64], needle: i64) -> i64:
+    # Precondition: values is sorted in nondecreasing order.
+    var lower = 0
+    var upper = len(values)
+    while lower < upper:
+        let middle = lower + (upper - lower) / 2
+        if values[middle] == needle:
+            return middle
+        if values[middle] < needle:
+            lower = middle + 1
+        else:
+            upper = middle
+    return -1
