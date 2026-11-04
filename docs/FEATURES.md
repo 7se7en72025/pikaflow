@@ -14,13 +14,13 @@ decision is not by itself an implemented or verified feature.
 | Functions | Named functions, recursion, nested/anonymous closures, function values |
 | Hybrid programming | Stack blocks, typed words, multiple results, shared stack within functions, pipelines |
 | Control flow | `if`/`elif`/`else`, `while`, range/sequence `for`, `break`, `continue`, destructuring/Result/range/wildcard `match` |
-| Modules | Relative imports, explicit exports, private declarations, import-cycle detection |
+| Modules | Relative and `std:` imports, explicit function/word/extern exports, private declarations, import-cycle detection |
 | Recoverable errors | Typed `Result[T,E]`, `ok`, `err`, `is_ok`, checked `unwrap`/`error`, Result patterns |
 | Custom IR | Typed register instructions, control-flow verification, definite-assignment checks, dumps |
 | Reference execution | Typed-IR interpreter using the common runtime |
 | Runtime | Printing, bounds checks, checked arithmetic, arrays/tuples/closures, traced non-moving GC |
-| LLVM backend | LLVM IR generation/verification, optimization pipelines, object emission, native linking, ORC JIT |
-| Foreign calls | Scalar/pointer declarations and limited scalar varargs in LLVM execution |
+| LLVM backend | LLVM IR generation/verification, optimization pipelines, a checked-arithmetic identity transform, object emission, native linking, ORC JIT |
+| Foreign calls | Scalar/pointer and bounded flat C-record declarations, target-specific argument/return lowering, vararg promotions, explicit symbol aliases |
 | Unsafe memory | Explicit unsafe blocks, typed raw allocation/load/store/free, C-string exposure, persistent GC root handles |
 | Source standard library | Recoverable numeric helpers, integer sequences/sorting/search, checked decimal parsing, ASCII classification |
 | Developer CLI | `check`, `interpret`, `run`, `emit-ir`, `emit-obj`, `build`, inspection commands |
@@ -39,12 +39,12 @@ and test results.
 | Error recovery | Bounded top-level parser recovery exists; within-function semantic recovery does not |
 | Rich pattern matching | Tuple/array/Result/range/binding patterns exist; guards and general ADT exhaustiveness checking do not |
 | Raw-pointer programming | Checked allocation/load/store/free built-ins exist; arbitrary foreign-address dereference, address-of, and pointer arithmetic do not |
-| Full C ABI interoperability | Aggregate/struct lowering, callbacks, and ownership annotations do not; explicit root handles exist |
+| Full C ABI interoperability | Bounded flat x86-64 C records exist; nested/packed records, unions, bitfields, callbacks and ownership annotations do not; explicit root handles exist |
 | Full Result/error system | Typed Result alternatives exist; general user-defined ADTs and propagation syntax do not |
 | Source debugger experience | LLVM debug support must be verified on target debuggers; debugger usability is not established by emitting metadata |
-| Linux support | CMake/runtime/backend are intended to be portable; a Windows test run does not validate Linux |
+| Additional platforms | Windows x64 and Linux x86-64 native/JIT suites pass; other architectures/ABIs are unverified |
 | LLVM main compatibility | One LLVM version/revision is tested at a time; ongoing compatibility requires repeated builds and tests |
-| Specialized optimization work | LLVM pipelines exist; substantial project-specific analysis/transform passes require separate correctness tests |
+| Specialized optimization work | LLVM pipelines and a small checked-arithmetic identity transform exist; broader project-specific analyses/transforms need separate specifications and correctness tests |
 | Production fuzzing | A bounded Clang ASan/UBSan/libFuzzer frontend campaign passed; long-running campaigns and semantic/runtime fuzzing remain work |
 | Generics | Compile-time specialization is planned, not implemented |
 | Formatter | Planned after grammar stability |

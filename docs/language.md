@@ -302,13 +302,16 @@ extern fun libc_free(pointer: ptr[unit]) -> unit = "free"
 The alias is the name used in PikaFlow calls; the string is the actual linker/JIT
 symbol. Empty symbols and embedded NUL bytes are rejected.
 
-Extern declarations use the platform C calling convention. Scalar and pointer
-signatures and limited scalar variadic calls can be emitted by the LLVM backend;
-foreign symbols must be supplied by linked code or the JIT process. The reference
+Extern declarations use the platform C calling convention. Scalar/pointer
+signatures, bounded flat C-record tuples, and supported variadic promotions can
+be emitted by the LLVM backend; foreign symbols must be supplied by linked code
+or the JIT process. The reference
 interpreter does not execute arbitrary foreign functions. Calls must appear in an
-explicit `unsafe:` block; declarations alone do not execute foreign code. Struct
-ABI lowering, callbacks, and pointer arithmetic/address-of operators remain
-future work. Declaring an incorrect foreign signature
+explicit `unsafe:` block; declarations alone do not execute foreign code. Use
+`export extern fun` to expose a foreign declaration to direct importers.
+The exact supported record types and platform restrictions are documented in
+[C interoperability](ffi.md). Nested/packed records, callbacks, and pointer
+arithmetic/address-of operators remain future work. Declaring an incorrect foreign signature
 does not become safe merely because the program type-checks.
 
 ## Source standard library

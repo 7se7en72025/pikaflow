@@ -9,8 +9,9 @@ The project draws inspiration from [Pikapika](https://github.com/7se7en72025/pik
 and [Goof](https://github.com/sneaky-potato/goof). Its implementation and language
 rules are developed here rather than merging the two projects' source code.
 
-**Status:** the interpreter and substantial language/runtime features are working.
-Native/JIT and C ABI verification is in progress. This is a 0.1 implementation,
+**Status:** Windows x64 and Linux x86-64 native/JIT integration each pass all 13
+CTest suites, including 216 compiler checks and 52 generated C ABI cross-checks
+per host. This is a 0.1 implementation,
 not completion of the full approved v1 roadmap. See the [validation record](docs/validation.md)
 and [feature status](docs/FEATURES.md) for what has actually been checked.
 
@@ -177,6 +178,8 @@ The integration suite detects whether LLVM is enabled. LLVM builds add JIT and
 native output comparisons at `-O0`/`-O2`, object/IR checks, and C ABI tests.
 Bounded generated-program checks complement the parser's malformed-input tests;
 they are not a coverage-guided fuzz campaign.
+The separate [Clang libFuzzer target](docs/fuzzing.md) completed 64,258 frontend
+executions under ASan/UBSan without a reported failure in its bounded campaign.
 
 Benchmarks verify results before recording timings, retain repeated measurements,
 and record the compiler binary identity, checkout metadata, machine, source, and

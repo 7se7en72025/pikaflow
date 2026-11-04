@@ -48,6 +48,7 @@ On 2026-11-04, WSL Ubuntu 24.04 used Ubuntu Clang 18.1.3 (1ubuntu1), targeting
 the matching official Ubuntu `libclang-rt-18-dev` package was installed after an
 apt simulation confirmed zero upgrades and zero removals. Its three 32-bit
 dependencies were also new installations.
+The fuzzed frontend and harness content is captured by commit `7c380ad`.
 
 The standalone command above built successfully. This exact run started with
 copies of the three committed seeds:
