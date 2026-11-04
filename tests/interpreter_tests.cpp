@@ -148,7 +148,7 @@ void testFloatingAndAuditedExterns() {
 void testRecursionGuard() {
     Program program;
     auto main = function("main", {}, Unit, {I64, I64});
-    main.code = {number(0, 300), named(Op::Call, 1, {0}, "countdown"), instruction(Op::Return)};
+    main.code = {number(0, 2048), named(Op::Call, 1, {0}, "countdown"), instruction(Op::Return)};
     auto countdown = function("countdown", {I64}, I64, {I64, I64, Bool, I64, I64, I64});
     countdown.code = {number(1, 0), instruction(Op::Eq, 2, {0, 1}), jump(Op::JumpFalse, 4, {2}),
         instruction(Op::Return, -1, {1}), number(3, 1), instruction(Op::Sub, 4, {0, 3}),
@@ -164,6 +164,51 @@ void testRecursionGuard() {
     program.functions[0] = main;
     require(execute(program).empty(), "ordinary recursion works after a rejected deep call");
 }
+
+void testUnsafeMemoryAndCString() {
+    Program program;
+    const Type integerPointer{TypeKind::Pointer, {I64}}, nativePointer{TypeKind::Pointer, {Unit}};
+    auto main = function("main", {}, Unit, {I64, integerPointer, I64, I64, I64, String, nativePointer, nativePointer, I64});
+    main.code = {number(0, 2), instruction(Op::RawAlloc, 1, {0}), number(2, 1), number(3, 42),
+        instruction(Op::RawStore, -1, {1, 2, 3}), instruction(Op::RawLoad, 4, {1, 2}),
+        instruction(Op::Print, -1, {4}), instruction(Op::RawFree, -1, {1}), text(5, "hello"),
+        instruction(Op::Pin, 6, {5}), instruction(Op::CString, 7, {5}), instruction(Op::Collect),
+        named(Op::ExternalCall, 8, {7}, "strlen"), instruction(Op::Print, -1, {8}),
+        instruction(Op::Unpin, -1, {6}), instruction(Op::Return)};
+    program.functions = {main};
+    program.externals = {External{"strlen", {nativePointer}, I64, false}};
+    require(execute(program) == "42\n5\n", "unsafe raw memory, pinning, C string boundary and audited strlen");
+}
+
+void testRecursiveClosure() {
+    Program program;
+    const auto closureType = Type::function({I64}, I64);
+    auto main = function("main", {}, Unit, {Type::cell(closureType), closureType, I64, I64});
+    main.code = {instruction(Op::MakeCell, 0), named(Op::MakeClosure, 1, {0}, "recursive"),
+        instruction(Op::StoreCell, -1, {0, 1}), number(2, 10), instruction(Op::CallIndirect, 3, {1, 2}),
+        instruction(Op::Print, -1, {3}), instruction(Op::Collect), instruction(Op::Return)};
+    auto recursive = function("recursive", {I64}, I64,
+        {I64, Type::cell(closureType), closureType, I64, Bool, I64, I64, I64});
+    auto capture = instruction(Op::Capture, 1);
+    capture.integer = 0;
+    recursive.code = {capture, instruction(Op::LoadCell, 2, {1}), number(3, 0),
+        instruction(Op::Eq, 4, {0, 3}), jump(Op::JumpFalse, 6, {4}), instruction(Op::Return, -1, {3}),
+        number(5, 1), instruction(Op::Sub, 6, {0, 5}), instruction(Op::CallIndirect, 7, {2, 6}),
+        instruction(Op::Return, -1, {7})};
+    program.functions = {main, recursive};
+    require(execute(program) == "0\n", "recursive nested closure shares its initialized self cell and GC reclaims the cycle");
+}
+void testGenericResultError() {
+    Program program;
+    const auto payload = Type::array(I64);
+    const Type resultType{TypeKind::Result, {payload, String}};
+    auto main = function("main", {}, Unit, {Bool, payload, String, resultType, String});
+    main.code = {instruction(Op::ConstBool, 0), instruction(Op::Zero, 1), text(2, "unavailable"),
+        instruction(Op::MakeTuple, 3, {0, 1, 2}), instruction(Op::Collect),
+        instruction(Op::ResultError, 4, {3}), instruction(Op::Print, -1, {4}), instruction(Op::Return)};
+    program.functions = {main};
+    require(execute(program) == "unavailable\n", "typed Result placeholder and guarded error extraction support managed payloads");
+}
 }
 
 int main() {
@@ -172,5 +217,8 @@ int main() {
     testArraysAndResults();
     testFloatingAndAuditedExterns();
     testRecursionGuard();
+    testUnsafeMemoryAndCString();
+    testRecursiveClosure();
+    testGenericResultError();
     std::cout << "interpreter tests passed\n";
 }

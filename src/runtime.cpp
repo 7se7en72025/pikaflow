@@ -37,8 +37,18 @@ struct RootFrame {
     RootFrame* previous;
 };
 
+struct FreeMemory { void operator()(void* pointer) const { std::free(pointer); } };
+struct RawAllocation {
+    std::unique_ptr<void, FreeMemory> storage;
+    size_t bytes;
+    uint32_t tag;
+};
+struct Pin { Object* object; };
+
 struct Heap {
     std::unordered_map<void*, std::unique_ptr<Object>> objects;
+    std::unordered_map<void*, RawAllocation> raw;
+    std::unordered_map<void*, std::unique_ptr<Pin>> pins;
     RootFrame* roots = nullptr;
     size_t threshold = 64;
     ~Heap() {
@@ -123,6 +133,39 @@ void requireSequence(Object* reference) {
         fail("expected an array, tuple, or string");
 }
 
+size_t rawWidth(uint32_t tag) {
+    switch (tag) {
+    case IntTag: case FloatTag: return sizeof(uint64_t);
+    case BoolTag: return sizeof(uint8_t);
+    case PointerTag: return sizeof(void*);
+    default: fail("raw memory supports only i64, f64, bool, or native pointers");
+    }
+}
+
+unsigned char* rawAddress(void* pointer, int64_t index, uint32_t tag) {
+    if (!pointer) fail("null raw pointer");
+    if (index < 0) fail("negative raw memory index");
+    const auto width = rawWidth(tag);
+    const auto address = reinterpret_cast<uintptr_t>(pointer);
+    const auto maximum = std::numeric_limits<uintptr_t>::max();
+    if (static_cast<uint64_t>(index) > (maximum - address) / width)
+        fail("raw pointer offset overflow");
+    for (const auto& item : heap.raw) {
+        const auto base = reinterpret_cast<uintptr_t>(item.first);
+        const auto& allocation = item.second;
+        if (address >= base && address - base <= allocation.bytes) {
+            const auto offset = static_cast<size_t>(address - base);
+            if (tag != allocation.tag) fail("raw memory element type mismatch");
+            if (offset % width) fail("misaligned offset into owned raw memory");
+            if (static_cast<uint64_t>(index) >= (allocation.bytes - offset) / width)
+                fail("raw memory index is out of bounds");
+            return static_cast<unsigned char*>(allocation.storage.get()) + offset + static_cast<size_t>(index) * width;
+        }
+    }
+    // Foreign pointer validity and lifetime are the caller's unsafe obligation.
+    return reinterpret_cast<unsigned char*>(address + static_cast<uintptr_t>(index) * width);
+}
+
 void render(std::ostream& output, PFValue item, std::unordered_set<Object*>& active, bool nested) {
     switch (item.tag) {
     case UnitTag: output << "unit"; return;
@@ -179,10 +222,19 @@ uint64_t pf_result_value(void* reference) {
         fail("invalid Result representation");
     if (!result->values[0].bits) {
         const auto& error = result->values[2];
-        if (error.tag != StringTag || !error.bits) fail("Result failure has no error message");
-        pf_panic(reinterpret_cast<void*>(static_cast<uintptr_t>(error.bits)));
+        if (error.tag == StringTag && error.bits)
+            pf_panic(reinterpret_cast<void*>(static_cast<uintptr_t>(error.bits)));
+        fail("cannot unwrap an error Result");
     }
     return result->values[1].bits;
+}
+
+uint64_t pf_result_error(void* reference) {
+    auto* result = object(reference, TupleTag);
+    if (result->values.size() != 3 || result->values[0].tag != BoolTag)
+        fail("invalid Result representation");
+    if (result->values[0].bits) fail("cannot extract an error from a successful Result");
+    return result->values[2].bits;
 }
 
 void pf_print(uint64_t payload, uint32_t tag) {
@@ -318,6 +370,7 @@ void pf_collect(void) {
         };
         for (auto* frame = heap.roots; frame; frame = frame->previous)
             for (int64_t index = 0; index < frame->count; ++index) mark(frame->slots[index]);
+        for (const auto& pin : heap.pins) mark(pin.second->object);
         while (!pending.empty()) {
             auto* current = pending.back();
             pending.pop_back();
@@ -385,5 +438,60 @@ int64_t pf_float_to_int(double number) {
 
 int32_t pf_string_equal(void* a, void* b) {
     return object(a, StringTag)->bytes == object(b, StringTag)->bytes ? 1 : 0;
+}
+
+void* pf_raw_alloc(int64_t count, uint32_t elementTag) {
+    if (count < 0) fail("negative raw allocation size");
+    const auto width = rawWidth(elementTag);
+    if (static_cast<uint64_t>(count) > std::numeric_limits<size_t>::max() / width)
+        fail("raw allocation size is too large");
+    const auto bytes = static_cast<size_t>(count) * width;
+    RawAllocation allocation{std::unique_ptr<void, FreeMemory>(std::calloc(bytes ? bytes : 1, 1)), bytes, elementTag};
+    if (!allocation.storage) fail("out of memory allocating raw storage");
+    void* result = allocation.storage.get();
+    try { heap.raw.emplace(result, std::move(allocation)); }
+    catch (const std::bad_alloc&) { fail("out of memory tracking raw allocation"); }
+    return result;
+}
+
+void pf_raw_free(void* pointer) {
+    auto found = heap.raw.find(pointer);
+    if (found == heap.raw.end()) fail("raw pointer was not allocated here or has already been freed");
+    heap.raw.erase(found);
+}
+
+uint64_t pf_raw_load(void* pointer, int64_t index, uint32_t elementTag) {
+    const auto width = rawWidth(elementTag);
+    const auto* address = rawAddress(pointer, index, elementTag);
+    uint64_t result = 0;
+    std::memcpy(&result, address, width);
+    if (elementTag == BoolTag && result > 1) fail("invalid boolean representation in raw memory");
+    return result;
+}
+
+void pf_raw_store(void* pointer, int64_t index, uint64_t payload, uint32_t elementTag) {
+    const auto width = rawWidth(elementTag);
+    if (elementTag == BoolTag && payload > 1) fail("invalid boolean representation in raw memory");
+    std::memcpy(rawAddress(pointer, index, elementTag), &payload, width);
+}
+
+void* pf_cstr(void* reference) {
+    return const_cast<char*>(object(reference, StringTag)->bytes.c_str());
+}
+
+void* pf_pin(void* reference) {
+    auto* target = object(reference);
+    try {
+        auto pin = std::make_unique<Pin>(Pin{target});
+        auto* handle = pin.get();
+        heap.pins.emplace(handle, std::move(pin));
+        return handle;
+    } catch (const std::bad_alloc&) { fail("out of memory registering a persistent root"); }
+}
+
+void pf_unpin(void* handle) {
+    auto found = heap.pins.find(handle);
+    if (found == heap.pins.end()) fail("invalid or released persistent root handle");
+    heap.pins.erase(found);
 }
 }

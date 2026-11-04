@@ -45,6 +45,34 @@ struct Roots {
     Roots& operator=(const Roots&) = delete;
 };
 
+struct Frame {
+    const Function& function;
+    std::vector<PFValue> registers;
+    Roots roots;
+    void* environment;
+    int returnDestination;
+    size_t pc = 0;
+    Frame(const Function& source, const std::vector<PFValue>& arguments, void* closure, int destination)
+        : function(source), registers(source.registers.size(), PFValue{0, 0, 0}),
+          roots(registers.size() + 1), environment(closure), returnDestination(destination) {
+        roots.slots.back() = environment;
+        for (size_t index = 0; index < arguments.size(); ++index) set(static_cast<int>(index), arguments[index]);
+    }
+    void set(int destination, PFValue value) {
+        if (destination < 0) return;
+        const auto& type = function.registers.at(static_cast<size_t>(destination));
+        value.tag = static_cast<uint32_t>(type.kind);
+        registers.at(static_cast<size_t>(destination)) = value;
+        roots.slots.at(static_cast<size_t>(destination)) = type.managed() ? reference(value) : nullptr;
+    }
+};
+
+struct Frames {
+    std::vector<std::unique_ptr<Frame>> values;
+    // Explicit reverse destruction preserves the runtime's LIFO root-frame contract.
+    ~Frames() { while (!values.empty()) values.pop_back(); }
+};
+
 class Interpreter {
     const Program& program;
     std::unordered_map<std::string, size_t> functions;
@@ -90,28 +118,31 @@ class Interpreter {
             const auto value = integer(arguments[0]);
             return fromInteger(value < 0 ? pf_checked_neg(value) : value);
         }
+        const Type nativePointer{TypeKind::Pointer, {Unit}};
+        if (instruction.text == "strlen" && sizeof(size_t) == sizeof(int64_t) && matches(1, nativePointer, I64)) {
+            const auto* bytes = static_cast<const char*>(reference(arguments[0]));
+            if (!bytes) pf_fail("null C string pointer", instruction.location.file.c_str(), static_cast<int32_t>(instruction.location.line));
+            const auto count = std::strlen(bytes);
+            if (count > static_cast<size_t>(std::numeric_limits<int64_t>::max()))
+                throw Error(instruction.location, "C string length does not fit i64");
+            return fromInteger(static_cast<int64_t>(count));
+        }
         throw Error(instruction.location,
             "reference interpreter cannot execute extern '" + instruction.text +
             "' with this signature; use native compilation or JIT for other C functions");
     }
 
-    PFValue call(size_t functionIndex, const std::vector<PFValue>& arguments, void* environment, unsigned depth) {
-        const auto& function = program.functions.at(functionIndex);
-        // The reference interpreter uses native recursion, bounded for Windows' default stack.
-        if (depth >= 256) throw Error(function.location, "reference interpreter recursion limit (256 frames) exceeded");
-        std::vector<PFValue> registers(function.registers.size(), PFValue{0, 0, 0});
-        Roots roots(registers.size() + 1);
-        roots.slots.back() = environment;
-        auto set = [&](int destination, PFValue value) {
-            if (destination < 0) return;
-            const auto& type = function.registers.at(static_cast<size_t>(destination));
-            value.tag = static_cast<uint32_t>(type.kind);
-            registers.at(static_cast<size_t>(destination)) = value;
-            roots.slots.at(static_cast<size_t>(destination)) = type.managed() ? reference(value) : nullptr;
-        };
-        for (size_t index = 0; index < arguments.size(); ++index) set(static_cast<int>(index), arguments[index]);
-
-        for (size_t pc = 0; pc < function.code.size();) {
+    PFValue call(size_t functionIndex, const std::vector<PFValue>& arguments, void* environment) {
+        Frames frames;
+        frames.values.push_back(std::make_unique<Frame>(program.functions.at(functionIndex), arguments, environment, -1));
+        while (!frames.values.empty()) {
+            auto& frame = *frames.values.back();
+            const auto& function = frame.function;
+            auto& registers = frame.registers;
+            auto& pc = frame.pc;
+            if (pc >= function.code.size())
+                throw Error(function.location, "reference interpreter reached the end of a function without returning");
+            auto set = [&](int destination, PFValue value) { frame.set(destination, value); };
             const auto& instruction = function.code[pc];
             auto arg = [&](size_t index) { return registers.at(static_cast<size_t>(instruction.args.at(index))); };
             auto argType = [&](size_t index) -> const Type& { return function.registers.at(static_cast<size_t>(instruction.args.at(index))); };
@@ -196,8 +227,12 @@ class Interpreter {
                         throw Error(instruction.location, "invalid reference interpreter function handle");
                     target = static_cast<size_t>(encoded - 1);
                 }
-                result = call(target, parameters, closure, depth + 1);
-                break;
+                if (frames.values.size() >= 1024)
+                    throw Error(instruction.location, "reference interpreter recursion limit (1024 frames) exceeded");
+                auto next = std::make_unique<Frame>(program.functions.at(target), parameters, closure, instruction.dst);
+                ++pc;
+                frames.values.push_back(std::move(next));
+                continue;
             }
             case Op::MakeClosure: {
                 auto* closure = pf_closure_new(reinterpret_cast<void*>(static_cast<uintptr_t>(functions.at(instruction.text) + 1)),
@@ -209,10 +244,14 @@ class Interpreter {
                 break;
             }
             case Op::Capture:
-                if (!environment) throw Error(instruction.location, "capturing function requires a closure environment");
-                result = fromReference(pf_closure_get(environment, instruction.integer), destinationType());
+                if (!frame.environment) throw Error(instruction.location, "capturing function requires a closure environment");
+                result = fromReference(pf_closure_get(frame.environment, instruction.integer), destinationType());
                 break;
-            case Op::MakeCell: result = fromReference(pf_cell_new(arg(0).bits, arg(0).tag), destinationType()); break;
+            case Op::MakeCell:
+                result = fromReference(instruction.args.empty()
+                    ? pf_cell_new(0, static_cast<uint32_t>(destinationType().args.at(0).kind))
+                    : pf_cell_new(arg(0).bits, arg(0).tag), destinationType());
+                break;
             case Op::LoadCell: result = {pf_cell_get(reference(arg(0))), static_cast<uint32_t>(destinationType().kind), 0}; break;
             case Op::StoreCell:
                 pf_cell_set(reference(arg(0)), arg(1).bits, arg(1).tag); assigned = false; break;
@@ -247,7 +286,14 @@ class Interpreter {
                 if (!arg(0).bits) { pc = static_cast<size_t>(instruction.target); continue; }
                 assigned = false;
                 break;
-            case Op::Return: return instruction.args.empty() ? PFValue{0, 0, 0} : arg(0);
+            case Op::Return: {
+                const auto returned = instruction.args.empty() ? PFValue{0, 0, 0} : arg(0);
+                const int destination = frame.returnDestination;
+                frames.values.pop_back();
+                if (frames.values.empty()) return returned;
+                frames.values.back()->set(destination, returned);
+                continue;
+            }
             case Op::Collect: pf_collect(); assigned = false; break;
             case Op::ExternalCall: {
                 std::vector<PFValue> parameters;
@@ -257,11 +303,30 @@ class Interpreter {
             }
             case Op::Panic: pf_panic(reference(arg(0))); assigned = false; break;
             case Op::Unwrap: result = {pf_result_value(reference(arg(0))), static_cast<uint32_t>(destinationType().kind), 0}; break;
+            case Op::RawAlloc:
+                result = fromReference(pf_raw_alloc(integer(arg(0)), static_cast<uint32_t>(destinationType().args.at(0).kind)), destinationType());
+                break;
+            case Op::RawFree: pf_raw_free(reference(arg(0))); assigned = false; break;
+            case Op::RawLoad:
+                result = {pf_raw_load(reference(arg(0)), integer(arg(1)), static_cast<uint32_t>(argType(0).args.at(0).kind)),
+                    static_cast<uint32_t>(destinationType().kind), 0};
+                break;
+            case Op::RawStore:
+                pf_raw_store(reference(arg(0)), integer(arg(1)), arg(2).bits, static_cast<uint32_t>(argType(0).args.at(0).kind));
+                assigned = false;
+                break;
+            case Op::CString: result = fromReference(pf_cstr(reference(arg(0))), destinationType()); break;
+            case Op::Pin: result = fromReference(pf_pin(reference(arg(0))), destinationType()); break;
+            case Op::Unpin: pf_unpin(reference(arg(0))); assigned = false; break;
+            case Op::Zero: result = {0, static_cast<uint32_t>(destinationType().kind), 0}; break;
+            case Op::ResultError:
+                result = {pf_result_error(reference(arg(0))), static_cast<uint32_t>(destinationType().kind), 0};
+                break;
             }
             if (assigned && instruction.dst >= 0) set(instruction.dst, result);
             ++pc;
         }
-        throw Error(function.location, "reference interpreter reached the end of a function without returning");
+        throw Error({program.sourceFile, 1, 1}, "reference interpreter has no active entry frame");
     }
 
 public:
@@ -274,7 +339,7 @@ public:
         const auto& entry = program.functions.at(index);
         if (!entry.parameters.empty() || (entry.result != Unit && entry.result != I64))
             throw Error(entry.location, "entry function must take no arguments and return unit or i64");
-        const auto result = call(index, {}, nullptr, 0);
+        const auto result = call(index, {}, nullptr);
         if (entry.result == Unit) return 0;
         // Match the native i32 entry wrapper's low 32 bits without signed overflow.
         const auto low = static_cast<uint32_t>(result.bits);

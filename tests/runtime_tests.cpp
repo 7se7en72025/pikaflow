@@ -110,9 +110,60 @@ void testResults() {
     auto* result = reinterpret_cast<void*>(static_cast<uintptr_t>(pf_cell_get(roots[2])));
     auto* returned = reinterpret_cast<void*>(static_cast<uintptr_t>(pf_result_value(result)));
     require(pf_length(returned) == 7, "Result tag traces its tuple and returned managed value");
+    roots[0] = pf_tuple_new(3);
+    pf_set_index(roots[0], 0, 0, 3);
+    pf_set_index(roots[0], 1, 0, 4);
+    pf_set_index(roots[0], 2, 404, 1);
+    require(pf_result_error(roots[0]) == 404, "Result errors support non-string payloads");
     pf_roots_pop(frame);
     pf_collect();
     require(pf_heap_objects() == 0, "Result graph is reclaimed");
+}
+void testRawMemoryAndPins() {
+    auto* integers = pf_raw_alloc(2, 1);
+    require(pf_raw_load(integers, 0, 1) == 0, "owned raw storage is zero initialized");
+    pf_raw_store(integers, 1, 42, 1);
+    require(pf_raw_load(integers, 1, 1) == 42, "raw integer round trip");
+    auto* interior = static_cast<unsigned char*>(integers) + sizeof(int64_t);
+    require(pf_raw_load(interior, 0, 1) == 42, "known interior pointers retain bounds and type validation");
+    pf_raw_free(integers);
+    auto* floats = pf_raw_alloc(1, 2);
+    pf_raw_store(floats, 0, floatBits(1.5), 2);
+    require(pf_raw_load(floats, 0, 2) == floatBits(1.5), "raw float bit representation preserved");
+    pf_raw_free(floats);
+    auto* booleans = pf_raw_alloc(3, 3);
+    pf_raw_store(booleans, 1, 1, 3);
+    require(pf_raw_load(booleans, 0, 3) == 0 && pf_raw_load(booleans, 1, 3) == 1 && pf_raw_load(booleans, 2, 3) == 0,
+        "raw boolean stores address one byte without corrupting neighbors");
+    pf_raw_free(booleans);
+    int64_t foreign[2] = {7, 9};
+    require(pf_raw_load(foreign, 1, 1) == 9, "valid foreign native memory can be read explicitly");
+    pf_raw_store(foreign, 0, 12, 1);
+    require(foreign[0] == 12, "valid foreign native memory can be written explicitly");
+    auto* pointers = pf_raw_alloc(1, 9);
+    pf_raw_store(pointers, 0, bits(foreign), 9);
+    require(pf_raw_load(pointers, 0, 9) == bits(foreign), "raw native pointer width round trip");
+    pf_raw_free(pointers);
+    pf_raw_free(pf_raw_alloc(0, 1));
+
+    void* roots[1]{};
+    auto* frame = pf_roots_push(roots, 1);
+    roots[0] = pf_string("A\0B", 3);
+    const auto* bytes = static_cast<const char*>(pf_cstr(roots[0]));
+    auto* first = pf_pin(roots[0]);
+    auto* second = pf_pin(roots[0]);
+    require(first != second && first != roots[0], "persistent root handles have independent identity");
+    roots[0] = nullptr;
+    pf_collect();
+    require(pf_heap_objects() == 1 && bytes[0] == 'A' && bytes[1] == '\0' && bytes[2] == 'B' && bytes[3] == '\0',
+        "pinned C string survives collection and preserves embedded NUL bytes");
+    pf_unpin(first);
+    pf_collect();
+    require(pf_heap_objects() == 1, "remaining pin retains the managed object");
+    pf_unpin(second);
+    pf_collect();
+    require(pf_heap_objects() == 0, "released final pin permits collection");
+    pf_roots_pop(frame);
 }
 }
 
@@ -146,6 +197,35 @@ int main(int argc, char** argv) {
             pf_set_index(roots[0], 2, bits(roots[1]), 4);
             pf_result_value(roots[0]);
         }
+        else if (name == "raw-bounds") pf_raw_load(pf_raw_alloc(1, 1), 1, 1);
+        else if (name == "raw-interior-bounds") {
+            auto* memory = static_cast<unsigned char*>(pf_raw_alloc(2, 1));
+            pf_raw_load(memory + sizeof(int64_t), 1, 1);
+        }
+        else if (name == "raw-double-free") { auto* pointer = pf_raw_alloc(1, 1); pf_raw_free(pointer); pf_raw_free(pointer); }
+        else if (name == "raw-type") pf_raw_load(pf_raw_alloc(1, 1), 0, 2);
+        else if (name == "raw-negative") pf_raw_alloc(-1, 1);
+        else if (name == "raw-size-overflow") pf_raw_alloc(high, 1);
+        else if (name == "raw-null") pf_raw_load(nullptr, 0, 1);
+        else if (name == "raw-boolean") pf_raw_store(pf_raw_alloc(1, 3), 0, 2, 3);
+        else if (name == "raw-offset-overflow") pf_raw_load(reinterpret_cast<void*>(std::numeric_limits<uintptr_t>::max() - 3), 1, 1);
+        else if (name == "raw-managed-type") pf_raw_alloc(1, 4);
+        else if (name == "invalid-pin") pf_unpin(reinterpret_cast<void*>(uintptr_t(1)));
+        else if (name == "released-pin") { auto* pin = pf_pin(pf_string("hello", 5)); pf_unpin(pin); pf_unpin(pin); }
+        else if (name == "result-nonstring") {
+            void* roots[1]{pf_tuple_new(3)};
+            pf_roots_push(roots, 1);
+            pf_set_index(roots[0], 0, 0, 3);
+            pf_set_index(roots[0], 1, 0, 5);
+            pf_set_index(roots[0], 2, 404, 1);
+            pf_result_value(roots[0]);
+        }
+        else if (name == "result-success-error") {
+            void* roots[1]{pf_tuple_new(3)};
+            pf_roots_push(roots, 1);
+            pf_set_index(roots[0], 0, 1, 3);
+            pf_result_error(roots[0]);
+        }
         else { std::cerr << "unknown error case\n"; return 2; }
         std::cerr << "error case unexpectedly succeeded\n";
         return 2;
@@ -154,5 +234,6 @@ int main(int argc, char** argv) {
     testHeap();
     testPrinting();
     testResults();
+    testRawMemoryAndPins();
     std::cout << "runtime tests passed\n";
 }

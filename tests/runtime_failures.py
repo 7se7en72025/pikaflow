@@ -24,6 +24,20 @@ def main():
         "root-order": "reverse order",
         "panic": "explicit panic",
         "result-failure": "operation failed",
+        "raw-bounds": "out of bounds",
+        "raw-interior-bounds": "out of bounds",
+        "raw-double-free": "already been freed",
+        "raw-type": "element type mismatch",
+        "raw-negative": "negative raw allocation size",
+        "raw-size-overflow": "size is too large",
+        "raw-null": "null raw pointer",
+        "raw-boolean": "invalid boolean representation",
+        "raw-offset-overflow": "offset overflow",
+        "raw-managed-type": "only i64, f64, bool, or native pointers",
+        "invalid-pin": "invalid or released persistent root",
+        "released-pin": "invalid or released persistent root",
+        "result-nonstring": "cannot unwrap an error Result",
+        "result-success-error": "cannot extract an error from a successful Result",
     }
     for case, expected in cases.items():
         result = subprocess.run(
