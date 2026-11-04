@@ -1,11 +1,13 @@
 # PikaFlow completion plan and live engineering log
 
-**Created:** 2026-11-04 21:25 IST (15:55 UTC).  
-**Last updated:** 2026-11-04 22:39 IST.
+**Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Status:** 0.2 is verified at `39fcac3`. Following the user's renewed completion
-request, the 0.3 continuation below is active. Historical 0.2 completion records
-remain unchanged; new features require their own tests and clean-host evidence.
+**Last updated:** 2026-11-04 23:59 IST.
+
+**Status:** 0.3 implementation complete and pushed at `5f0b109`; final Windows
+native 25/25, Windows reference 21/21 and Linux native 26/26 suites pass.
+Documentation/evidence closeout follows as documentation-only commits.
+Historical 0.2 completion records remain below, separately identified.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -30,13 +32,13 @@ do not relabel an unsupported feature as complete.
 
 | Milestone | Acceptance | Initial estimate | State |
 |---|---|---|---|
-| Namespaces and updates | Qualified functions/types/constructors/words; privacy; compound indexed assignment evaluates base/index/RHS once | 1–3 h | Implemented; new source regressions under integration |
-| Diagnostics | Collect independent function-body errors with rollback and a cap; never return partial invalid IR | 0.5–2 h | Implemented; signature errors remain fail-fast |
-| Semantic source index | Exact declaration/use positions for values, captures, generic templates, types and aliases; optional compile-only metadata | 1–3 h | In progress |
-| Editor workflows | Native unsaved-source overlays; incremental UTF-16 edits; hover, definition, references; rename rejects binding capture and returns versioned client edits | 1–3 h | Implemented integration; review/tests in progress |
-| Pinned Git packages | Exact commits, raw-object cache validation, offline checks, fresh-clone restoration, isolated Git configuration and no lifecycle scripts | 1–2 h | Implemented; 9 Git fixture tests pass on Windows/Linux |
-| Typed IR optimization | Bounded CFG constant propagation, checked arithmetic folding, branch simplification; side effects/traps/source metadata preserved | 1–3 h | Focused tests pass; cross-mode integration underway |
-| Closeout | Current examples/reference, full frozen Windows/Linux suites, updated install/benchmark/evidence and focused pushed commits | 1–3 h | Pending |
+| Namespaces and updates | Qualified functions/types/constructors/words; privacy; compound indexed assignment evaluates base/index/RHS once | 1–3 h | Complete; 61 checks per native host, 21 reference checks |
+| Diagnostics | Collect independent function-body errors with rollback and a cap; never return partial invalid IR | 0.5–2 h | Complete; signature errors deliberately remain fail-fast |
+| Semantic source index | Exact declaration/use positions for values, captures, generic templates, types and aliases; optional compile-only metadata | 1–3 h | Complete; both-host semantic suite, contextual resolution and legal underscore bindings verified |
+| Editor workflows | Native unsaved-source overlays; incremental UTF-16 edits; hover, definition, references; rename rejects binding capture and returns versioned client edits | 1–3 h | Complete; 19 workflows per host, including execution before/after rename |
+| Pinned Git packages | Exact commits, raw-object cache validation, offline checks, fresh-clone restoration, isolated Git configuration and no lifecycle scripts | 1–2 h | Complete; 9 Git fixtures and ignore-template preservation pass on both hosts |
+| Typed IR optimization | Bounded CFG constant propagation, checked arithmetic folding, branch simplification; side effects/traps/source metadata preserved | 1–3 h | Complete; C++ unit/IR/assembly checks plus 115 executions per native host and 23 reference executions |
+| Closeout | Current examples/reference, full frozen Windows/Linux suites, updated install/benchmark/evidence and focused pushed commits | 1–3 h | Complete; frozen-source host evidence, extracted ZIP and output-checked benchmark recorded |
 
 Current estimates are engineering ranges, not a commitment to idle for that time.
 No remote registry service, publication or arbitrary extra architecture is implied.
@@ -50,6 +52,63 @@ No remote registry service, publication or arbitrary extra architecture is impli
 - 22:39: Windows evolving reference run passes 18/19 suites; newly added
   stack-word shadowing regression is being checked against a fresh compiler.
   Optimizer, old language/runtime suites, Git packages and overlay-based tools pass.
+- 22:46: semantic compiler index integrated; declarations, captures, source types
+  and unused generic templates indexed without executing user code.
+- 23:01–23:04: full integration exposed Python 3.14 accepting deeply nested JSON
+  that Python 3.11 rejected. Added an explicit, quoted-string-aware depth limit of
+  128 (`cca857a`); no dependency on interpreter recursion behavior remains.
+- 23:22–23:38: source review found legal `_` bindings absent from metadata and
+  callable/pattern names indexed using incorrect constructor-first resolution.
+  These could incorrectly approve a rename that changed runtime behavior.
+  Fixed binding retention (`e715b56`), underscore pattern parsing (`fa90a35`),
+  and context-specific symbol resolution (`3f66398`). Earlier green `cca857a`
+  candidate evidence is superseded, not reused as final verification.
+- 23:41: added before/after execution checks for rename (`a6fd04c`), then froze
+  final source/evidence seed snapshot at `5f0b109`. Refreshed parser-only
+  libFuzzer/ASan/UBSan campaign: 79,589 executions with no reported finding.
+- 23:43–23:44: fresh Windows native 25/25 (98.00 s) and reference 21/21 (40.80 s)
+  completed. Reference started at `a6fd04c`; its sole difference from `5f0b109`
+  is `docs/fuzzing.md`, with build-input equivalence recorded explicitly.
+- 23:51: extracted final Windows ZIP verified: showcase/qualified imports through
+  interpreter and JIT, installed package tools, underscore/context symbol index.
+- 23:54:47: final Linux native 26/26 passed (255.54 s), including real GDB watches;
+  all 118 archived source files still match after tests. Final Windows/Linux
+  source archive SHA-256 is identical.
+- 23:56:28: final output-verified benchmark captured while checkout `5f0b109` was
+  clean. Three process-inclusive samples per case; checked-loop O0/O2 medians
+  27.957/28.602 ms, Fibonacci(20) 17.252/18.722 ms. O2 is slower in these small
+  samples; no speedup or performance multiplier is claimed.
+- 23:57: final evidence and completion plan prepared; subsequent changes contain
+  documentation/JSON only. No compiler work, build or test process remains active.
+- 23:59: exact evidence reports, benchmark and current guides committed as
+  `df03312`; 134 local Markdown links verified. Final plan closeout and push follow.
+
+### 0.3 delivery and remaining scope
+
+The implementation milestones above are finished. The continuation spans about
+1 h 36 min from the 22:23 audit to this 23:59 record, using parallel agents;
+this is observed elapsed time, not a person-hour estimate. No implementation ETA
+remains for the delivered contract. Preserve the original estimates and failures
+to show what actually happened rather than rewriting the plan after the fact.
+
+The tested source is `5f0b10915013d38d834ad72dca785bf8f9f8e4fa`; source archive
+SHA-256: `69d25facc34387e4b92ee515605162a10ddc852b17ca02d0eeb33d2a0d8cc41f`.
+Full test evidence and host/toolchain identities are linked from
+[validation](validation.md), and benchmark samples from
+[benchmarking](benchmarking.md).
+
+Final local package: `out/dist/pikaflow-0.3.0-windows-x64-5f0b109.zip`,
+18,175,451 bytes, SHA-256
+`03cff2c8b384e2c1bafd36d2089a613da6689dd23e83755f0c466e55e7825494`.
+This is an extracted-and-tested local build; AOT linking uses this machine's
+MSVC/SDK installation. Rebuild from source for a different toolchain installation.
+Earlier 0.2 and `cca857a` packages are historical candidates, not the final binary.
+
+The supported deliverable remains an experimental Windows/Linux x64 compiler,
+with the documented C ABI and tooling capabilities. Other architectures, a full
+C++ ABI, a remote package registry, managed-object debugger printers, a passing
+TSan run, and unrelated past GSoC projects are outside this completion contract.
+No release publication or remote CI run was requested or dispatched.
 
 The complete 0.2 baseline and earlier timing/evidence follow for history.
 
@@ -59,7 +118,7 @@ service, and completion of unrelated past GSoC projects are separate projects.
 Unsupported behavior must diagnose or be documented; it must never be presented
 as complete through a placeholder or an unchecked claim.
 
-## What is already delivered
+## Historical 0.1 and 0.2 baseline
 
 - C++17 indentation frontend; static typing and inferred locals; structured code,
   typed stack words/blocks, pipelines, closures, recursion, arrays, tuples, strings.
@@ -181,7 +240,7 @@ final packaging review are estimated at 20–60 minutes if no new failure appear
 Update this log after meaningful milestones, failures, estimate changes and pushes.
 Mark delivery only with the corresponding commit and test evidence.
 
-## Closeout and supported limits
+## Historical 0.2 closeout and supported limits
 
 The delivered 0.2 contract has no remaining implementation milestone. The initial
 repository-to-verification wall-clock history spans about 3 h 21 min; the
