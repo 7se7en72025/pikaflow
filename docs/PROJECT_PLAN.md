@@ -2,7 +2,7 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 05:15 IST.
+**Last updated:** 2026-11-05 05:25 IST.
 
 **Status:** verified 0.4.0 is preserved below. The user requested continued
 overnight work; a new compiler-engineering milestone is active. It adds bounded
@@ -78,6 +78,20 @@ No production behavior is considered verified by the earlier 0.4.0 suite alone.
   are now implemented; this commit freezes code for clean whole-host suites,
   a 120-second semantic campaign, packaging and measured closeout. No further
   features are planned during final validation.
+
+
+- 05:25: candidate `083b232` passes Windows native 31/31 and reference
+  27/27, extracted Windows package checks and 10,831 instrumented semantic fuzz
+  executions. Linux finishes 32/33: the exited-worker regression itself races
+  when reading `/proc/PID/stat`, raising `ProcessLookupError` after a process is
+  reaped. The failed candidate archive, binary and complete results are retained
+  in `out/linux-validation/0.5-final/`; no Linux package is produced from it.
+  Root removes the redundant existence precheck and treats only ENOENT/ESRCH
+  (`FileNotFoundError`/`ProcessLookupError`) as process disappearance. Both
+  exceptions are checked deterministically, followed by ten real cleanup runs;
+  all pass. This changes the Python regression fixture only, not compiler,
+  runtime, optimizer or fuzzer semantics. A corrected clean freeze and final
+  host/campaign reruns follow in new `0.5-corrected` evidence directories.
 
 ## 0.4 expansion — 2026-11-05
 

@@ -191,8 +191,8 @@ class ProjectTests(unittest.TestCase):
             status = pathlib.Path(f"/proc/{child}/stat")
             for _ in range(20):
                 try:
-                    gone = not status.exists() or status.read_text().split()[2] == "Z"
-                except FileNotFoundError:
+                    gone = status.read_text().split()[2] == "Z"
+                except (FileNotFoundError, ProcessLookupError):
                     gone = True
                 if gone:
                     break
