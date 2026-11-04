@@ -49,6 +49,10 @@ struct Frame {
     const Function& function;
     std::vector<PFValue> registers;
     Roots roots;
+    struct Tasks {
+        void* scope = pf_tasks_enter();
+        ~Tasks() { pf_tasks_leave(scope); }
+    } tasks;
     void* environment;
     int returnDestination;
     size_t pc = 0;
@@ -77,6 +81,14 @@ class Interpreter {
     const Program& program;
     std::unordered_map<std::string, size_t> functions;
     std::unordered_map<std::string, const External*> externals;
+
+    static uint64_t taskEntry(void* closure, void* context) {
+        const auto& source = *static_cast<const Program*>(context);
+        const auto encoded = reinterpret_cast<uintptr_t>(pf_closure_code(closure));
+        if (!encoded || encoded > source.functions.size())
+            throw Error({source.sourceFile, 1, 1}, "invalid task function handle");
+        return Interpreter(source).call(static_cast<size_t>(encoded - 1), {}, closure).bits;
+    }
 
     PFValue external(const Instruction& instruction, const std::vector<PFValue>& arguments) {
         const auto& declaration = *externals.at(instruction.text);
@@ -318,6 +330,10 @@ class Interpreter {
                 pf_raw_store(reference(arg(0)), integer(arg(1)), arg(2).bits, static_cast<uint32_t>(argType(0).args.at(0).kind));
                 assigned = false;
                 break;
+            case Op::RawOffset:
+                result = fromReference(pf_raw_offset(reference(arg(0)), integer(arg(1)),
+                    static_cast<uint32_t>(argType(0).args.at(0).kind)), destinationType());
+                break;
             case Op::CString: result = fromReference(pf_cstr(reference(arg(0))), destinationType()); break;
             case Op::Pin: result = fromReference(pf_pin(reference(arg(0))), destinationType()); break;
             case Op::Unpin: pf_unpin(reference(arg(0))); assigned = false; break;
@@ -325,6 +341,16 @@ class Interpreter {
             case Op::ResultError:
                 result = {pf_result_error(reference(arg(0))), static_cast<uint32_t>(destinationType().kind), 0};
                 break;
+            case Op::Spawn:
+                result = fromReference(pf_task_spawn(reference(arg(0)), &Interpreter::taskEntry,
+                    const_cast<Program*>(&program), static_cast<uint32_t>(destinationType().args.at(0).kind)), destinationType());
+                break;
+            case Op::Join:
+                result = {pf_task_join(reference(arg(0))),
+                    instruction.dst < 0 ? 0 : static_cast<uint32_t>(destinationType().kind), 0};
+                break;
+            case Op::CCallback:
+                throw Error(instruction.location, "C callbacks require native compilation or JIT");
             }
             if (assigned && instruction.dst >= 0) set(instruction.dst, result);
             ++pc;

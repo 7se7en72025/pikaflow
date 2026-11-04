@@ -175,16 +175,19 @@ void testRecursionGuard() {
 void testUnsafeMemoryAndCString() {
     Program program;
     const Type integerPointer{TypeKind::Pointer, {I64}}, nativePointer{TypeKind::Pointer, {Unit}};
-    auto main = function("main", {}, Unit, {I64, integerPointer, I64, I64, I64, String, nativePointer, nativePointer, I64});
+    auto main = function("main", {}, Unit, {I64, integerPointer, I64, I64, I64, String, nativePointer, nativePointer, I64,
+        integerPointer, I64, I64});
     main.code = {number(0, 2), instruction(Op::RawAlloc, 1, {0}), number(2, 1), number(3, 42),
         instruction(Op::RawStore, -1, {1, 2, 3}), instruction(Op::RawLoad, 4, {1, 2}),
-        instruction(Op::Print, -1, {4}), instruction(Op::RawFree, -1, {1}), text(5, "hello"),
+        instruction(Op::Print, -1, {4}), instruction(Op::RawOffset, 9, {1, 2}), number(10, 0),
+        instruction(Op::RawLoad, 11, {9, 10}), instruction(Op::Print, -1, {11}),
+        instruction(Op::RawFree, -1, {1}), text(5, "hello"),
         instruction(Op::Pin, 6, {5}), instruction(Op::CString, 7, {5}), instruction(Op::Collect),
         named(Op::ExternalCall, 8, {7}, "byte_length"), instruction(Op::Print, -1, {8}),
         instruction(Op::Unpin, -1, {6}), instruction(Op::Return)};
     program.functions = {main};
     program.externals = {External{"byte_length", {nativePointer}, I64, false, "strlen"}};
-    require(execute(program) == "42\n5\n", "unsafe raw memory, pinning, C string boundary and audited strlen");
+    require(execute(program) == "42\n42\n5\n", "unsafe raw memory, pointer offset, pinning, C string boundary and audited strlen");
 }
 
 void testRecursiveClosure() {
@@ -216,6 +219,40 @@ void testGenericResultError() {
     program.functions = {main};
     require(execute(program) == "unavailable\n", "typed Result placeholder and guarded error extraction support managed payloads");
 }
+
+void testIsolatedTasks() {
+    Program program;
+    const auto array = Type::array(I64);
+    const auto workerType = Type::function({}, array);
+    const Type taskType{TypeKind::Task, {array}};
+    auto main = function("main", {}, Unit,
+        {I64, array, Type::cell(array), workerType, taskType, I64, I64, array, I64, I64, array, I64});
+    main.code = {number(0, 7), instruction(Op::MakeArray, 1, {0}), instruction(Op::MakeCell, 2, {1}),
+        named(Op::MakeClosure, 3, {2}, "worker"), instruction(Op::Spawn, 4, {3}), number(5, 0), number(6, 8),
+        instruction(Op::SetIndex, -1, {1, 5, 6}), instruction(Op::Join, 7, {4}), instruction(Op::Index, 8, {7, 5}),
+        instruction(Op::Print, -1, {8}), instruction(Op::Index, 9, {1, 5}), instruction(Op::Print, -1, {9}),
+        instruction(Op::Collect), instruction(Op::Join, 10, {4}), instruction(Op::Index, 11, {10, 5}),
+        instruction(Op::Print, -1, {11}), instruction(Op::Return)};
+    auto worker = function("worker", {}, array, {Type::cell(array), array, I64, I64});
+    auto capture = instruction(Op::Capture, 0);
+    capture.integer = 0;
+    worker.code = {capture, instruction(Op::LoadCell, 1, {0}), number(2, 0), number(3, 42),
+        instruction(Op::SetIndex, -1, {1, 2, 3}), instruction(Op::Collect), instruction(Op::Return, -1, {1})};
+    program.functions = {main, worker};
+    require(execute(program) == "42\n8\n42\n", "interpreter tasks isolate mutable captures and preserve joined managed results");
+
+    const auto unitWorker = Type::function({}, Unit);
+    const Type unitTask{TypeKind::Task, {Unit}};
+    main = function("main", {}, Unit, {unitWorker, unitTask});
+    main.code = {named(Op::MakeClosure, 0, {}, "unit_worker"), instruction(Op::Spawn, 1, {0}),
+        instruction(Op::Join, -1, {1}), instruction(Op::Return)};
+    worker = function("unit_worker", {}, Unit, {String});
+    worker.code = {text(0, "joined"), instruction(Op::Print, -1, {0}), instruction(Op::Return)};
+    program.functions = {main, worker};
+    require(execute(program) == "joined\n", "unit task joins do not require a destination register");
+    program.functions[0].code.erase(program.functions[0].code.begin() + 2);
+    require(execute(program) == "joined\n", "function exit joins an unobserved interpreter task");
+}
 }
 
 int main() {
@@ -227,5 +264,6 @@ int main() {
     testUnsafeMemoryAndCString();
     testRecursiveClosure();
     testGenericResultError();
+    testIsolatedTasks();
     std::cout << "interpreter tests passed\n";
 }

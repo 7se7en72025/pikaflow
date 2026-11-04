@@ -1,0 +1,16 @@
+fun main() -> unit:
+    var values = [7, 8]
+    let worker = fun() -> [i64]:
+        values[0] = 42
+        gc()
+        return values
+
+    let first: task[[i64]] = spawn(worker)
+    let second = spawn(worker)
+    values[0] = 9
+    let result = join(first)
+    print(result)
+    print(join(second))
+    print(values)
+    gc()
+    print(join(first))

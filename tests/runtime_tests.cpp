@@ -130,6 +130,9 @@ void testRawMemoryAndPins() {
     require(pf_raw_load(integers, 1, 1) == 42, "raw integer round trip");
     auto* interior = static_cast<unsigned char*>(integers) + sizeof(int64_t);
     require(pf_raw_load(interior, 0, 1) == 42, "known interior pointers retain bounds and type validation");
+    require(pf_raw_offset(integers, 1, 1) == interior, "typed pointer offset addresses owned elements");
+    auto* end = pf_raw_offset(integers, 2, 1);
+    require(pf_raw_offset(end, -2, 1) == integers, "one-past owned pointer can retreat to its allocation");
     pf_raw_free(integers);
     auto* floats = pf_raw_alloc(1, 2);
     pf_raw_store(floats, 0, floatBits(1.5), 2);
@@ -144,6 +147,10 @@ void testRawMemoryAndPins() {
     require(pf_raw_load(foreign, 1, 1) == 9, "valid foreign native memory can be read explicitly");
     pf_raw_store(foreign, 0, 12, 1);
     require(foreign[0] == 12, "valid foreign native memory can be written explicitly");
+    require(pf_raw_offset(foreign + 1, -1, 1) == foreign, "foreign typed pointers permit signed element offsets");
+    const char foreignString[] = "abc";
+    require(pf_raw_offset(const_cast<char*>(foreignString), 1, 0) == foreignString + 1,
+        "opaque foreign pointers use byte offsets");
     auto* pointers = pf_raw_alloc(1, 9);
     pf_raw_store(pointers, 0, bits(foreign), 9);
     require(pf_raw_load(pointers, 0, 9) == bits(foreign), "raw native pointer width round trip");
@@ -214,6 +221,13 @@ int main(int argc, char** argv) {
         else if (name == "raw-boolean") pf_raw_store(pf_raw_alloc(1, 3), 0, 2, 3);
         else if (name == "raw-offset-overflow") pf_raw_load(reinterpret_cast<void*>(std::numeric_limits<uintptr_t>::max() - 3), 1, 1);
         else if (name == "raw-managed-type") pf_raw_alloc(1, 4);
+        else if (name == "offset-owned-bounds") pf_raw_offset(pf_raw_alloc(2, 1), 3, 1);
+        else if (name == "offset-before-owned") pf_raw_offset(pf_raw_alloc(2, 1), -1, 1);
+        else if (name == "offset-onepast-load") pf_raw_load(pf_raw_offset(pf_raw_alloc(2, 1), 2, 1), 0, 1);
+        else if (name == "offset-null") pf_raw_offset(nullptr, 0, 1);
+        else if (name == "offset-underflow") pf_raw_offset(reinterpret_cast<void*>(uintptr_t(1)), -1, 1);
+        else if (name == "offset-overflow") pf_raw_offset(reinterpret_cast<void*>(std::numeric_limits<uintptr_t>::max() - 3), 1, 1);
+        else if (name == "offset-minimum") pf_raw_offset(reinterpret_cast<void*>(uintptr_t(1)), low, 1);
         else if (name == "invalid-pin") pf_unpin(reinterpret_cast<void*>(uintptr_t(1)));
         else if (name == "released-pin") { auto* pin = pf_pin(pf_string("hello", 5)); pf_unpin(pin); pf_unpin(pin); }
         else if (name == "result-nonstring") {

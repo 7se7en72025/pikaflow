@@ -1,6 +1,7 @@
 #include "pikaflow/runtime.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -9,9 +10,11 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <new>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -19,7 +22,9 @@
 namespace {
 constexpr uint32_t UnitTag = 0, IntTag = 1, FloatTag = 2, BoolTag = 3,
     StringTag = 4, ArrayTag = 5, TupleTag = 6, ClosureTag = 7, CellTag = 8,
-    PointerTag = 9, ResultTag = 10;
+    PointerTag = 9, ResultTag = 10, TaskTag = 12;
+
+struct TaskState;
 
 struct Object {
     uint32_t kind;
@@ -28,6 +33,7 @@ struct Object {
     std::string bytes;
     std::vector<PFValue> values;
     void* code = nullptr;
+    std::shared_ptr<TaskState> task;
     explicit Object(uint32_t k) : kind(k) {}
 };
 
@@ -66,12 +72,38 @@ struct SourceLocation {
     int32_t line = 1, column = 1;
 };
 thread_local SourceLocation sourceLocation;
+std::mutex outputMutex;
+
+struct TaskState {
+    std::thread worker;
+    std::unordered_map<void*, std::unique_ptr<Object>> objects;
+    PFValue result{0, UnitTag, 0};
+    bool imported = false;
+    bool counted = false;
+    void join();
+    ~TaskState() { join(); }
+};
+struct TaskScope {
+    TaskScope* previous;
+    std::vector<std::shared_ptr<TaskState>> tasks;
+};
+thread_local TaskScope* taskScope = nullptr;
+std::atomic<unsigned> outstandingTasks{0};
+constexpr unsigned MaximumTasks = 64;
 
 [[noreturn]] void fail(const char* message) {
     pf_fail(message, nullptr, 0);
 }
 
-bool managed(uint32_t tag) { return (tag >= StringTag && tag <= CellTag) || tag == ResultTag; }
+void TaskState::join() {
+    if (worker.joinable()) {
+        try { worker.join(); }
+        catch (const std::system_error&) { fail("failed to join task thread"); }
+    }
+    if (counted) { --outstandingTasks; counted = false; }
+}
+
+bool managed(uint32_t tag) { return (tag >= StringTag && tag <= CellTag) || tag == ResultTag || tag == TaskTag; }
 
 uint32_t objectKind(uint32_t tag) { return tag == ResultTag ? TupleTag : tag; }
 
@@ -88,7 +120,7 @@ Object* object(void* reference, uint32_t kind) {
 }
 
 PFValue value(uint64_t bits, uint32_t tag) {
-    if (tag > ResultTag) fail("invalid runtime value tag");
+    if (tag > TaskTag || tag == 11) fail("invalid runtime value tag");
     if (tag == BoolTag && bits > 1) fail("invalid boolean representation");
     if (managed(tag) && bits) {
         auto* reference = reinterpret_cast<void*>(static_cast<uintptr_t>(bits));
@@ -105,6 +137,46 @@ int64_t integer(uint64_t bits) {
 
 uint64_t bits(void* reference) {
     return static_cast<uint64_t>(reinterpret_cast<uintptr_t>(reference));
+}
+
+using Objects = std::unordered_map<void*, std::unique_ptr<Object>>;
+
+PFValue snapshot(PFValue root, const Objects& source, Objects& destination) {
+    std::unordered_map<Object*, Object*> copies;
+    std::vector<std::pair<Object*, Object*>> pending;
+    auto copyValue = [&](PFValue input) {
+        if (input.tag == PointerTag || input.tag == TaskTag)
+            fail("task snapshots cannot contain native pointers or task handles");
+        if (!managed(input.tag) || !input.bits) return input;
+        auto found = source.find(reinterpret_cast<void*>(static_cast<uintptr_t>(input.bits)));
+        if (found == source.end() || found->second->kind != objectKind(input.tag))
+            fail("invalid managed reference in task snapshot");
+        auto* original = found->second.get();
+        if (original->kind == ArrayTag && (original->elementTag == PointerTag || original->elementTag == TaskTag))
+            fail("task snapshots cannot contain native pointers or task handles");
+        auto known = copies.find(original);
+        Object* copy;
+        if (known != copies.end()) copy = known->second;
+        else {
+            auto storage = std::make_unique<Object>(original->kind);
+            storage->elementTag = original->elementTag;
+            storage->bytes = original->bytes;
+            storage->values = original->values;
+            storage->code = original->code;
+            copy = storage.get();
+            copies.emplace(original, copy);
+            destination.emplace(copy, std::move(storage));
+            pending.emplace_back(original, copy);
+        }
+        input.bits = bits(copy);
+        return input;
+    };
+    const auto result = copyValue(root);
+    for (size_t index = 0; index < pending.size(); ++index) {
+        auto* copy = pending[index].second;
+        for (auto& item : copy->values) item = copyValue(item);
+    }
+    return result;
 }
 
 Object* allocate(uint32_t kind, int64_t count = 0) {
@@ -192,6 +264,7 @@ void render(std::ostream& output, PFValue item, std::unordered_set<Object*>& act
         return;
     }
     if (reference->kind == ClosureTag) { output << "<function>"; return; }
+    if (reference->kind == TaskTag) { output << "<task>"; return; }
     if (!active.insert(reference).second) { output << "<cycle>"; return; }
     if (reference->kind == CellTag) {
         output << "<cell ";
@@ -264,6 +337,7 @@ void pf_print(uint64_t payload, uint32_t tag) {
         std::unordered_set<Object*> active;
         render(output, value(payload, tag), active, false);
         output << '\n';
+        std::lock_guard<std::mutex> lock(outputMutex);
         std::cout << output.str();
         if (!std::cout) fail("failed to write standard output");
     } catch (const std::bad_alloc&) {
@@ -498,6 +572,32 @@ void pf_raw_store(void* pointer, int64_t index, uint64_t payload, uint32_t eleme
     std::memcpy(rawAddress(pointer, index, elementTag), &payload, width);
 }
 
+void* pf_raw_offset(void* pointer, int64_t elements, uint32_t elementTag) {
+    if (!pointer) fail("null raw pointer");
+    const auto width = elementTag == UnitTag ? size_t(1) : rawWidth(elementTag);
+    const auto address = reinterpret_cast<uintptr_t>(pointer);
+    const auto maximum = std::numeric_limits<uintptr_t>::max();
+    const auto magnitude = elements < 0 ? static_cast<uint64_t>(-(elements + 1)) + 1 : static_cast<uint64_t>(elements);
+    if (magnitude > maximum / width) fail("raw pointer offset overflow");
+    const auto distance = static_cast<uintptr_t>(magnitude) * width;
+    if ((elements < 0 && distance > address) || (elements >= 0 && distance > maximum - address))
+        fail("raw pointer offset overflow");
+    const auto destination = elements < 0 ? address - distance : address + distance;
+    for (const auto& item : heap.raw) {
+        const auto base = reinterpret_cast<uintptr_t>(item.first);
+        const auto& allocation = item.second;
+        if (address >= base && address - base <= allocation.bytes) {
+            if (elementTag != allocation.tag) fail("raw memory element type mismatch");
+            if ((address - base) % width) fail("misaligned offset into owned raw memory");
+            if (destination < base || destination - base > allocation.bytes)
+                fail("raw pointer offset is out of bounds");
+            return reinterpret_cast<void*>(destination);
+        }
+    }
+    // Foreign allocation bounds and lifetimes remain the caller's unsafe obligation.
+    return reinterpret_cast<void*>(destination);
+}
+
 void* pf_cstr(void* reference) {
     return const_cast<char*>(object(reference, StringTag)->bytes.c_str());
 }
@@ -516,5 +616,82 @@ void pf_unpin(void* handle) {
     auto found = heap.pins.find(handle);
     if (found == heap.pins.end()) fail("invalid or released persistent root handle");
     heap.pins.erase(found);
+}
+
+void* pf_tasks_enter(void) {
+    try {
+        auto* scope = new TaskScope{taskScope, {}};
+        taskScope = scope;
+        return scope;
+    } catch (const std::bad_alloc&) { fail("out of memory entering task scope"); }
+}
+
+void pf_tasks_leave(void* handle) {
+    if (!handle || handle != taskScope) fail("task scopes must be left in reverse order");
+    auto* scope = taskScope;
+    for (const auto& task : scope->tasks) task->join();
+    taskScope = scope->previous;
+    delete scope;
+}
+
+void* pf_task_spawn(void* closure, PFTaskEntry entry, void* context, uint32_t resultTag) {
+    object(closure, ClosureTag);
+    if (!taskScope) fail("spawn requires an active structured task scope");
+    if (!entry) fail("task has no worker entry point");
+    if (resultTag == PointerTag || resultTag == TaskTag || resultTag == 11 || resultTag > TaskTag)
+        fail("task result type cannot contain native pointers or task handles");
+    try {
+        auto state = std::make_shared<TaskState>();
+        const auto environment = snapshot({bits(closure), ClosureTag, 0}, heap.objects, state->objects);
+        auto* result = allocate(TaskTag, 1);
+        result->task = state;
+        result->values[0] = {0, resultTag, 0};
+        auto& tasks = taskScope->tasks;
+        tasks.erase(std::remove_if(tasks.begin(), tasks.end(), [](const auto& task) {
+            return !task->counted;
+        }), tasks.end());
+        tasks.push_back(state);
+        if (outstandingTasks.fetch_add(1) >= MaximumTasks) {
+            --outstandingTasks;
+            fail("structured concurrency limit (64 outstanding tasks) exceeded");
+        }
+        state->counted = true;
+        // Each worker exclusively owns its heap; no parent GC state is accessed.
+        state->worker = std::thread([worker = state.get(), environment, entry, context, resultTag] {
+            try {
+                heap.objects = std::move(worker->objects);
+                auto* closureRoot = reinterpret_cast<void*>(static_cast<uintptr_t>(environment.bits));
+                auto* frame = pf_roots_push(&closureRoot, 1);
+                auto* scope = pf_tasks_enter();
+                const auto payload = entry(closureRoot, context);
+                pf_tasks_leave(scope);
+                pf_roots_pop(frame);
+                worker->result = value(payload, resultTag);
+                void* resultRoot = managed(resultTag)
+                    ? reinterpret_cast<void*>(static_cast<uintptr_t>(payload)) : nullptr;
+                frame = pf_roots_push(&resultRoot, 1);
+                pf_collect();
+                pf_roots_pop(frame);
+                worker->objects = std::move(heap.objects);
+            } catch (const std::exception& error) {
+                pf_fail(error.what(), nullptr, 0);
+            } catch (...) { fail("unhandled task failure"); }
+        });
+        return result;
+    } catch (const std::bad_alloc&) { fail("out of memory spawning task"); }
+    catch (const std::system_error&) { fail("failed to start task thread"); }
+}
+
+uint64_t pf_task_join(void* reference) {
+    auto* task = object(reference, TaskTag);
+    auto& state = *task->task;
+    state.join();
+    if (!state.imported) {
+        try { task->values[0] = snapshot(state.result, state.objects, heap.objects); }
+        catch (const std::bad_alloc&) { fail("out of memory importing task result"); }
+        state.objects.clear();
+        state.imported = true;
+    }
+    return task->values[0].bits;
 }
 }

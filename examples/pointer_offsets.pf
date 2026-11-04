@@ -1,0 +1,9 @@
+fun main() -> unit:
+    unsafe:
+        let memory = alloc_i64(2)
+        let second = offset(memory, 1)
+        store(second, 0, 42)
+        print(load(memory, 1))
+        let end = offset(memory, 2)
+        print(load(offset(end, -1), 0))
+        free(memory)
