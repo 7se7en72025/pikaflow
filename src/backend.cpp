@@ -51,7 +51,8 @@ std::unique_ptr<llvm::TargetMachine> makeTarget(unsigned optimization) {
     llvm::TargetOptions options;
     auto machine = std::unique_ptr<llvm::TargetMachine>(target->createTargetMachine(
         triple, "generic", "", options, llvm::Reloc::PIC_, std::nullopt,
-        optimization ? llvm::CodeGenOptLevel::Default : llvm::CodeGenOptLevel::None));
+        optimization == 0 ? llvm::CodeGenOptLevel::None :
+        optimization == 3 ? llvm::CodeGenOptLevel::Aggressive : llvm::CodeGenOptLevel::Default));
     if (!machine) throw std::runtime_error("could not create LLVM target machine");
     return machine;
 }
@@ -179,6 +180,10 @@ class Emitter {
     }
     void setupDebug(llvm::Function* fn, const Function& source) {
         if (!debugBuilder) return;
+        if(!source.location.file.empty()) {
+            std::filesystem::path path(source.location.file);
+            debugFile=debugBuilder->createFile(path.filename().string(),path.parent_path().string());
+        }
         llvm::SmallVector<llvm::Metadata*, 8> parameters;
         parameters.push_back(debugType(source.result));
         for (const auto& t : source.parameters) parameters.push_back(debugType(t));
@@ -442,6 +447,7 @@ struct Generated {
     std::unique_ptr<llvm::TargetMachine> target;
 };
 Generated generate(const Program& program,unsigned optimization,bool debug) {
+    if(optimization>3) throw std::runtime_error("optimization level must be between 0 and 3");
     verify(program);
     Generated g;
     g.context=std::make_unique<llvm::LLVMContext>();
@@ -461,8 +467,11 @@ Generated generate(const Program& program,unsigned optimization,bool debug) {
     passes.registerModuleAnalyses(modules); passes.registerCGSCCAnalyses(cgscc);
     passes.registerFunctionAnalyses(functions); passes.registerLoopAnalyses(loops);
     passes.crossRegisterProxies(loops,functions,cgscc,modules);
-    auto pipeline=optimization?passes.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O2)
-        :passes.buildO0DefaultPipeline(llvm::OptimizationLevel::O0);
+    auto level=optimization==0?llvm::OptimizationLevel::O0:
+        optimization==1?llvm::OptimizationLevel::O1:
+        optimization==2?llvm::OptimizationLevel::O2:llvm::OptimizationLevel::O3;
+    auto pipeline=optimization?passes.buildPerModuleDefaultPipeline(level)
+        :passes.buildO0DefaultPipeline(level);
     pipeline.run(*g.module,modules);
     if(optimization) {
         llvm::ModulePassManager custom;
@@ -489,6 +498,16 @@ void emitObject(const Program& program,const std::string& output,unsigned optimi
         throw std::runtime_error("target does not support object emission");
     passes.run(*g.module); stream.flush();
     if(stream.has_error()) throw std::runtime_error("failed writing object file");
+}
+std::string emitAssembly(const Program& program,unsigned optimization,bool debug) {
+    auto g=generate(program,optimization,debug);
+    llvm::SmallVector<char,0> bytes;
+    llvm::raw_svector_ostream stream(bytes);
+    llvm::legacy::PassManager passes;
+    if(g.target->addPassesToEmitFile(passes,stream,nullptr,llvm::CodeGenFileType::AssemblyFile))
+        throw std::runtime_error("target does not support assembly emission");
+    passes.run(*g.module);
+    return std::string(bytes.begin(),bytes.end());
 }
 int runJIT(const Program& program,unsigned optimization) {
     auto generated=generate(program,optimization,false);

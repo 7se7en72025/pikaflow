@@ -59,6 +59,7 @@ int main() {
         require(plain.find("call i64 @pf_checked_add")!=std::string::npos,"baseline checked addition missing");
         require(optimized.find("call i64 @pf_checked_add")==std::string::npos,"checked identity custom pass did not fold addition");
         require(emitLLVM(arithmetic(),0,true).find("!DICompileUnit")!=std::string::npos,"debug metadata missing");
+        require(emitAssembly(arithmetic(),0).find("pf_fn_add")!=std::string::npos,"native assembly missing function");
         std::cout << "LLVM backend tests passed\n";
         return 0;
     } catch(const std::exception& error) {
