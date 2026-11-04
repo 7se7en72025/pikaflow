@@ -976,6 +976,13 @@ int runJIT(const Program& program,unsigned optimization) {
     if(!entry) throw std::runtime_error(llvm::toString(entry.takeError()));
     return entry->toPtr<int(*)()>()();
 }
+std::string nativeDebugDatabasePath(const std::string& output) {
+#ifdef _MSC_VER
+    return output+".pdb";
+#else
+    return {};
+#endif
+}
 void buildExecutable(const Program& program,const std::string& output,const std::string& runtimeLibrary,
     const std::string& compilerDriver,unsigned optimization,bool debug,const std::vector<std::string>& extraLibraries) {
     auto final=std::filesystem::u8path(output);
@@ -986,13 +993,35 @@ void buildExecutable(const Program& program,const std::string& output,const std:
     llvm::FileRemover cleanup(temporary);
     std::string object=temporary.str().str();
     emitObject(program,object,optimization,debug);
+    struct LinkArtifacts {
+        llvm::SmallString<128> directory;
+        LinkArtifacts() {
+            if(auto error=llvm::sys::fs::createUniqueDirectory("pikaflow-link",directory))
+                throw std::runtime_error("cannot create temporary link directory: "+error.message());
+        }
+        ~LinkArtifacts() { llvm::sys::fs::remove_directories(directory); }
+        std::string importLibrary() const {
+            llvm::SmallString<128> path(directory);
+            llvm::sys::path::append(path,"exports.lib");return path.str().str();
+        }
+    };
+    std::unique_ptr<LinkArtifacts> artifacts;
     std::vector<std::string> arguments;
     std::string driverName=std::filesystem::u8path(compilerDriver).filename().u8string();
     std::transform(driverName.begin(),driverName.end(),driverName.begin(),[](unsigned char c){return char(std::tolower(c));});
     if(driverName=="cl.exe" || driverName=="cl") {
+        artifacts=std::make_unique<LinkArtifacts>();
         arguments={compilerDriver,"/nologo",object,runtimeLibrary,"/Fe:"+output};
         arguments.push_back("/link");
-        if(debug)arguments.push_back("/DEBUG");
+        // cl otherwise appends .exe and LINK can overwrite adjacent .ilk/.lib/.exp files.
+        arguments.push_back("/OUT:"+output);
+        arguments.push_back("/INCREMENTAL:NO");
+        arguments.push_back("/IMPLIB:"+artifacts->importLibrary());
+        if(debug) {
+            arguments.push_back("/DEBUG");
+            auto database=nativeDebugDatabasePath(output);
+            arguments.push_back("/PDB:"+(database.empty()?output+".pdb":database));
+        }
         std::istringstream directories(PF_MSVC_LIBRARY_DIRS);
         for(std::string directory;std::getline(directories,directory,';');) {
             if(directory.size()>1 && directory.front()=='\"' && directory.back()=='\"')
