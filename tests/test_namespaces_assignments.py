@@ -26,6 +26,15 @@ extern fun private_magnitude(value: f64) -> f64 = "fabs"
 '''
 
 CASES = {
+    "word_local_shadow": ('''
+        word answer() -> i64:
+            1
+        fun main() -> unit:
+            let answer = 42
+            let value = stack() -> i64:
+                answer
+            print(value)
+    ''', "42\n"),
     "qualified": ('''
         import "library.pf" as lib
         fun main() -> unit:

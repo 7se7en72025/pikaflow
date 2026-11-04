@@ -136,8 +136,10 @@ class Parser {
                 Location at = peek().location;
                 std::string name;
                 Type parameterType;
+                bool synthetic = false;
                 if (word && peek(1).text != ":") {
                     name = "arg" + std::to_string(result.size());
+                    synthetic = true;
                     parameterType = type();
                 } else {
                     name = expect(TokenKind::Name, "a parameter name").text;
@@ -145,7 +147,7 @@ class Parser {
                     parameterType = type();
                 }
                 for (const auto& existing : result) if (existing.name == name) throw Error(at, "duplicate parameter '" + name + "'");
-                result.push_back({std::move(name), std::move(parameterType), at});
+                result.push_back({std::move(name), std::move(parameterType), at, synthetic});
                 if (!accept(",")) break;
                 if (is(")")) break;
             }
@@ -368,8 +370,8 @@ class Parser {
             separators();
             while (!is(TokenKind::Dedent) && !is(TokenKind::End)) {
                 auto variant = std::make_shared<Stmt>(Stmt::Kind::Function, peek().location);
-                auto name = expect(TokenKind::Name, "a variant name");
-                variant->name = name.text; variant->nameLocation = name.location;
+                auto variantName = expect(TokenKind::Name, "a variant name");
+                variant->name = variantName.text; variant->nameLocation = variantName.location;
                 if (is("(")) variant->parameters = parameters(false, false, variant->variadic);
                 finishSimple(); result->body.push_back(std::move(variant)); separators();
             }

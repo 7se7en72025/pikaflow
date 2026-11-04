@@ -9,7 +9,7 @@ struct Expr;
 struct Stmt;
 using ExprPtr = std::shared_ptr<Expr>;
 using StmtPtr = std::shared_ptr<Stmt>;
-struct Parameter { std::string name; Type type; Location location; };
+struct Parameter { std::string name; Type type; Location location; bool synthetic = false; };
 struct Expr {
     enum class Kind { Integer, Float, Boolean, String, Name, Unary, Binary, Call,
         Index, Array, Tuple, Lambda, Stack, TypeApply, Propagate };

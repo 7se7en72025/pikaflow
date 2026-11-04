@@ -48,6 +48,231 @@ class Compiler {
     std::map<std::string, std::map<std::string, std::string>> moduleAliases;
     std::set<std::string> exportedExternalKeys;
     bool indexSymbols = false;
+    std::map<std::string, StmtPtr> externalDefinitions;
+    std::map<std::string, StmtPtr> aliasDefinitions;
+    std::map<std::string, StmtPtr> sourceDeclarations;
+    struct IndexScope { std::map<std::string, size_t> values, types; };
+    std::vector<IndexScope> indexScopes;
+    std::map<std::string, size_t> symbolIds;
+    std::map<std::string, Type> inferredTypes;
+    std::set<std::string> indexedUses;
+    size_t indexedReferences = 0;
+    size_t indexWork = 0;
+    void indexStep(Location location) {
+        if (++indexWork > 500000) fail(location.file.empty() ? Location{program.sourceFile, 1, 1} : location, "semantic index work limit (500000) exceeded");
+    }
+
+    static std::string locationKey(const Location &location) {
+        return location.file + ":" + std::to_string(location.line) + ":" + std::to_string(location.column);
+    }
+    size_t addSymbol(const std::string &name, const std::string &kind, Location definition,
+                     Type type = Unit, std::string detail = {}) {
+        if (!indexSymbols || definition.file.empty()) return size_t(-1);
+        const std::string id = locationKey(definition) + ":" + kind;
+        auto found = symbolIds.find(id);
+        if (found != symbolIds.end()) return found->second;
+        if (program.symbols.size() >= 50000) fail(definition, "semantic index symbol limit (50000) exceeded");
+        size_t result = program.symbols.size();
+        Symbol symbol;
+        symbol.id = id; symbol.name = name; symbol.kind = kind; symbol.definition = definition;
+        symbol.type = std::move(type); symbol.detail = std::move(detail);
+        program.symbols.push_back(std::move(symbol)); symbolIds[id] = result;
+        return result;
+    }
+    void symbolUse(size_t symbol, const Location &location) {
+        if (symbol == size_t(-1) || location.file.empty()) return;
+        auto &definition = program.symbols.at(symbol).definition;
+        if (locationKey(definition) == locationKey(location)) return;
+        if (!indexedUses.insert(program.symbols[symbol].id + "|" + locationKey(location)).second) return;
+        if (++indexedReferences > 250000) fail(location, "semantic index reference limit (250000) exceeded");
+        program.symbols[symbol].uses.push_back(location);
+    }
+    Type sourceFunctionType(const Stmt &statement) {
+        std::vector<Type> parameters;
+        for (const auto &parameter : statement.parameters) parameters.push_back(parameter.type);
+        return Type::function(parameters, statement.returnType);
+    }
+    size_t declarationSymbol(const StmtPtr &statement, const std::string &kind) {
+        auto source = sourceDeclarations.find(locationKey(statement->nameLocation));
+        const auto &definition = source == sourceDeclarations.end() ? statement : source->second;
+        return addSymbol(definition->name, kind, definition->nameLocation,
+                         kind == "enum" ? Type{TypeKind::Named, {}, definition->name} : sourceFunctionType(*definition));
+    }
+    void aliasUse(const std::string &name, const Location &prefix) {
+        auto dot = name.find('.');
+        if (dot == std::string::npos || prefix.file.empty()) return;
+        auto found = aliasDefinitions.find(prefix.file + "::" + name.substr(0, dot));
+        if (found != aliasDefinitions.end())
+            symbolUse(addSymbol(found->second->other->text, "module", found->second->nameLocation, Unit,
+                                "module " + found->second->name), prefix);
+    }
+    size_t scopedSymbol(const std::string &name, bool typeName = false) {
+        for (auto scope = indexScopes.rbegin(); scope != indexScopes.rend(); ++scope) {
+            const auto &names = typeName ? scope->types : scope->values;
+            auto found = names.find(name);
+            if (found != names.end()) return found->second;
+        }
+        return size_t(-1);
+    }
+    bool scopedBindingExists(const std::string &name, bool typeName = false) {
+        for (auto scope = indexScopes.rbegin(); scope != indexScopes.rend(); ++scope)
+            if ((typeName ? scope->types : scope->values).count(name)) return true;
+        return false;
+    }
+    void indexType(const Type &type, bool external = false) {
+        indexStep(type.sourceLocation);
+        if (type.kind == TypeKind::Named && !type.sourceLocation.file.empty()) {
+            size_t symbol = scopedSymbol(type.name, true);
+            if (scopedBindingExists(type.name, true)) symbolUse(symbol, type.sourceLocation);
+            else {
+                const bool cWidth = external && (type.name == "c_i8" || type.name == "c_u8" || type.name == "c_i16" || type.name == "c_u16" ||
+                                                type.name == "c_i32" || type.name == "c_u32" || type.name == "c_i64" || type.name == "c_u64");
+                if (!cWidth) {
+                    aliasUse(type.name, type.qualifierLocation);
+                    if (auto definition = enumDeclaration(type.name, type.sourceLocation))
+                        symbolUse(declarationSymbol(definition, "enum"), type.sourceLocation);
+                }
+            }
+        }
+        for (const auto &argument : type.args) indexType(argument, external);
+    }
+    void indexValue(const Expr &expression) {
+        const auto &name = expression.text;
+        const auto use = expression.nameLocation.file.empty() ? expression.location : expression.nameLocation;
+        size_t local = scopedSymbol(name);
+        if (scopedBindingExists(name)) { symbolUse(local, use); return; }
+        aliasUse(name, expression.location);
+        auto variant = constructor(name, expression.location);
+        if (variant.first) {
+            auto definition = variant.first->body.at(variant.second);
+            auto type = sourceFunctionType(*definition);
+            std::vector<Type> arguments;
+            for (const auto &parameter : variant.first->typeParameters) arguments.emplace_back(TypeKind::Named, std::vector<Type>{}, parameter);
+            type.args.back() = Type{TypeKind::Named, arguments, variant.first->name};
+            symbolUse(addSymbol(definition->name, "constructor", definition->nameLocation, type), use);
+        } else if (auto declarationValue = declaration(name, expression.location)) {
+            symbolUse(declarationSymbol(declarationValue->ast, declarationValue->ast->kind == Stmt::Kind::Word ? "word" : "function"), use);
+        } else if (auto native = external(name, expression.location)) {
+            auto definition = externalDefinitions.find(native->name);
+            if (definition != externalDefinitions.end()) symbolUse(declarationSymbol(definition->second, "extern"), use);
+        }
+    }
+    void indexBinding(const std::string &name, const Location &location, const Type &annotation = Unit, const std::string &kind = "variable") {
+        if (name == "_" || location.file.empty()) return;
+        if (reserved(name)) fail(location, "'" + name + "' is reserved for the language or runtime");
+        if (moduleAliases[location.file].count(name)) fail(location, "binding name '" + name + "' conflicts with a module alias");
+        if (indexScopes.back().values.count(name)) fail(location, "duplicate local name '" + name + "'");
+        Type type = annotation;
+        std::string detail;
+        if (type == Unit) {
+            bool generic = false;
+            for (const auto &scope : indexScopes) generic = generic || !scope.types.empty();
+            auto inferred = inferredTypes.find(locationKey(location));
+            if (!generic && inferred != inferredTypes.end()) type = inferred->second;
+            else if (generic) detail = "generic declaration";
+        }
+        indexScopes.back().values[name] = addSymbol(name, kind, location, type, detail);
+    }
+    void indexPattern(const ExprPtr &pattern) {
+        if (!pattern) return;
+        if (pattern->kind == Expr::Kind::Name) { indexBinding(pattern->text, pattern->location); return; }
+        if (pattern->kind == Expr::Kind::Call && !pattern->items.empty()) {
+            if (pattern->items[0]->kind == Expr::Kind::Name) indexValue(*pattern->items[0]);
+            for (size_t i = 1; i < pattern->items.size(); ++i) indexPattern(pattern->items[i]);
+        } else for (const auto &item : pattern->items) indexPattern(item);
+    }
+    void indexExpression(const ExprPtr &expression) {
+        if (!expression) return;
+        indexStep(expression->location);
+        const auto &value = *expression;
+        if (value.kind == Expr::Kind::Name) { indexValue(value); return; }
+        for (const auto &argument : value.typeArguments) indexType(argument);
+        indexType(value.returnType);
+        if (value.kind == Expr::Kind::Lambda) {
+            indexScopes.emplace_back();
+            for (const auto &parameter : value.parameters) {
+                indexType(parameter.type);
+                if (!parameter.synthetic) indexBinding(parameter.name, parameter.location, parameter.type, "parameter");
+            }
+            indexBody(value.body, false); indexScopes.pop_back(); return;
+        }
+        for (const auto &item : value.items) indexExpression(item);
+        if (value.kind == Expr::Kind::Stack) indexBody(value.body, true);
+    }
+    void indexBody(const std::vector<StmtPtr> &body, bool scope) {
+        if (scope) indexScopes.emplace_back();
+        for (const auto &statement : body) indexStatement(statement);
+        if (scope) indexScopes.pop_back();
+    }
+    void indexStatement(const StmtPtr &statement) {
+        indexStep(statement->location);
+        const auto &s = *statement;
+        if (s.kind == Stmt::Kind::Function || s.kind == Stmt::Kind::Word || s.kind == Stmt::Kind::Extern || s.kind == Stmt::Kind::Enum) {
+            std::string kind = s.kind == Stmt::Kind::Enum ? "enum" : s.kind == Stmt::Kind::Extern ? "extern" : s.kind == Stmt::Kind::Word ? "word" : "function";
+            size_t symbol = declarationSymbol(statement, kind);
+            if (!indexScopes.empty() && s.kind == Stmt::Kind::Function) {
+                if (indexScopes.back().values.count(s.name)) fail(s.nameLocation, "duplicate local name '" + s.name + "'");
+                indexScopes.back().values[s.name] = symbol;
+            }
+            indexScopes.emplace_back();
+            for (size_t i = 0; i < s.typeParameters.size(); ++i) {
+                Location location = i < s.typeParameterLocations.size() ? s.typeParameterLocations[i] : Location{};
+                indexScopes.back().types[s.typeParameters[i]] = addSymbol(s.typeParameters[i], "typeParameter", location,
+                                                                        Type{TypeKind::Named, {}, s.typeParameters[i]});
+            }
+            if (s.kind == Stmt::Kind::Enum) {
+                for (const auto &variant : s.body) {
+                    auto type = sourceFunctionType(*variant);
+                    std::vector<Type> arguments;
+                    for (const auto &parameter : s.typeParameters) arguments.emplace_back(TypeKind::Named, std::vector<Type>{}, parameter);
+                    type.args.back() = Type{TypeKind::Named, arguments, s.name};
+                    addSymbol(variant->name, "constructor", variant->nameLocation, type);
+                    for (const auto &field : variant->parameters) {
+                        indexType(field.type);
+                        addSymbol(field.name, "field", field.location, field.type);
+                    }
+                }
+            } else {
+                indexType(s.returnType, s.kind == Stmt::Kind::Extern);
+                for (const auto &parameter : s.parameters) {
+                    indexType(parameter.type, s.kind == Stmt::Kind::Extern);
+                    if (s.kind != Stmt::Kind::Extern) {
+                        if (!parameter.synthetic) indexBinding(parameter.name, parameter.location, parameter.type, "parameter");
+                        else indexScopes.back().values[parameter.name] = size_t(-1);
+                    } else if (!parameter.synthetic) addSymbol(parameter.name, "parameter", parameter.location, parameter.type);
+                }
+                indexBody(s.body, false);
+            }
+            indexScopes.pop_back(); return;
+        }
+        if (s.kind == Stmt::Kind::Import) {
+            if (s.other) addSymbol(s.other->text, "module", s.nameLocation, Unit, "module " + s.name);
+            return;
+        }
+        if (s.kind == Stmt::Kind::Let || s.kind == Stmt::Kind::Var) {
+            indexExpression(s.expression); indexType(s.type);
+            if (s.target) indexPattern(s.target);
+            else indexBinding(s.name, s.nameLocation, s.annotated ? s.type : Unit);
+            return;
+        }
+        if (s.kind == Stmt::Kind::Match) {
+            indexExpression(s.expression);
+            for (const auto &arm : s.body) {
+                indexScopes.emplace_back(); indexPattern(arm->expression); indexExpression(arm->other);
+                indexBody(arm->body, false); indexScopes.pop_back();
+            }
+            return;
+        }
+        if (s.kind == Stmt::Kind::For) {
+            indexExpression(s.expression); indexScopes.emplace_back(); indexBinding(s.name, s.nameLocation);
+            indexBody(s.body, true); indexScopes.pop_back(); indexBody(s.elseBody, true); return;
+        }
+        if (s.kind == Stmt::Kind::StackOp) {
+            Expr operation(Expr::Kind::Name, s.location); operation.text = s.name; indexValue(operation); return;
+        }
+        indexExpression(s.target); indexExpression(s.expression); indexExpression(s.other);
+        indexBody(s.body, true); indexBody(s.elseBody, true);
+    }
     std::unique_ptr<Context> context;
     unsigned serial = 0;
     std::map<std::string, Declaration> specializations;
@@ -91,7 +316,9 @@ class Compiler {
         auto own = enumDeclarations.find(loc.file + "::" + name);
         if (own != enumDeclarations.end()) return own->second;
         StmtPtr result;
-        for (const auto &key : exportedEnums[name]) {
+        auto visible = exportedEnums.find(name);
+        if (visible == exportedEnums.end()) return {};
+        for (const auto &key : visible->second) {
             auto candidate = enumDeclarations.at(key);
             if (imports[loc.file].count(candidate->location.file)) {
                 if (result) fail(loc, "ambiguous imported enum type '" + name + "'");
@@ -114,7 +341,9 @@ class Compiler {
         if (own != constructors.end()) return {enumDeclarations.at(own->second.first), own->second.second};
         if (byModule.count(localKey) || externals.count(localKey)) return {};
         std::pair<StmtPtr, size_t> result;
-        for (const auto &key : exportedConstructors[name]) {
+        auto visible = exportedConstructors.find(name);
+        if (visible == exportedConstructors.end()) return {};
+        for (const auto &key : visible->second) {
             auto candidate = constructors.at(key);
             auto definition = enumDeclarations.at(candidate.first);
             if (imports[loc.file].count(definition->location.file)) {
@@ -512,6 +741,12 @@ class Compiler {
         if (value < 0)
             fail(loc, "cannot bind a unit value");
         Type t = type(value);
+        if (indexSymbols && !loc.file.empty()) {
+            auto key = locationKey(loc);
+            auto found = inferredTypes.find(key);
+            if (found == inferredTypes.end()) inferredTypes[key] = t;
+            else if (found->second != t) found->second = Unit;
+        }
         int cell = emit(Op::MakeCell, Type::cell(t), {value}, loc);
         fn().localNames[cell] = name;
         context->scopes.back()[name] = {cell, t, mut};
@@ -1488,7 +1723,7 @@ class Compiler {
         size_t finish = jump(Op::JumpFalse, condition, s.location);
         context->scopes.emplace_back();
         int value = range ? cursor : emit(Op::Index, element, {sequence, cursor}, s.location);
-        define(s.name, value, false, s.location);
+        define(s.name, value, false, s.nameLocation.file.empty() ? s.location : s.nameLocation);
         // Continue targets the increment, patched after the body is compiled.
         context->loops.push_back({-1, carry, {}, carry});
         block(s.body, false);
@@ -1627,7 +1862,7 @@ class Compiler {
                     define(item->text, part, s.kind == Stmt::Kind::Var, item->location);
                 }
             } else
-                define(s.name, value, s.kind == Stmt::Kind::Var, s.location);
+                define(s.name, value, s.kind == Stmt::Kind::Var, s.nameLocation.file.empty() ? s.location : s.nameLocation);
             break;
         }
         case Stmt::Kind::Assign: {
@@ -1667,7 +1902,7 @@ class Compiler {
             break;
         }
         case Stmt::Kind::Expression: {
-            if (context->stackMode && s.expression && s.expression->kind == Expr::Kind::Name) {
+            if (context->stackMode && s.expression && s.expression->kind == Expr::Kind::Name && !binding(s.expression->text)) {
                 auto *word = declaration(s.expression->text, s.location);
                 if (word && word->ast->kind == Stmt::Kind::Word) {
                     stackOperation(s.expression->text, s.location);
@@ -1721,6 +1956,7 @@ class Compiler {
         }
         case Stmt::Kind::Function: {
             if (!s.typeParameters.empty()) fail(s.location, "generic functions must be declared at module scope");
+            if (moduleAliases[s.location.file].count(s.name)) fail(s.location, "binding name '" + s.name + "' conflicts with a module alias");
             if (reserved(s.name))
                 fail(s.location, "'" + s.name + "' is reserved for the language or runtime");
             for (const auto &parameter : s.typeParameters)
@@ -1903,6 +2139,7 @@ class Compiler {
                     const auto &alias = statement->other->text;
                     if (reserved(alias) || moduleAliases[statement->location.file].count(alias)) fail(statement->location, "duplicate or reserved module alias '" + alias + "'");
                     moduleAliases[statement->location.file][alias] = statement->name;
+                    if (indexSymbols) aliasDefinitions[statement->location.file + "::" + alias] = statement;
                 } else imports[statement->location.file].insert(statement->name);
             }
         for (const auto &statement : tree.statements) {
@@ -1973,6 +2210,7 @@ class Compiler {
                         fail(s.location,
                              "conflicting declarations for native symbol '" + ext.symbol + "'");
                 externals[externalKey] = ext;
+                if (indexSymbols) externalDefinitions[ext.name] = statement;
                 if (s.exported)
                     exportedExternals[s.name].push_back({s.location.file, externalKey});
                 if (s.exported) exportedExternalKeys.insert(externalKey);
@@ -2056,6 +2294,11 @@ class Compiler {
             throw Error(errors.front().first, message);
         }
         verify(program);
+        if (indexSymbols) {
+            for (const auto &statement : tree.statements)
+                if (!statement->nameLocation.file.empty()) sourceDeclarations[locationKey(statement->nameLocation)] = statement;
+            for (const auto &statement : tree.statements) indexStatement(statement);
+        }
         return std::move(program);
     }
 };

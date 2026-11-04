@@ -26,7 +26,7 @@ an implemented feature is not a claim of unlimited platform or protocol coverage
 | Foreign calls | Scalar/pointer and nested natural C records, explicit 8/16/32/64-bit integer boundary annotations, varargs, scalar noncapturing callbacks and symbol aliases |
 | Unsafe memory | Explicit unsafe blocks, typed raw allocation/load/store/free/offset, checked owned-block offsets, C-string exposure and persistent GC roots |
 | Source standard library | Recoverable numeric helpers, integer sequences/sorting/search, checked decimal parsing, ASCII classification |
-| Developer CLI | `check`, `interpret`, `run`, `emit-ir`, `emit-obj`, `build`, inspection commands |
+| Developer CLI | `check`, `interpret`, `run`, `emit-ir`, `emit-obj`, `build`, inspection commands and optional compiler-resolved source-binding JSON |
 | Formatter | Compiler-token-equivalent formatting with atomic replacement, refusal of invalid source, check mode and idempotence tests |
 | Editor integration | Stdio LSP diagnostics for unsaved modules/imports, formatting, document symbols and declaration/keyword completion with UTF-16 positions |
 | Local packages | Project initialization, path dependencies, deterministic content locks, locked imports, integrity checking and source confinement |

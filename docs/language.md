@@ -302,10 +302,12 @@ exported names diagnose. A named import exposes the target's exports under a
 namespace rather than adding them to the unqualified lookup set:
 
 ```text
-import "modules/math.pf" as math
+import "math.pf" as math
 fun main() -> unit:
     print(math.twice(21))
 ```
+
+This is executable as [`examples/modules/qualified.pf`](../examples/modules/qualified.pf).
 
 Namespaces also qualify generic functions (`math.identity::[i64](42)`), enum types
 (`types.Option[i64]`), constructors/patterns (`types.Some(value)`), exported externs
@@ -369,3 +371,22 @@ signature errors still stop their phase at the first error. Excessively nested i
 than exhausting the native parser stack. CLI source files are limited to 16 MiB.
 Within-function semantic recovery and Unicode display-column tracking remain
 future work.
+
+## Compiler semantic source index
+
+`pikaflow symbols FILE` emits source binding metadata as JSON. `--library` indexes
+a module without a user entry function. The optional compiler pass resolves
+module exports and lexical scopes from the real AST; definitions and references
+point to identifier tokens, including qualified-name members and alias prefixes.
+Shadowed locals, parameters, pattern bindings, loop variables and closure captures
+retain separate binding IDs. Writes and compound-assignment targets are uses of
+the same source binding, and generic instantiations do not duplicate references.
+
+The index includes source in unused generic templates. Inferred types that vary
+with a generic context are described as generic declarations rather than taking
+the first instantiated type as their source signature. Anonymous word parameters
+and synthetic library entry points are not exposed as rename targets.
+Normal execution compilation skips index construction. Index-only limits are
+50,000 symbols, 250,000 references and 500,000 traversal steps; crossing a limit
+produces an explicit diagnostic. The editor converts the compiler's byte columns
+to its advertised character-position convention.
