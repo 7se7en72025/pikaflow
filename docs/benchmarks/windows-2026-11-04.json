@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "recorded_at_utc": "2026-11-04T15:31:26.575945+00:00",
+  "recorded_at_utc": "2026-11-04T15:41:38.464177+00:00",
   "compiler": {
     "path": "C:\\Users\\RAIYYAN\\pikaflow\\build\\native\\pikaflow.exe",
     "version": "PikaFlow 0.1.0; LLVM enabled; x86_64-pc-windows-msvc",
-    "sha256": "cb1cd0c5992febf5a31eac4440d354f0ee920d8996f8a504c39fa078a9d900aa"
+    "sha256": "602078d66fb4d3bc60b3b7a70db165a2a507ac2be6e0af33294c06ebaedb2015"
   },
   "benchmark_checkout": {
-    "revision": "be5092f35755de2ee6e06ad0e5a70a606d572ad7",
-    "dirty": true
+    "revision": "6ca599277480b22513e8d263680c3ee7e82cbffd",
+    "dirty": false
   },
   "machine": {
     "platform": "Windows-10-10.0.26300-SP0",
@@ -28,15 +28,15 @@
         "-O0"
       ],
       "output_verified": true,
-      "build_seconds": 0.1252424999984214,
+      "build_seconds": 0.15516980000029434,
       "run_seconds": [
-        0.03013450000071316,
-        0.028738000000885222,
-        0.030667700000776676
+        0.03216170000087004,
+        0.03500509999867063,
+        0.03189790000033099
       ],
-      "median_seconds": 0.03013450000071316,
-      "min_seconds": 0.028738000000885222,
-      "max_seconds": 0.030667700000776676
+      "median_seconds": 0.03216170000087004,
+      "min_seconds": 0.03189790000033099,
+      "max_seconds": 0.03500509999867063
     },
     {
       "name": "checked_loop",
@@ -46,15 +46,15 @@
         "-O2"
       ],
       "output_verified": true,
-      "build_seconds": 0.12050909999743453,
+      "build_seconds": 0.14890210000157822,
       "run_seconds": [
-        0.03038630000082776,
-        0.029390899999270914,
-        0.02758719999837922
+        0.031343300001026364,
+        0.031033899998874404,
+        0.03496629999790457
       ],
-      "median_seconds": 0.029390899999270914,
-      "min_seconds": 0.02758719999837922,
-      "max_seconds": 0.03038630000082776
+      "median_seconds": 0.031343300001026364,
+      "min_seconds": 0.031033899998874404,
+      "max_seconds": 0.03496629999790457
     },
     {
       "name": "recursive_fibonacci",
@@ -64,15 +64,15 @@
         "-O0"
       ],
       "output_verified": true,
-      "build_seconds": 0.11030730000129552,
+      "build_seconds": 0.14384719999725348,
       "run_seconds": [
-        0.017499099998531165,
-        0.01874919999681879,
-        0.01776350000000093
+        0.020663300001615426,
+        0.017341999999189284,
+        0.01784090000001015
       ],
-      "median_seconds": 0.01776350000000093,
-      "min_seconds": 0.017499099998531165,
-      "max_seconds": 0.01874919999681879
+      "median_seconds": 0.01784090000001015,
+      "min_seconds": 0.017341999999189284,
+      "max_seconds": 0.020663300001615426
     },
     {
       "name": "recursive_fibonacci",
@@ -82,15 +82,15 @@
         "-O2"
       ],
       "output_verified": true,
-      "build_seconds": 0.12691009999980452,
+      "build_seconds": 0.12205539999922621,
       "run_seconds": [
-        0.017038699999829987,
-        0.018720000000030268,
-        0.01692479999837815
+        0.01928090000001248,
+        0.019170300001860596,
+        0.019633699997939402
       ],
-      "median_seconds": 0.017038699999829987,
-      "min_seconds": 0.01692479999837815,
-      "max_seconds": 0.018720000000030268
+      "median_seconds": 0.01928090000001248,
+      "min_seconds": 0.019170300001860596,
+      "max_seconds": 0.019633699997939402
     }
   ]
 }

@@ -38,9 +38,11 @@ without a reported failure. Native benchmark outputs were verified before three
 timed repetitions per configuration; [the raw report](benchmarks/windows-2026-11-04.json)
 does not establish a performance advantage.
 
-The recorded implementation is captured by core commit `92e0e38` and backend
-commit `8a96379`. Tests ran against captured worktree snapshots during integration;
-archive/binary hashes, exact toolchains, local log paths and limits are in the
+The implementation is captured by core commit `92e0e38` and backend commit
+`8a96379`, followed by the documented clean checkout `6ca5992`. Final Windows and
+Linux native suites passed against that exact clean checkout. The Windows
+output-checked benchmark and three install/relocation checks also passed against
+it. Archive/binary hashes, exact toolchains, local log paths and limits are in the
 [validation record](validation.md). See [feature status](FEATURES.md) for the
 boundary of each implemented feature and remaining work.
 

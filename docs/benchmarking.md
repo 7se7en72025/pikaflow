@@ -38,7 +38,7 @@ The [2026-11-04 Windows report](benchmarks/windows-2026-11-04.json) was produced
 from normal PowerShell with:
 
 ```powershell
-python scripts/benchmark.py build/native/pikaflow.exe --repeats 3 --output out/benchmark-windows.json
+python scripts/benchmark.py build/native/pikaflow.exe --repeats 3 --output out/benchmark-final-windows.json
 ```
 
 All interpreter references, native warmups and timed outputs matched. Whole-process
@@ -46,14 +46,18 @@ median times were:
 
 | Workload | `-O0` | `-O2` |
 |---|---:|---:|
-| Checked loop over 50,000 integers | 30.135 ms | 29.391 ms |
-| Recursive Fibonacci(20) | 17.764 ms | 17.039 ms |
+| Checked loop over 50,000 integers | 32.162 ms | 31.343 ms |
+| Recursive Fibonacci(20) | 17.841 ms | 19.281 ms |
 
 These short runs include startup and output capture, and their small differences
 do not establish an optimization advantage. The report records all three samples,
 build times, sources, expected outputs, machine information and compiler SHA-256.
-Its checkout was dirty; the checkout revision identifies the benchmark workspace,
-not a clean-source provenance claim for the executable.
+The final run used clean checkout
+`6ca599277480b22513e8d263680c3ee7e82cbffd` (`dirty: false`) and the freshly
+validated Windows compiler, SHA-256
+`602078d66fb4d3bc60b3b7a70db165a2a507ac2be6e0af33294c06ebaedb2015`.
+The recursive case was slower at `-O2` in this run; these samples establish no
+general optimization speedup.
 
 The GitHub workflow in `.github/workflows/ci.yml` is manual (`workflow_dispatch`)
 only. It builds and tests the interpreter on Windows and Linux when explicitly

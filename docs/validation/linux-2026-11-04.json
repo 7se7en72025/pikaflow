@@ -1,0 +1,12 @@
+{
+  "head": "6ca599277480b22513e8d263680c3ee7e82cbffd",
+  "dirty": false,
+  "archive_sha256": "dda57eafb35c9b0181abd13affb80ba250fab8ebd2b51ac6e281dc8b286829b9",
+  "files": 85,
+  "binary_sha256": "a9619a89e93d737f7bf30e5647c29a1012afab8bd7474496009adb0383f2bed7",
+  "platform": "Ubuntu 24.04 x86_64 (WSL)",
+  "compiler": "GNU C++ 13.3.0",
+  "llvm": "24.0.0 nightly 5883ca2582af",
+  "ctest": "13/13 passed",
+  "ctest_seconds": 74.03
+}

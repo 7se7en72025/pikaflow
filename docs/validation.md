@@ -16,11 +16,12 @@ and their limits; the broader approved roadmap remains tracked in
 | WSL Ubuntu 24.04, Clang 18 frontend sanitizers | Bounded libFuzzer snapshot | **64,258 executions / 46 seconds**, no crash artifacts or ASan/UBSan failures; see [commands and limits](fuzzing.md) |
 | Windows x64, benchmark report tooling | Current report-unit suite | **3 tests passed**; no native performance measurement implied |
 | Linux, reference interpreter | Earlier snapshot | **74 CLI checks passed**; this predates the expanded 99-check suite and must not be described as its Linux validation |
-| Windows x64, LLVM native/JIT | Full native CTest snapshot | **13/13 suites passed** in 9.88 s, including **216 CLI integration checks**, **6 contextual typing/callable namespace programs**, **34 runtime failure cases**, and generated arithmetic comparisons |
-| WSL Ubuntu 24.04 x86-64, GNU 13.3 Release, LLVM 24 | Full native CTest snapshot | **13/13 suites passed** in 69.22 s, including **216 CLI integration checks**, **6 contextual programs**, **34 runtime failure cases** and **30 differential arithmetic programs** |
+| Windows x64, LLVM native/JIT | Clean `6ca5992` native CTest | **13/13 suites passed** in 19.09 s, including **216 CLI integration checks**, **6 contextual typing/callable namespace programs**, **34 runtime failure cases**, and **30 differential arithmetic programs** |
+| WSL Ubuntu 24.04 x86-64, GNU 13.3 Release, LLVM 24 | Clean `6ca5992` native CTest | **13/13 suites passed** in 74.03 s, including **216 CLI integration checks**, **6 contextual programs**, **34 runtime failure cases** and **30 differential arithmetic programs** |
 | Windows x64, C ABI | Host C fixture plus generated cross-checks | **52 source JIT/native checks** across `-O0`/`-O2`; **12 direct backend record scenarios** at both levels; host C reference calls passed |
 | Linux x86-64, C ABI | Host C fixture plus generated cross-checks | **52 source JIT/native checks** across `-O0`/`-O2` and **12 direct backend record scenarios** at both levels passed after the POD register-passing classification fix |
 | Windows/Linux, native environment | Automated execution checks | Unicode output paths, adjacent-file preservation and temporary cleanup on success/failure passed on both; Windows additionally passed without developer-shell variables |
+| Windows x64, installed/relocated layout | Clean `6ca5992` install | **3 checks passed**: a relocated Unicode prefix selected the installed stdlib marker; native compilation worked without a developer environment; corrupting only the installed runtime copy caused linking to fail, proving preference over the build-tree fallback; [record](validation/install-windows-2026-11-04.json) |
 | Source debugging | CodeView emission/inspection checked on Windows | Object inspection found line ranges and locals `a`/`b`; interactive stepping and debugger usability remain unverified |
 | Windows x64, native benchmarks | Output-verified synthetic snapshot | Two workloads at `-O0`/`-O2`, three timed repetitions each; [raw report](benchmarks/windows-2026-11-04.json); process startup/output capture included, no performance advantage claimed |
 
@@ -33,20 +34,30 @@ revision.
 The Linux package version was
 `1:24~++20261103082040+5883ca2582af-1~exp1~20261103202158.1911`.
 
-The Linux v3 source archive captured checkout `be5092f35755de2ee6e06ad0e5a70a606d572ad7`
-plus worktree changes: 70 files, SHA-256
-`b47198565558f47f6481c238c6a206c0114e074643d1e40f66bc0cfedef4e87c`.
-The core semantic changes are committed in `92e0e38`; the coordinated backend/C
-ABI changes are committed in `8a96379`. The Linux compiler identified itself as
+The final Windows run used clean commit
+`6ca599277480b22513e8d263680c3ee7e82cbffd`, with binary SHA-256
+`602078d66fb4d3bc60b3b7a70db165a2a507ac2be6e0af33294c06ebaedb2015`.
+The tracked benchmark and install records identify that same source/binary pair.
+
+The final Linux source archive captured that same clean commit (`dirty: false`),
+with 85 files and archive SHA-256
+`dda57eafb35c9b0181abd13affb80ba250fab8ebd2b51ac6e281dc8b286829b9`.
+The Linux compiler identified itself as
 `PikaFlow 0.1.0; LLVM enabled; x86_64-pc-linux-gnu`, with binary SHA-256
-`978c32da60e0c4cebc6187c7b0640ccc12b43ceec29640950b2f5534eefa85ef`.
-The Linux
-snapshot metadata and full CTest log are retained locally under
-`out/linux-validation/snapshot-native-v3.json` and
+`a9619a89e93d737f7bf30e5647c29a1012afab8bd7474496009adb0383f2bed7`.
+The core semantic changes are committed in `92e0e38`; the coordinated backend/C
+ABI changes are committed in `8a96379`. The final Linux snapshot metadata and
+full CTest log are retained locally under
+`out/linux-validation/snapshot-native-final.json` and
 `out/linux-native-validation/build/Testing/Temporary/LastTest.log`; the Windows
-log is `build/native/Testing/Temporary/LastTest.log`. These ignored local build
-artifacts are not part of a clean-checkout reproducibility claim. The benchmark
-report separately records its exact Windows compiler binary SHA-256.
+log is `build/native/Testing/Temporary/LastTest.log`. These raw local build logs
+are ignored artifacts; the source commit, toolchain identities and archive/binary
+hashes above identify the exact clean-checkout validation rather than promising
+bit-for-bit reproducible builds. The tracked benchmark report separately records
+its exact Windows compiler binary SHA-256.
+The [tracked final Linux result manifest](validation/linux-2026-11-04.json) copies
+`out/linux-validation/native-final-results.json`;
+the frozen source archive is `out/linux-validation/source-native-final.tar`.
 The Windows CodeView object inspection is retained locally in
 `out/debug-validation/codeview.txt`; readable line records and source locals
 were checked, without claiming interactive debugger validation.

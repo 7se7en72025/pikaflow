@@ -1,0 +1,10 @@
+{
+  "checks": [
+    "relocated Unicode prefix uses installed stdlib instead of source-tree fallback",
+    "installed compiler builds and runs using captured SDK paths without developer environment",
+    "installed runtime is selected ahead of build-tree fallback"
+  ],
+  "source_commit": "6ca599277480b22513e8d263680c3ee7e82cbffd",
+  "binary_sha256": "602078d66fb4d3bc60b3b7a70db165a2a507ac2be6e0af33294c06ebaedb2015",
+  "status": "passed"
+}
