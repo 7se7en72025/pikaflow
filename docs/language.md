@@ -3,6 +3,8 @@
 This document describes the implemented language subset. The wider approved
 project scope and remaining work are tracked in [FEATURES.md](FEATURES.md).
 Examples are executable programs in [`examples/`](../examples/).
+Generic functions, explicit specialization, guarded cases and Result propagation
+are specified in [language extensions](language-extensions.md).
 
 ## Source layout
 

@@ -151,8 +151,8 @@ std::vector<Token> lex(const std::string& source, const std::string& filename) {
             const std::string pair = std::string(1, c) + peek(1);
             if (pair == "->" || pair == "|>" || pair == "==" || pair == "!="
                 || pair == "<=" || pair == ">=" || pair == "&&" || pair == "||"
-                || pair == "+=" || pair == "-=" || pair == "*=" || pair == "/=" || pair == "%=") symbol = pair;
-            else if (std::string("()[]{}:;,+-*/%=<>!.").find(c) != std::string::npos) symbol.assign(1, c);
+                || pair == "::" || pair == "+=" || pair == "-=" || pair == "*=" || pair == "/=" || pair == "%=") symbol = pair;
+            else if (std::string("()[]{}:;,+-*/%=<>!.?").find(c) != std::string::npos) symbol.assign(1, c);
             else if (c == '\0') throw Error(at, "NUL byte is not allowed in source code");
             else throw Error(at, std::string("unexpected character '") + c + "'");
         }

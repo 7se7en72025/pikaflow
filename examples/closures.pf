@@ -11,7 +11,7 @@ fun main() -> unit:
     gc()
     print(next())
 
-    let offset = 10
+    let bias = 10
     let add_offset = fun(value: i64) -> i64:
-        return value + offset
+        return value + bias
     print(add_offset(32))

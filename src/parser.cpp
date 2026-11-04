@@ -91,7 +91,28 @@ class Parser {
             expect(")"); expect("->");
             return Type::function(std::move(parameters), type());
         }
-        throw Error(token.location, "unknown type '" + token.text + "'");
+        if (token.text == "task") {
+            expect("["); Type result = type(); expect("]");
+            return {TypeKind::Task, {std::move(result)}};
+        }
+        Type named{TypeKind::Named, {}, token.text};
+        if (accept("[")) {
+            do { named.args.push_back(type()); } while (accept(","));
+            expect("]");
+        }
+        return named;
+    }
+    std::vector<std::string> typeParameters() {
+        std::vector<std::string> result;
+        if (!accept("[")) return result;
+        do {
+            auto parameter = expect(TokenKind::Name, "a type parameter");
+            if (std::find(result.begin(), result.end(), parameter.text) != result.end())
+                throw Error(parameter.location, "duplicate type parameter '" + parameter.text + "'");
+            result.push_back(parameter.text);
+        } while (accept(","));
+        expect("]");
+        return result;
     }
     std::vector<Parameter> parameters(bool word, bool allowVariadic, bool& variadic) {
         expect("(");
@@ -196,6 +217,15 @@ class Parser {
                 call->items.push_back(std::move(left));
                 if (!is(")")) { do { call->items.push_back(expression()); } while (accept(",") && !is(")")); }
                 expect(")"); left = std::move(call);
+            } else if (accept("::")) {
+                auto application = std::make_shared<Expr>(Expr::Kind::TypeApply, left->location);
+                application->items.push_back(std::move(left));
+                expect("[");
+                do { application->typeArguments.push_back(type()); } while (accept(","));
+                expect("]"); left = std::move(application);
+            } else if (accept("?")) {
+                auto propagation = std::make_shared<Expr>(Expr::Kind::Propagate, left->location);
+                propagation->items.push_back(std::move(left)); left = std::move(propagation);
             } else if (is("[")) {
                 Token open = take();
                 auto index = std::make_shared<Expr>(Expr::Kind::Index, open.location);
@@ -291,8 +321,10 @@ class Parser {
             Token caseToken = expect("case");
             if (wildcardSeen) throw Error(caseToken.location, "wildcard case must be the final match case");
             auto arm = std::make_shared<Stmt>(Stmt::Kind::If, caseToken.location);
-            if (accept("_")) { arm->name = "_"; wildcardSeen = true; }
+            if (accept("_")) arm->name = "_";
             else arm->expression = expression();
+            if (accept("if")) arm->other = expression();
+            if (arm->name == "_" && !arm->other) wildcardSeen = true;
             arm->body = suite(stack);
             result->body.push_back(std::move(arm));
             separators();
@@ -307,10 +339,27 @@ class Parser {
             if (is("export")) throw Error(peek().location, "duplicate export modifier");
             auto result = statement(stack);
             if (result->kind != Stmt::Kind::Function && result->kind != Stmt::Kind::Word
-                && result->kind != Stmt::Kind::Extern
+                && result->kind != Stmt::Kind::Extern && result->kind != Stmt::Kind::Enum
                 && result->kind != Stmt::Kind::Let && result->kind != Stmt::Kind::Var)
                 throw Error(start.location, "only functions, words, extern declarations and variables may be exported");
             result->exported = true;
+            return result;
+        }
+        if (accept("enum")) {
+            auto result = std::make_shared<Stmt>(Stmt::Kind::Enum, start.location);
+            result->name = expect(TokenKind::Name, "an enum name").text;
+            result->typeParameters = typeParameters();
+            expect(":"); expect(TokenKind::Newline, "a newline after ':'");
+            expect(TokenKind::Indent, "enum variants");
+            separators();
+            while (!is(TokenKind::Dedent) && !is(TokenKind::End)) {
+                auto variant = std::make_shared<Stmt>(Stmt::Kind::Function, peek().location);
+                variant->name = expect(TokenKind::Name, "a variant name").text;
+                if (is("(")) variant->parameters = parameters(false, false, variant->variadic);
+                finishSimple(); result->body.push_back(std::move(variant)); separators();
+            }
+            expect(TokenKind::Dedent, "end of enum variants");
+            if (result->body.empty()) throw Error(start.location, "enum requires at least one variant");
             return result;
         }
         if (is("fun") || is("fn") || is("word") || is("extern")) {
@@ -321,6 +370,8 @@ class Parser {
             } else word = take().text == "word";
             auto result = std::make_shared<Stmt>(external ? Stmt::Kind::Extern : word ? Stmt::Kind::Word : Stmt::Kind::Function, start.location);
             result->name = expect(TokenKind::Name, "a function name").text;
+            result->typeParameters = typeParameters();
+            if (external && !result->typeParameters.empty()) throw Error(start.location, "extern functions cannot be generic");
             result->parameters = parameters(word, external, result->variadic);
             if (accept("->")) result->returnType = type();
             if (external) {
@@ -504,6 +555,8 @@ const char* expressionName(Expr::Kind kind) {
     case Expr::Kind::Tuple: return "Tuple";
     case Expr::Kind::Lambda: return "Lambda";
     case Expr::Kind::Stack: return "Stack";
+    case Expr::Kind::TypeApply: return "TypeApply";
+    case Expr::Kind::Propagate: return "Propagate";
     }
     return "Unknown";
 }
@@ -526,6 +579,7 @@ const char* statementName(Stmt::Kind kind) {
     case Stmt::Kind::StackOp: return "StackOp";
     case Stmt::Kind::Match: return "Match";
     case Stmt::Kind::Unsafe: return "Unsafe";
+    case Stmt::Kind::Enum: return "Enum";
     }
     return "Unknown";
 }
@@ -538,6 +592,7 @@ void dumpExpression(std::ostream& out, const ExprPtr& expr, unsigned depth) {
     else if (expr->kind == Expr::Kind::Boolean) out << ' ' << (expr->integer ? "true" : "false");
     else if (!expr->text.empty()) out << ' ' << std::quoted(expr->text);
     if (expr->kind == Expr::Kind::Stack || expr->kind == Expr::Kind::Lambda) out << " -> " << expr->returnType.str();
+    for (const auto& argument : expr->typeArguments) out << " [" << argument.str() << "]";
     out << " @" << expr->location.line << ':' << expr->location.column << '\n';
     for (const auto& item : expr->items) dumpExpression(out, item, depth + 1);
     for (const auto& parameter : expr->parameters) out << std::string((depth + 1) * 2, ' ') << "Parameter " << parameter.name << ": " << parameter.type.str() << '\n';
@@ -547,6 +602,7 @@ void dumpStatements(std::ostream& out, const std::vector<StmtPtr>& stmts, unsign
     for (const auto& stmt : stmts) {
         out << std::string(depth * 2, ' ') << statementName(stmt->kind);
         if (!stmt->name.empty()) out << ' ' << stmt->name;
+        for (const auto& parameter : stmt->typeParameters) out << " [" << parameter << "]";
         if (stmt->exported) out << " [export]";
         if (stmt->annotated) out << ": " << stmt->type.str();
         if (stmt->kind == Stmt::Kind::Function || stmt->kind == Stmt::Kind::Word || stmt->kind == Stmt::Kind::Extern) out << " -> " << stmt->returnType.str();

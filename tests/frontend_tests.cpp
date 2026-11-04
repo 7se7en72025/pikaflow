@@ -113,6 +113,13 @@ int main() {
         require(exportedExtern.statements[0]->kind == Stmt::Kind::Extern
             && exportedExtern.statements[0]->exported
             && exportedExtern.statements[0]->expression->text == "fabs", "exported foreign declaration failed");
+        const auto generic = tree("fun identity[T](value:T)->T:\n    return value\nfun main():\n    let value = identity::[i64](42)\n");
+        require(generic.statements[0]->typeParameters == std::vector<std::string>{"T"}, "generic parameters lost");
+        require(generic.statements[1]->body[0]->expression->items[0]->kind == Expr::Kind::TypeApply, "type application AST missing");
+        const auto propagation = tree("fun f()->Result[i64,str]:\n    return ok(g()?)\n");
+        require(propagation.statements[0]->body[0]->expression->items[1]->kind == Expr::Kind::Propagate, "Result propagation AST missing");
+        const auto guarded = tree("fun main():\n    match 1:\n        case _ if false:\n            pass\n        case x:\n            print(x)\n");
+        require(guarded.statements[0]->body[0]->body[0]->other != nullptr, "match guard missing");
         const auto unsafe = tree("fun main():\n    unsafe:\n        let memory: ptr[i64] = alloc_i64(2)\n        store(memory, 0, 42)\n        free(memory)\n");
         require(unsafe.statements[0]->body[0]->kind == Stmt::Kind::Unsafe && unsafe.statements[0]->body[0]->body.size() == 3, "unsafe suite failed");
         require(tree("let n = -9223372036854775808\n").statements[0]->expression->integer == std::numeric_limits<int64_t>::min(), "minimum i64 literal failed");
@@ -130,11 +137,13 @@ int main() {
         reject("let x = 9223372036854775808\n", "i64 range");
         reject("let x = -9223372036854775809\n", "i64 range");
         reject("fun f(a: i64, a: bool):\n    return\n", "duplicate parameter");
-        reject("let x: imaginary = 1\n", "unknown type");
+        require(tree("let x: imaginary = 1\n").statements[0]->type.kind == TypeKind::Named,
+            "named types must reach semantic name resolution");
         reject("let x = " + std::string(1000, '(') + "1" + std::string(1000, ')') + "\n", "nesting depth");
         reject("let x = " + std::string(1000, '!') + "true\n", "nesting depth");
         reject("let x: " + std::string(1000, '[') + "i64" + std::string(1000, ']') + " = []\n", "nesting depth");
         reject("export export fun main():\n    return\n", "duplicate export");
+        reject("fun duplicate[T,T](value:T)->T:\n    return value\n", "duplicate type parameter");
         reject("extern fun missing() -> unit = \"\"\n", "foreign symbol");
         try {
             tree("fun first():\n    let x =\nfun second():\n    let y =\n");

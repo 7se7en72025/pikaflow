@@ -1,0 +1,36 @@
+enum Option[T]:
+    Some(value: T)
+    None
+
+fun identity[T](value: T) -> T:
+    return value
+
+fun value_or[T](value: Option[T], fallback: T) -> T:
+    match value:
+        case Some(result):
+            return result
+        case None():
+            return fallback
+
+fun source(good: bool) -> Result[i64, str]:
+    if good:
+        return ok(41)
+    return err("missing input")
+
+fun increment(good: bool) -> Result[i64, str]:
+    let value = source(good)?
+    return ok(value + 1)
+
+fun main() -> unit:
+    print(identity(42))
+    print(value_or(Some(42), 0))
+    print(value_or(None::[i64](), 42))
+    match Some(42):
+        case Some(value) if value < 0:
+            print(-1)
+        case Some(value):
+            print(value)
+        case None():
+            print(0)
+    print(unwrap(increment(true)))
+    print(error(increment(false)))

@@ -32,6 +32,12 @@ struct Context {
     bool unsafeMode = false;
 };
 class Compiler {
+    struct EnumInstance {
+        StmtPtr declaration;
+        std::vector<Type> arguments;
+        std::vector<size_t> offsets;
+        Type type;
+    };
     Program program;
     std::vector<Declaration> declarations;
     std::map<std::string, size_t> byModule;
@@ -41,6 +47,192 @@ class Compiler {
     std::map<std::string, std::set<std::string>> imports;
     std::unique_ptr<Context> context;
     unsigned serial = 0;
+    std::map<std::string, Declaration> specializations;
+    unsigned instantiationDepth = 0;
+    std::map<std::string, StmtPtr> enumDeclarations;
+    std::map<std::string, std::vector<std::string>> exportedEnums;
+    std::map<std::string, std::pair<std::string, size_t>> constructors;
+    std::map<std::string, std::vector<std::string>> exportedConstructors;
+    std::map<std::string, EnumInstance> enumInstances;
+    std::set<std::string> expandingEnums;
+
+    StmtPtr enumDeclaration(const std::string &name, Location loc) {
+        auto own = enumDeclarations.find(loc.file + "::" + name);
+        if (own != enumDeclarations.end()) return own->second;
+        StmtPtr result;
+        for (const auto &key : exportedEnums[name]) {
+            auto candidate = enumDeclarations.at(key);
+            if (imports[loc.file].count(candidate->location.file)) {
+                if (result) fail(loc, "ambiguous imported enum type '" + name + "'");
+                result = candidate;
+            }
+        }
+        return result;
+    }
+    std::pair<StmtPtr, size_t> constructor(const std::string &name, Location loc) {
+        const auto localKey = loc.file + "::" + name;
+        auto own = constructors.find(localKey);
+        if (own != constructors.end()) return {enumDeclarations.at(own->second.first), own->second.second};
+        if (byModule.count(localKey) || externals.count(localKey)) return {};
+        std::pair<StmtPtr, size_t> result;
+        for (const auto &key : exportedConstructors[name]) {
+            auto candidate = constructors.at(key);
+            auto definition = enumDeclarations.at(candidate.first);
+            if (imports[loc.file].count(definition->location.file)) {
+                if (result.first) fail(loc, "ambiguous imported constructor '" + name + "'");
+                result = {definition, candidate.second};
+            }
+        }
+        if (result.first) {
+            for (size_t index : exported[name])
+                if (imports[loc.file].count(declarations[index].file)) fail(loc, "ambiguous imported callable '" + name + "'");
+            for (const auto &item : exportedExternals[name])
+                if (imports[loc.file].count(item.first)) fail(loc, "ambiguous imported callable '" + name + "'");
+        }
+        return result;
+    }
+    Type enumType(const StmtPtr &definition, const std::vector<Type> &arguments, Location loc, unsigned depth) {
+        if (arguments.size() != definition->typeParameters.size()) fail(loc, "wrong number of enum type arguments");
+        std::string key = definition->location.file + "::" + definition->name + "[";
+        std::map<std::string, Type> bindings;
+        for (size_t i = 0; i < arguments.size(); ++i) {
+            validateType(arguments[i], loc);
+            if (i) key += ",";
+            key += arguments[i].str(); bindings[definition->typeParameters[i]] = arguments[i];
+        }
+        key += "]";
+        auto cached = enumInstances.find(key);
+        if (cached != enumInstances.end()) return cached->second.type;
+        if (enumInstances.size() >= 256) fail(loc, "enum specialization limit (256) exceeded");
+        if (depth > 64 || !expandingEnums.insert(key).second) fail(loc, "recursive enum layout exceeds the supported limit; recursive fields need indirection");
+        Type layout{TypeKind::Tuple, {I64}, key};
+        EnumInstance result{definition, arguments, {}, {}};
+        for (auto &variant : definition->body) {
+            result.offsets.push_back(layout.args.size());
+            for (auto &field : variant->parameters) {
+                Type concrete = substitute(field.type, bindings, field.location, depth + 1);
+                validateType(concrete, field.location);
+                layout.args.push_back(std::move(concrete));
+            }
+        }
+        expandingEnums.erase(key);
+        result.type = layout; enumInstances.emplace(key, result);
+        return layout;
+    }
+
+    bool unresolved(const Type &t) {
+        if (t.kind == TypeKind::Named) return true;
+        for (const auto &argument : t.args) if (unresolved(argument)) return true;
+        return false;
+    }
+    Type substitute(Type t, const std::map<std::string, Type> &bindings, Location loc,
+                    unsigned depth = 0) {
+        if (depth > 64) fail(loc, "type expansion exceeds the supported limit");
+        if (t.kind == TypeKind::Named) {
+            auto found = bindings.find(t.name);
+            if (found != bindings.end() && t.args.empty()) return found->second;
+            auto definition = enumDeclaration(t.name, loc);
+            if (definition) {
+                std::vector<Type> arguments;
+                for (const auto &argument : t.args) arguments.push_back(substitute(argument, bindings, loc, depth + 1));
+                return enumType(definition, arguments, loc, depth + 1);
+            }
+            fail(loc, "unknown type '" + t.str() + "'");
+        }
+        for (auto &argument : t.args) argument = substitute(argument, bindings, loc, depth + 1);
+        return t;
+    }
+    Type partialType(Type t, const std::map<std::string, Type> &bindings, Location loc) {
+        if (t.kind == TypeKind::Named && t.args.empty() && bindings.count(t.name)) return bindings.at(t.name);
+        for (auto &argument : t.args) argument = partialType(argument, bindings, loc);
+        if (t.kind == TypeKind::Named && enumDeclaration(t.name, loc)) {
+            bool concrete = true;
+            for (const auto &argument : t.args) concrete = concrete && !unresolved(argument);
+            if (concrete) return substitute(t, bindings, loc);
+        }
+        return t;
+    }
+    ExprPtr cloneExpr(const ExprPtr &original, const std::map<std::string, Type> &bindings) {
+        if (!original) return {};
+        auto result = std::make_shared<Expr>(*original);
+        result->returnType = substitute(result->returnType, bindings, result->location);
+        for (auto &argument : result->typeArguments) argument = substitute(argument, bindings, result->location);
+        for (auto &parameter : result->parameters) parameter.type = substitute(parameter.type, bindings, parameter.location);
+        result->items.clear(); result->body.clear();
+        for (auto &item : original->items) result->items.push_back(cloneExpr(item, bindings));
+        for (auto &statement : original->body) result->body.push_back(cloneStmt(statement, bindings));
+        return result;
+    }
+    StmtPtr cloneStmt(const StmtPtr &original, const std::map<std::string, Type> &bindings) {
+        auto result = std::make_shared<Stmt>(*original);
+        result->type = substitute(result->type, bindings, result->location);
+        result->returnType = substitute(result->returnType, bindings, result->location);
+        for (auto &parameter : result->parameters) parameter.type = substitute(parameter.type, bindings, parameter.location);
+        result->expression = cloneExpr(original->expression, bindings);
+        result->target = cloneExpr(original->target, bindings);
+        result->other = cloneExpr(original->other, bindings);
+        result->body.clear(); result->elseBody.clear();
+        for (auto &item : original->body) result->body.push_back(cloneStmt(item, bindings));
+        for (auto &item : original->elseBody) result->elseBody.push_back(cloneStmt(item, bindings));
+        return result;
+    }
+    void infer(const Type &pattern, const Type &actual, const std::set<std::string> &variables,
+               std::map<std::string, Type> &bindings, Location loc) {
+        if (pattern.kind == TypeKind::Named && pattern.args.empty() && variables.count(pattern.name)) {
+            auto found = bindings.find(pattern.name);
+            if (found != bindings.end()) require(actual, found->second, loc, "type parameter '" + pattern.name + "'");
+            else bindings[pattern.name] = actual;
+            return;
+        }
+        if (pattern.kind == TypeKind::Named && !actual.name.empty() && enumInstances.count(actual.name)) {
+            const auto &instance = enumInstances.at(actual.name);
+            auto definition = enumDeclaration(pattern.name, loc);
+            if (!definition || definition != instance.declaration || pattern.args.size() != instance.arguments.size())
+                fail(loc, "generic enum argument does not match " + pattern.str());
+            for (size_t i = 0; i < pattern.args.size(); ++i) infer(pattern.args[i], instance.arguments[i], variables, bindings, loc);
+            return;
+        }
+        if (pattern.kind != actual.kind || pattern.name != actual.name || pattern.args.size() != actual.args.size())
+            fail(loc, "generic argument does not match " + pattern.str() + ": received " + actual.str());
+        for (size_t i = 0; i < pattern.args.size(); ++i) infer(pattern.args[i], actual.args[i], variables, bindings, loc);
+    }
+    Declaration specialize(const Declaration &generic, const std::vector<Type> &explicitTypes,
+                           const std::vector<int> *arguments, const Type *expected, Location loc) {
+        auto definition = generic.ast;
+        const auto variables = std::set<std::string>(definition->typeParameters.begin(), definition->typeParameters.end());
+        std::map<std::string, Type> bindings;
+        if (!explicitTypes.empty()) {
+            if (explicitTypes.size() != definition->typeParameters.size()) fail(loc, "wrong number of generic type arguments");
+            for (size_t i = 0; i < explicitTypes.size(); ++i) bindings[definition->typeParameters[i]] = explicitTypes[i];
+        }
+        if (arguments) {
+            if (arguments->size() != definition->parameters.size()) fail(loc, "wrong number of generic function arguments");
+            for (size_t i = 0; i < arguments->size(); ++i) infer(definition->parameters[i].type, type((*arguments)[i]), variables, bindings, definition->parameters[i].location);
+        }
+        if (expected) infer(definition->returnType, *expected, variables, bindings, definition->location);
+        std::string key = generic.irName;
+        for (auto &variable : definition->typeParameters) {
+            if (!bindings.count(variable)) fail(loc, "cannot infer type parameter '" + variable + "'; use explicit ::[types]");
+            validateType(bindings.at(variable), loc);
+            key += "[" + bindings.at(variable).str() + "]";
+        }
+        auto cached = specializations.find(key);
+        if (cached != specializations.end()) return cached->second;
+        if (specializations.size() >= 256) fail(loc, "generic specialization limit (256) exceeded");
+        if (instantiationDepth >= 64) fail(loc, "generic instantiation depth limit (64) exceeded");
+        auto concrete = cloneStmt(definition, bindings);
+        concrete->typeParameters.clear();
+        std::vector<Type> parameters;
+        for (const auto &parameter : concrete->parameters) parameters.push_back(parameter.type);
+        Declaration result{concrete, "generic_" + std::to_string(specializations.size()) + "_" + definition->name,
+                           generic.file, Type::function(parameters, concrete->returnType)};
+        specializations.emplace(key, result);
+        ++instantiationDepth;
+        compileFunction(result.irName, concrete->parameters, concrete->returnType, concrete->body, {},
+                        concrete->kind == Stmt::Kind::Word, concrete->location);
+        --instantiationDepth;
+        return result;
+    }
 
     Function &fn() {
         return program.functions[context->function];
@@ -74,25 +266,27 @@ class Compiler {
             "true",   "false",    "and",    "or",        "not",       "dup",        "swap",
             "drop",   "over",     "rot",    "neg",       "ok",        "err",        "is_ok",
             "unwrap", "error",    "range",  "alloc_i64", "alloc_f64", "alloc_bool", "free",
-            "load",   "store",    "cstr",   "pin",       "unpin"};
+            "load",   "store",    "cstr",   "pin",       "unpin", "enum", "task", "spawn", "join", "c_callback", "offset"};
         return names.count(name) != 0;
     }
     bool cScalar(const Type &t) {
         return t == I64 || t == F64 || t == Bool || t.kind == TypeKind::Pointer;
     }
     bool cType(const Type &t) {
+        if (!t.name.empty()) return false;
         if (cScalar(t))
             return true;
         if (t.kind != TypeKind::Tuple || t.args.empty())
             return false;
         for (const auto &field : t.args)
-            if (!cScalar(field))
+            if (!cType(field))
                 return false;
         return true;
     }
     void validateType(const Type &t, Location loc, bool allowUnit = false, unsigned depth = 0) {
         if (depth > 64)
             fail(loc, "type nesting exceeds the supported limit");
+        if (t.kind == TypeKind::Named) fail(loc, "unresolved type '" + t.str() + "'");
         if (t == Unit) {
             if (!allowUnit)
                 fail(loc,
@@ -112,6 +306,10 @@ class Compiler {
                 fail(loc, "pointer type requires one element type");
             validateType(t.args[0], loc, true, depth + 1);
             return;
+        }
+        if (t.kind == TypeKind::Task) {
+            if (t.args.size() != 1) fail(loc, "task type requires one result type");
+            validateType(t.args[0], loc, true, depth + 1); return;
         }
         for (const auto &element : t.args)
             validateType(element, loc, false, depth + 1);
@@ -243,13 +441,13 @@ class Compiler {
             if (statement->kind == Stmt::Kind::Match) {
                 bool wildcard = false, all = true, yes = false, no = false, ok = false, err = false;
                 for (auto &arm : statement->body) {
-                    wildcard = wildcard || arm->name == "_" || irrefutable(arm->expression);
+                    wildcard = wildcard || (!arm->other && (arm->name == "_" || irrefutable(arm->expression)));
                     all = all && returns(arm->body, loopExit);
-                    if (arm->expression && arm->expression->kind == Expr::Kind::Boolean) {
+                    if (!arm->other && arm->expression && arm->expression->kind == Expr::Kind::Boolean) {
                         yes = yes || arm->expression->integer != 0;
                         no = no || arm->expression->integer == 0;
                     }
-                    if (arm->expression && arm->expression->kind == Expr::Kind::Call &&
+                    if (!arm->other && arm->expression && arm->expression->kind == Expr::Kind::Call &&
                         arm->expression->items.size() == 2 &&
                         arm->expression->items[0]->kind == Expr::Kind::Name &&
                         irrefutable(arm->expression->items[1])) {
@@ -257,7 +455,7 @@ class Compiler {
                         err = err || arm->expression->items[0]->text == "err";
                     }
                 }
-                if ((wildcard || (yes && no) || (ok && err)) && all)
+                if ((statement->exhaustive || wildcard || (yes && no) || (ok && err)) && all)
                     return true;
             }
         }
@@ -275,10 +473,69 @@ class Compiler {
                 return false;
         return true;
     }
+    bool exhaustiveMatrix(const std::vector<std::vector<ExprPtr>> &rows,
+                          const std::vector<Type> &columns, Location loc,
+                          unsigned &budget, unsigned depth = 0) {
+        if (!budget-- || depth > 128) fail(loc, "pattern exhaustiveness analysis limit exceeded");
+        if (rows.empty()) return false;
+        if (columns.empty()) return true;
+        auto wildcard = [](const ExprPtr &p) { return !p || p->kind == Expr::Kind::Name; };
+        for (const auto &row : rows) {
+            bool all = true;
+            for (const auto &p : row) all = all && wildcard(p);
+            if (all) return true;
+        }
+        const Type &subject = columns[0];
+        const EnumInstance *instance = nullptr;
+        if (enumInstances.count(subject.name)) instance = &enumInstances.at(subject.name);
+        const bool tuple = subject.kind == TypeKind::Tuple && subject.name.empty();
+        const bool result = subject.kind == TypeKind::Result;
+        const bool booleanType = subject == Bool;
+        size_t variants = instance ? instance->declaration->body.size() : tuple ? 1 : (result || booleanType) ? 2 : 0;
+        if (!variants) {
+            std::vector<std::vector<ExprPtr>> remaining;
+            for (const auto &row : rows) if (wildcard(row[0])) remaining.emplace_back(row.begin() + 1, row.end());
+            return exhaustiveMatrix(remaining, {columns.begin() + 1, columns.end()}, loc, budget, depth + 1);
+        }
+        for (size_t variant = 0; variant < variants; ++variant) {
+            std::vector<Type> fields;
+            if (tuple) fields = subject.args;
+            else if (result) fields = {subject.args[variant]};
+            else if (instance) {
+                size_t offset = instance->offsets[variant];
+                for (size_t i = 0; i < instance->declaration->body[variant]->parameters.size(); ++i) fields.push_back(subject.args[offset + i]);
+            }
+            std::vector<std::vector<ExprPtr>> specialized;
+            for (const auto &row : rows) {
+                auto pattern = row[0];
+                std::vector<ExprPtr> payload;
+                bool matches = wildcard(pattern);
+                if (matches) payload.resize(fields.size());
+                else if (tuple && pattern->kind == Expr::Kind::Tuple) { matches = true; payload = pattern->items; }
+                else if (booleanType && pattern->kind == Expr::Kind::Boolean) matches = (pattern->integer != 0) == (variant != 0);
+                else if (pattern->kind == Expr::Kind::Call && !pattern->items.empty() && pattern->items[0]->kind == Expr::Kind::Name) {
+                    auto name = pattern->items[0]->text;
+                    if (result) matches = name == (variant == 0 ? "ok" : "err");
+                    else if (instance) {
+                        auto target = constructor(name, pattern->location);
+                        matches = target.first == instance->declaration && target.second == variant;
+                    }
+                    if (matches) payload.assign(pattern->items.begin() + 1, pattern->items.end());
+                }
+                if (matches) {
+                    payload.insert(payload.end(), row.begin() + 1, row.end());
+                    specialized.push_back(std::move(payload));
+                }
+            }
+            fields.insert(fields.end(), columns.begin() + 1, columns.end());
+            if (!exhaustiveMatrix(specialized, fields, loc, budget, depth + 1)) return false;
+        }
+        return true;
+    }
     std::vector<Type> outputs(const Type &result) {
         if (result == Unit)
             return {};
-        if (result.kind == TypeKind::Tuple)
+        if (result.kind == TypeKind::Tuple && result.name.empty())
             return result.args;
         return {result};
     }
@@ -293,7 +550,7 @@ class Compiler {
         context->stack.resize(context->stack.size() - expected.size());
         if (result == Unit)
             return -1;
-        if (result.kind == TypeKind::Tuple)
+        if (result.kind == TypeKind::Tuple && result.name.empty())
             return emit(Op::MakeTuple, result, values, loc);
         return values.front();
     }
@@ -354,9 +611,44 @@ class Compiler {
     }
     int invoke(const std::string &name, std::vector<int> arguments, Location loc,
                const Type *expected = nullptr) {
+        if (name == "spawn") {
+            if (arguments.size() != 1 || type(arguments[0]).kind != TypeKind::Function || type(arguments[0]).args.size() != 1)
+                fail(loc, "spawn requires one zero-argument function");
+            auto transferable = [&](const auto &self, const Type &t) -> bool {
+                if (t.kind == TypeKind::Pointer || t.kind == TypeKind::Task) return false;
+                for (const auto &argument : t.args) if (!self(self, argument)) return false;
+                return true;
+            };
+            Type result = type(arguments[0]).args[0];
+            if (!transferable(transferable, result)) fail(loc, "spawn result cannot contain raw pointers or tasks");
+            std::set<int> examined;
+            auto inspectClosure = [&](const auto &self, int value) -> void {
+                if (!examined.insert(value).second) return;
+                for (const auto &instruction : fn().code) {
+                    if (instruction.dst == value) {
+                        if (instruction.op == Op::MakeClosure) {
+                            for (int capture : instruction.args) {
+                                if (!transferable(transferable, type(capture))) fail(loc, "spawn captures cannot contain raw pointers or tasks");
+                                self(self, capture);
+                            }
+                        } else if (instruction.op == Op::LoadCell || instruction.op == Op::MakeCell || instruction.op == Op::Move) {
+                            for (int input : instruction.args) self(self, input);
+                        }
+                    }
+                    if (instruction.op == Op::StoreCell && instruction.args.size() == 2 && instruction.args[0] == value) self(self, instruction.args[1]);
+                }
+            };
+            inspectClosure(inspectClosure, arguments[0]);
+            return emit(Op::Spawn, Type{TypeKind::Task, {result}}, arguments, loc);
+        }
+        if (name == "join") {
+            if (arguments.size() != 1 || type(arguments[0]).kind != TypeKind::Task || type(arguments[0]).args.size() != 1)
+                fail(loc, "join requires one task");
+            return emit(Op::Join, type(arguments[0]).args[0], arguments, loc);
+        }
         if (name == "alloc_i64" || name == "alloc_f64" || name == "alloc_bool" || name == "free" ||
             name == "load" || name == "store" || name == "cstr" || name == "pin" ||
-            name == "unpin") {
+            name == "unpin" || name == "offset") {
             if (!context->unsafeMode)
                 fail(loc, "'" + name + "' requires an explicit unsafe: block");
             if (name == "alloc_i64" || name == "alloc_f64" || name == "alloc_bool") {
@@ -387,6 +679,13 @@ class Compiler {
                 return -1;
             }
             Type element = type(arguments[0]).args[0];
+            if (name == "offset") {
+                if (arguments.size() != 2) fail(loc, "offset expects a pointer and an element offset");
+                require(type(arguments[1]), I64, loc, "pointer offset");
+                if (element != Unit && element != I64 && element != F64 && element != Bool && element.kind != TypeKind::Pointer)
+                    fail(loc, "offset requires a scalar pointer or ptr[unit] byte pointer");
+                return emit(Op::RawOffset, type(arguments[0]), arguments, loc);
+            }
             if (element != I64 && element != F64 && element != Bool &&
                 element.kind != TypeKind::Pointer)
                 fail(loc, "pointer load/store requires a concrete scalar element type");
@@ -424,6 +723,7 @@ class Compiler {
             if (arguments.size() != 1)
                 fail(loc, "len expects one argument");
             Type t = type(arguments[0]);
+            if (!t.name.empty()) fail(loc, "len does not expose enum representation");
             if (t.kind != TypeKind::Array && t.kind != TypeKind::Tuple && t != String)
                 fail(loc, "len requires array, tuple, or string");
             return emit(Op::Length, I64, arguments, loc);
@@ -491,7 +791,9 @@ class Compiler {
             return indirect(closure, std::move(arguments), loc);
         }
         if (auto *target = declaration(name, loc)) {
-            auto params = target->type.args;
+            Declaration resolved = *target;
+            if (!resolved.ast->typeParameters.empty()) resolved = specialize(resolved, {}, &arguments, expected, loc);
+            auto params = resolved.type.args;
             Type result = params.back();
             params.pop_back();
             if (arguments.size() != params.size())
@@ -501,7 +803,7 @@ class Compiler {
                 require(type(arguments[i]), params[i], loc,
                         "argument " + std::to_string(i + 1) + " of '" + name + "'");
             int value = emit(Op::Call, result, arguments, loc);
-            fn().code.back().text = target->irName;
+            fn().code.back().text = resolved.irName;
             return value;
         }
         if (auto *resolved = external(name, loc)) {
@@ -562,6 +864,7 @@ class Compiler {
             return result;
         }
         if (auto *target = declaration(name, loc)) {
+            if (!target->ast->typeParameters.empty()) return {};
             auto result = target->type.args;
             result.pop_back();
             return result;
@@ -569,6 +872,50 @@ class Compiler {
         if (auto *native = external(name, loc))
             return native->parameters;
         return {};
+    }
+    int construct(const std::pair<StmtPtr, size_t> &target, const std::vector<Type> &explicitTypes,
+                  const std::vector<ExprPtr> &arguments, const Type *expected, Location loc) {
+        const auto &definition = target.first;
+        const auto &variant = definition->body.at(target.second);
+        if (arguments.size() != variant->parameters.size()) fail(loc, "wrong number of constructor arguments for '" + variant->name + "'");
+        std::set<std::string> variables(definition->typeParameters.begin(), definition->typeParameters.end());
+        std::map<std::string, Type> bindings;
+        if (expected && enumInstances.count(expected->name)) {
+            const auto &instance = enumInstances.at(expected->name);
+            if (instance.declaration != definition) fail(loc, "constructor does not belong to the expected enum");
+            for (size_t i = 0; i < instance.arguments.size(); ++i) bindings[definition->typeParameters[i]] = instance.arguments[i];
+        }
+        if (!explicitTypes.empty()) {
+            if (explicitTypes.size() != definition->typeParameters.size()) fail(loc, "wrong number of enum type arguments");
+            for (size_t i = 0; i < explicitTypes.size(); ++i) {
+                const auto &name = definition->typeParameters[i];
+                if (bindings.count(name)) require(explicitTypes[i], bindings.at(name), loc, "enum type argument");
+                bindings[name] = explicitTypes[i];
+            }
+        }
+        std::vector<int> values;
+        for (size_t i = 0; i < arguments.size(); ++i) {
+            const auto &parameter = variant->parameters[i];
+            Type hint = partialType(parameter.type, bindings, parameter.location);
+            values.push_back(expr(arguments[i], unresolved(hint) ? nullptr : &hint));
+            infer(parameter.type, type(values.back()), variables, bindings, parameter.location);
+        }
+        std::vector<Type> types;
+        for (const auto &name : definition->typeParameters) {
+            if (!bindings.count(name)) fail(loc, "cannot infer enum type parameter '" + name + "'; annotate the value or use ::[types]");
+            types.push_back(bindings.at(name));
+        }
+        Type layout = enumType(definition, types, loc, 0);
+        const auto &instance = enumInstances.at(layout.name);
+        std::vector<int> fields{integer(static_cast<int64_t>(target.second), loc)};
+        const size_t offset = instance.offsets.at(target.second);
+        for (size_t i = 1; i < layout.args.size(); ++i) {
+            if (i >= offset && i < offset + values.size()) {
+                require(type(values[i - offset]), layout.args[i], loc, "constructor payload");
+                fields.push_back(values[i - offset]);
+            } else fields.push_back(emit(Op::Zero, layout.args[i], {}, loc));
+        }
+        return emit(Op::MakeTuple, layout, fields, loc);
     }
     int expr(const ExprPtr &expression, const Type *expected = nullptr) {
         if (!expression)
@@ -593,6 +940,7 @@ class Compiler {
                 return emit(Op::LoadCell, v.type, {v.cell}, loc);
             }
             if (auto *target = declaration(e.text, loc)) {
+                if (!target->ast->typeParameters.empty()) fail(loc, "generic function values need explicit ::[types]");
                 int r = emit(Op::MakeClosure, target->type, {}, loc);
                 fn().code.back().text = target->irName;
                 return r;
@@ -656,6 +1004,56 @@ class Compiler {
         case Expr::Kind::Call: {
             auto callee = e.items.at(0);
             std::vector<int> arguments;
+            auto constructorName = callee;
+            std::vector<Type> constructorTypes;
+            if (callee->kind == Expr::Kind::TypeApply) { constructorTypes = callee->typeArguments; constructorName = callee->items.at(0); }
+            if (constructorName->kind == Expr::Kind::Name && !binding(constructorName->text)) {
+                auto target = constructor(constructorName->text, loc);
+                if (target.first) return construct(target, constructorTypes, {e.items.begin() + 1, e.items.end()}, expected, loc);
+            }
+            if (callee->kind == Expr::Kind::Name && callee->text == "c_callback") {
+                if (!context->unsafeMode) fail(loc, "c_callback requires an explicit unsafe: block");
+                if (e.items.size() != 2) fail(loc, "c_callback expects one named source function");
+                auto source = e.items[1];
+                std::vector<Type> typeArguments;
+                if (source->kind == Expr::Kind::TypeApply) { typeArguments = source->typeArguments; source = source->items.at(0); }
+                if (source->kind != Expr::Kind::Name || binding(source->text)) fail(loc, "c_callback requires a noncapturing module-level function");
+                auto *declared = declaration(source->text, loc);
+                if (!declared || declared->ast->kind != Stmt::Kind::Function) fail(loc, "c_callback requires a named structured source function");
+                Declaration target = *declared;
+                if (!target.ast->typeParameters.empty()) {
+                    if (typeArguments.empty()) fail(loc, "generic callbacks require explicit ::[types]");
+                    target = specialize(target, typeArguments, nullptr, nullptr, loc);
+                } else if (!typeArguments.empty()) fail(loc, "callback type arguments require a generic function");
+                auto signature = target.type.args;
+                Type result = signature.back(); signature.pop_back();
+                if (result != Unit && !cScalar(result)) fail(loc, "C callbacks require scalar/pointer or unit results");
+                for (const auto &parameter : signature) if (!cScalar(parameter)) fail(loc, "C callbacks require scalar/pointer parameters");
+                int callback = emit(Op::CCallback, Type{TypeKind::Pointer, {Unit}}, {}, loc);
+                fn().code.back().text = target.irName;
+                return callback;
+            }
+            if (callee->kind == Expr::Kind::Name && !binding(callee->text)) {
+                if (auto *target = declaration(callee->text, loc)) {
+                    if (!target->ast->typeParameters.empty()) {
+                        std::map<std::string, Type> bindings;
+                        const auto variables = std::set<std::string>(target->ast->typeParameters.begin(), target->ast->typeParameters.end());
+                        if (expected) infer(target->ast->returnType, *expected, variables, bindings, target->ast->location);
+                        for (size_t i = 1; i < e.items.size(); ++i) {
+                            Type hint;
+                            const Type *expectedArgument = nullptr;
+                            if (i <= target->ast->parameters.size()) {
+                                const auto &parameter = target->ast->parameters[i - 1];
+                                hint = partialType(parameter.type, bindings, parameter.location);
+                                if (hint != Unit && !unresolved(hint)) expectedArgument = &hint;
+                            }
+                            arguments.push_back(expr(e.items[i], expectedArgument));
+                            if (i <= target->ast->parameters.size()) infer(target->ast->parameters[i - 1].type, type(arguments.back()), variables, bindings, target->ast->parameters[i - 1].location);
+                        }
+                        return invoke(callee->text, arguments, loc, expected);
+                    }
+                }
+            }
             if (callee->kind == Expr::Kind::Name) {
                 auto parameters = parameterTypes(callee->text, loc, expected);
                 if (auto *local = binding(callee->text)) {
@@ -681,6 +1079,31 @@ class Compiler {
                 arguments.push_back(
                     expr(e.items[i], i - 1 < parameters.size() ? &parameters[i - 1] : nullptr));
             return indirect(callable, arguments, loc);
+        }
+        case Expr::Kind::TypeApply: {
+            auto name = e.items.at(0);
+            if (name->kind != Expr::Kind::Name || binding(name->text)) fail(loc, "type application requires a module-level generic function");
+            auto *target = declaration(name->text, loc);
+            if (!target || target->ast->typeParameters.empty()) fail(loc, "type application requires a generic function");
+            auto concrete = specialize(*target, e.typeArguments, nullptr, nullptr, loc);
+            int result = emit(Op::MakeClosure, concrete.type, {}, loc);
+            fn().code.back().text = concrete.irName;
+            return result;
+        }
+        case Expr::Kind::Propagate: {
+            int value = expr(e.items.at(0));
+            Type source = type(value), destination = fn().result;
+            if (source.kind != TypeKind::Result || destination.kind != TypeKind::Result)
+                fail(loc, "Result propagation requires a Result operand and Result-returning function");
+            if (!context->stack.empty()) fail(loc, "Result propagation requires an empty shared operand stack");
+            require(source.args[1], destination.args[1], loc, "propagated error");
+            int good = emit(Op::Index, Bool, {value, integer(0, loc)}, loc);
+            size_t success = jump(Op::JumpFalse, emit(Op::Not, Bool, {good}, loc), loc);
+            int error = emit(Op::ResultError, source.args[1], {value}, loc);
+            int returned = invoke("err", {error}, loc, &destination);
+            emit(Op::Return, Unit, {returned}, loc);
+            patch(success, position());
+            return emit(Op::Unwrap, source.args[0], {value}, loc);
         }
         case Expr::Kind::Array: {
             std::vector<int> values;
@@ -726,7 +1149,7 @@ class Compiler {
                 result = t.args.at(0);
             else if (t == String)
                 result = I64;
-            else if (t.kind == TypeKind::Tuple) {
+            else if (t.kind == TypeKind::Tuple && t.name.empty()) {
                 if (e.items[1]->kind != Expr::Kind::Integer)
                     fail(loc, "tuple index must be an integer literal");
                 int64_t i = e.items[1]->integer;
@@ -814,10 +1237,11 @@ class Compiler {
                 std::vector<int> args(context->stack.end() - count, context->stack.end());
                 context->stack.resize(context->stack.size() - count);
                 int value = invoke(name, args, loc);
-                if (target->ast->returnType.kind == TypeKind::Tuple)
-                    for (size_t i = 0; i < target->ast->returnType.args.size(); ++i)
+                Type result = type(value);
+                if (result.kind == TypeKind::Tuple && result.name.empty())
+                    for (size_t i = 0; i < result.args.size(); ++i)
                         context->stack.push_back(
-                            emit(Op::Index, target->ast->returnType.args[i],
+                            emit(Op::Index, result.args[i],
                                  {value, integer(static_cast<int64_t>(i), loc)}, loc));
                 else if (value >= 0)
                     context->stack.push_back(value);
@@ -988,7 +1412,7 @@ class Compiler {
         }
         if (p.kind == Expr::Kind::Tuple || p.kind == Expr::Kind::Array) {
             bool tuple = p.kind == Expr::Kind::Tuple;
-            if ((tuple && subjectType.kind != TypeKind::Tuple) ||
+            if ((tuple && (subjectType.kind != TypeKind::Tuple || !subjectType.name.empty())) ||
                 (!tuple && subjectType.kind != TypeKind::Array))
                 fail(p.location, "pattern kind does not match subject type");
             if (tuple && p.items.size() != subjectType.args.size())
@@ -1010,6 +1434,20 @@ class Compiler {
         if (p.kind == Expr::Kind::Call && !p.items.empty() &&
             p.items[0]->kind == Expr::Kind::Name) {
             auto name = p.items[0]->text;
+            if (!subjectType.name.empty() && enumInstances.count(subjectType.name)) {
+                const auto &instance = enumInstances.at(subjectType.name);
+                auto variant = constructor(name, p.location);
+                if (!variant.first || variant.first != instance.declaration) fail(p.location, "constructor does not belong to the matched enum");
+                const auto &fields = variant.first->body.at(variant.second)->parameters;
+                if (p.items.size() != fields.size() + 1) fail(p.location, "enum pattern has the wrong number of payloads");
+                guard(binary("==", emit(Op::Index, I64, {subject, integer(0, p.location)}, p.location), integer(static_cast<int64_t>(variant.second), p.location), p.location));
+                for (size_t i = 0; i < fields.size(); ++i) {
+                    size_t offset = instance.offsets.at(variant.second) + i;
+                    int field = emit(Op::Index, subjectType.args.at(offset), {subject, integer(static_cast<int64_t>(offset), p.location)}, p.location);
+                    pattern(p.items[i + 1], field, failures);
+                }
+                return false;
+            }
             if (name == "ok" || name == "err") {
                 if (subjectType.kind != TypeKind::Result || p.items.size() != 2)
                     fail(p.location, "Result pattern needs one payload and a Result subject");
@@ -1058,7 +1496,7 @@ class Compiler {
                 require(type(value), s.type, s.location, "initializer");
             }
             if (s.target && s.target->kind == Expr::Kind::Tuple) {
-                if (type(value).kind != TypeKind::Tuple ||
+                if (type(value).kind != TypeKind::Tuple || !type(value).name.empty() ||
                     type(value).args.size() != s.target->items.size())
                     fail(s.location, "tuple destructuring shape mismatch");
                 for (size_t i = 0; i < s.target->items.size(); ++i) {
@@ -1160,8 +1598,11 @@ class Compiler {
             break;
         }
         case Stmt::Kind::Function: {
+            if (!s.typeParameters.empty()) fail(s.location, "generic functions must be declared at module scope");
             if (reserved(s.name))
                 fail(s.location, "'" + s.name + "' is reserved for the language or runtime");
+            for (const auto &parameter : s.typeParameters)
+                if (reserved(parameter)) fail(s.location, "reserved generic type parameter '" + parameter + "'");
             if (context->scopes.back().count(s.name))
                 fail(s.location, "duplicate local name '" + s.name + "'");
             Expr lambda(Expr::Kind::Lambda, s.location);
@@ -1190,9 +1631,13 @@ class Compiler {
         }
         case Stmt::Kind::Extern:
         case Stmt::Kind::Import:
+        case Stmt::Kind::Enum:
             fail(s.location, "imports and extern declarations must be at module scope");
         case Stmt::Kind::Match: {
             int subject = expr(s.expression);
+            const EnumInstance *matchedEnum = nullptr;
+            if (enumInstances.count(type(subject).name)) matchedEnum = &enumInstances.at(type(subject).name);
+            std::set<size_t> coveredVariants;
             auto initial = context->stack;
             std::vector<size_t> exits;
             std::vector<int> joined;
@@ -1207,6 +1652,24 @@ class Compiler {
                     wildcard = true;
                 else
                     wildcard = pattern(arm->expression, subject, next);
+                if (matchedEnum && !arm->other && arm->expression && arm->expression->kind == Expr::Kind::Call && !arm->expression->items.empty()) {
+                    auto callee = arm->expression->items[0];
+                    if (callee->kind == Expr::Kind::Name) {
+                        auto variant = constructor(callee->text, callee->location);
+                        bool complete = variant.first == matchedEnum->declaration;
+                        if (complete && coveredVariants.count(variant.second)) fail(arm->location, "unreachable enum variant case");
+                        for (size_t i = 1; i < arm->expression->items.size(); ++i) complete = complete && irrefutable(arm->expression->items[i]);
+                        if (complete) coveredVariants.insert(variant.second);
+                    }
+                }
+                if (arm->other) {
+                    auto beforeGuard = context->stack;
+                    int condition = expr(arm->other);
+                    require(type(condition), Bool, arm->other->location, "match guard");
+                    if (context->stack != beforeGuard) fail(arm->other->location, "match guard must preserve the operand stack");
+                    next.push_back(jump(Op::JumpFalse, condition, arm->other->location));
+                    wildcard = false;
+                }
                 block(arm->body, false);
                 if (!returns(arm->body, true)) {
                     if (!haveJoin) {
@@ -1220,7 +1683,14 @@ class Compiler {
                 for (size_t branch : next)
                     patch(branch, position());
             }
-            if (!wildcard && returns(std::vector<StmtPtr>{statementValue}, true))
+            std::vector<std::vector<ExprPtr>> patternRows;
+            for (const auto &arm : s.body) if (!arm->other) patternRows.push_back({arm->expression});
+            unsigned analysisBudget = 8192;
+            statementValue->exhaustive = exhaustiveMatrix(patternRows, {type(subject)}, s.location, analysisBudget);
+            if (matchedEnum) {
+                if (!statementValue->exhaustive) fail(s.location, "non-exhaustive enum match; cover every variant or add an unguarded wildcard");
+            }
+            if (!wildcard && (statementValue->exhaustive || returns(std::vector<StmtPtr>{statementValue}, true)))
                 emit(Op::Panic, Unit, {string("exhaustive match invariant failed", s.location)},
                      s.location);
             else if (!wildcard) {
@@ -1304,8 +1774,30 @@ class Compiler {
   public:
     Program run(const SyntaxTree &tree) {
         program.sourceFile = tree.filename;
+        for (const auto &statement : tree.statements)
+            if (statement->kind == Stmt::Kind::Import) imports[statement->location.file].insert(statement->name);
+        for (const auto &statement : tree.statements) {
+            if (statement->kind != Stmt::Kind::Enum) continue;
+            const auto &s = *statement;
+            const std::string key = s.location.file + "::" + s.name;
+            if (reserved(s.name) || enumDeclarations.count(key)) fail(s.location, "duplicate or reserved enum name '" + s.name + "'");
+            for (const auto &parameter : s.typeParameters) if (reserved(parameter)) fail(s.location, "reserved enum type parameter '" + parameter + "'");
+            enumDeclarations[key] = statement;
+            if (s.exported) exportedEnums[s.name].push_back(key);
+            for (size_t i = 0; i < s.body.size(); ++i) {
+                const auto &variant = s.body[i];
+                std::string variantKey = s.location.file + "::" + variant->name;
+                if (reserved(variant->name) || constructors.count(variantKey)) fail(variant->location, "duplicate or reserved constructor name '" + variant->name + "'");
+                constructors[variantKey] = {key, i};
+                if (s.exported) exportedConstructors[variant->name].push_back(variantKey);
+            }
+        }
+        for (const auto &item : enumDeclarations)
+            if (item.second->typeParameters.empty()) enumType(item.second, {}, item.second->location, 0);
         for (auto &statement : tree.statements) {
-            auto &s = *statement;
+            auto resolvedStatement = statement->kind == Stmt::Kind::Extern ? cloneStmt(statement, {}) : statement;
+            auto &s = *resolvedStatement;
+            if (s.kind == Stmt::Kind::Enum) continue;
             if (s.kind == Stmt::Kind::Import) {
                 imports[s.location.file].insert(s.name);
                 continue;
@@ -1333,7 +1825,7 @@ class Compiler {
                     ext.parameters.push_back(p.type);
                 }
                 std::string externalKey = s.location.file + "::" + s.name;
-                if (externals.count(externalKey) || byModule.count(externalKey))
+                if (externals.count(externalKey) || byModule.count(externalKey) || constructors.count(externalKey))
                     fail(s.location, "duplicate extern declaration");
                 for (const auto &previous : program.externals)
                     if (previous.symbol == ext.symbol &&
@@ -1350,13 +1842,16 @@ class Compiler {
             if (s.kind != Stmt::Kind::Function && s.kind != Stmt::Kind::Word)
                 fail(s.location,
                      "module scope accepts functions, words, imports and extern declarations");
+            for (const auto &parameter : s.typeParameters)
+                if (reserved(parameter)) fail(s.location, "reserved generic type parameter '" + parameter + "'");
             if (reserved(s.name))
                 fail(s.location, "'" + s.name + "' is reserved for the language or runtime");
             std::string key = s.location.file + "::" + s.name;
-            if (byModule.count(key) || externals.count(key))
+            if (byModule.count(key) || externals.count(key) || constructors.count(key))
                 fail(s.location, "duplicate function or word '" + s.name + "'");
+            auto definition = s.typeParameters.empty() ? cloneStmt(statement, {}) : statement;
             std::vector<Type> params;
-            for (auto &parameter : s.parameters)
+            for (auto &parameter : definition->parameters)
                 params.push_back(parameter.type);
             std::string irName = "m" + std::to_string(declarations.size()) + "_" + s.name;
             if (s.name == "main" && s.location.file == tree.filename) {
@@ -1369,12 +1864,12 @@ class Compiler {
             if (s.exported)
                 exported[s.name].push_back(index);
             declarations.push_back(
-                {statement, irName, s.location.file, Type::function(params, s.returnType)});
+                {definition, irName, s.location.file, Type::function(params, definition->returnType)});
         }
         if (!byModule.count(tree.filename + "::main"))
             fail({tree.filename, 1, 1}, "program requires fun main() -> unit or i64");
         for (auto &d : declarations)
-            compileFunction(d.irName, d.ast->parameters, d.ast->returnType, d.ast->body, {},
+            if (d.ast->typeParameters.empty()) compileFunction(d.irName, d.ast->parameters, d.ast->returnType, d.ast->body, {},
                             d.ast->kind == Stmt::Kind::Word, d.ast->location);
         verify(program);
         return std::move(program);
