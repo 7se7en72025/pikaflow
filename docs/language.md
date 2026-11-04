@@ -87,6 +87,11 @@ ordering, addition/subtraction, multiplication/division/remainder, unary
 operators, calls/indexing. Binary operators at the same level associate left.
 Arguments and operands evaluate left-to-right; a callable expression is
 evaluated before its arguments.
+Compound assignments `+=`, `-=`, `*=`, `/=` and `%=` work on mutable locals and
+array elements. An indexed target evaluates its base and index once, reads the
+old element, evaluates the right-hand side, computes the checked operation and
+stores the result. Thus `get_array()[next_index()] += amount()` preserves that
+left-to-right order even when all three expressions have side effects.
 
 Pipelines insert the left-hand value as the first argument. That value is
 evaluated once:
@@ -169,8 +174,11 @@ Patterns can nest: `case [(first, second), (_, last)]:` matches an array contain
 two tuples. Array patterns require an exact length; a length mismatch tries the
 next case before indexing. `range(low, high)` excludes its upper endpoint.
 Pattern-bound names are local to that case body. Tuple values can also be
-destructured with `let (a, b) = expression`. Pattern guards and general user-defined
-algebraic data types are not implemented.
+destructured with `let (a, b) = expression`. `case pattern if condition:` adds a
+boolean guard. Nominal `enum` declarations support generic and recursive payloads;
+their matches are checked for exhaustiveness, including nested enum/tuple/bool/
+Result combinations. Guarded cases do not establish coverage. See the
+[generic/ADT reference](language-extensions.md) for constructors and examples.
 
 ## Typed stack programming
 
@@ -241,12 +249,14 @@ testing. Foreign `ptr` values are not automatically owned or traced.
 
 Foreign-memory operations require an explicit `unsafe:` block. The available
 built-ins are `alloc_i64(count)`, `alloc_f64(count)`, `alloc_bool(count)`,
-`load(pointer, index)`, `store(pointer, index, value)`, and `free(pointer)`.
-Allocations must be freed explicitly. The runtime checks its own allocation
-bounds and invalid/released allocation references; `unsafe` is still an explicit
-boundary for foreign ownership and lifetime obligations.
-The current load/store/free helpers operate on allocations created by these
-allocation helpers, not arbitrary addresses returned by a foreign library.
+`load(pointer, index)`, `store(pointer, index, value)`, `offset(pointer, elements)`
+and `free(pointer)`. Allocations must be freed explicitly. The runtime checks
+its own allocation bounds, type and alignment, including interior/one-past offsets.
+Foreign pointers have no allocation metadata: validity, bounds, aliasing and
+lifetime remain the unsafe caller's responsibility. `ptr[unit]` uses byte
+offsets. A one-past pointer can be formed but not dereferenced. Stale-pointer
+detection is not a use-after-free guarantee. `free` accepts only the original base
+of a runtime-owned block; foreign allocations require their matching foreign API.
 
 ```text
 unsafe:
@@ -275,17 +285,33 @@ fun divide(a: i64, b: i64) -> Result[i64, str]:
 `error(result)` extracts a failure payload. Accessing the inactive alternative
 terminates with a runtime diagnostic. `err(...)` requires an expected
 `Result[T,E]` type from an annotation or return signature. Result alternatives may
-include arrays, tuples, and other supported value types. General user-defined
-algebraic data types and `?` propagation syntax are not implemented.
+include arrays, tuples, user-defined recursive enums and other supported values.
+Postfix `?` extracts an `ok` payload or immediately returns `err` from the
+enclosing Result-returning function. Error types must match; success types may
+differ. The shared operand stack must be empty at propagation, matching the
+structured-return contract. This is checked control flow, not exception unwinding.
 
 ## Modules and foreign calls
 
 `import "relative/path.pf"` loads another source file relative to the importer.
 `import "std:numeric"`, `"std:sequences"`, and `"std:strings"` resolve the bundled
 source library in development builds and installed compiler layouts.
-`export fun ...` and `export word ...` expose symbols; other declarations stay
-private. Import cycles and ambiguous exported names diagnose. Named import aliases
-are parsed but explicitly rejected by the compiler.
+`export fun ...`, `export word ...`, `export extern fun ...` and `export enum ...`
+expose declarations; other declarations stay private. Import cycles and ambiguous
+exported names diagnose. A named import exposes the target's exports under a
+namespace rather than adding them to the unqualified lookup set:
+
+```text
+import "modules/math.pf" as math
+fun main() -> unit:
+    print(math.twice(21))
+```
+
+Namespaces also qualify generic functions (`math.identity::[i64](42)`), enum types
+(`types.Option[i64]`), constructors/patterns (`types.Some(value)`), exported externs
+and bare stack words. Only directly exported declarations are accessible;
+aliases do not bypass privacy or expose transitive imports. Aliases must be
+unique non-reserved names in their module and cannot be reused for its bindings.
 Extern source aliases are also module-local; an imported module's private extern
 declaration is not exposed to its importer. Export an ordinary wrapper function
 when a module needs to offer a checked interface around foreign code.
@@ -305,15 +331,17 @@ The alias is the name used in PikaFlow calls; the string is the actual linker/JI
 symbol. Empty symbols and embedded NUL bytes are rejected.
 
 Extern declarations use the platform C calling convention. Scalar/pointer
-signatures, bounded flat C-record tuples, and supported variadic promotions can
+signatures, nested natural-layout C-record tuples, explicit C integer widths and supported variadic promotions can
 be emitted by the LLVM backend; foreign symbols must be supplied by linked code
 or the JIT process. The reference
 interpreter does not execute arbitrary foreign functions. Calls must appear in an
 explicit `unsafe:` block; declarations alone do not execute foreign code. Use
 `export extern fun` to expose a foreign declaration to direct importers.
 The exact supported record types and platform restrictions are documented in
-[C interoperability](ffi.md). Nested/packed records, callbacks, and pointer
-arithmetic/address-of operators remain future work. Declaring an incorrect foreign signature
+[C interoperability](ffi.md). Noncapturing scalar callbacks use unsafe
+`c_callback(named_function)`. Packed records, unions, bitfields, C++ object ABI,
+captured/managed callback signatures and address-of syntax are outside this
+boundary. Declaring an incorrect foreign signature
 does not become safe merely because the program type-checks.
 
 ## Source standard library
@@ -333,8 +361,11 @@ See the [library API reference](../stdlib/README.md) for exact contracts and
 Frontend/type errors include filename, line, column, source line, and a caret.
 The parser collects up to 20 independent errors, resynchronizing at unindented
 declarations. The first error keeps its original source location, and subsequent
-diagnostics include their own locations. Lexical and semantic errors currently
-stop their phase at the first error. Excessively nested input is rejected rather
+diagnostics include their own locations. After declaration/signature validation,
+semantic checking collects up to 20 function-body errors. Failed function
+transactions discard emitted functions, specializations and nominal layouts;
+any semantic error prevents returning executable IR. Lexical and declaration/
+signature errors still stop their phase at the first error. Excessively nested input is rejected rather
 than exhausting the native parser stack. CLI source files are limited to 16 MiB.
 Within-function semantic recovery and Unicode display-column tracking remain
 future work.

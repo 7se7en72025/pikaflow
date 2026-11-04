@@ -16,7 +16,7 @@ an implemented feature is not a claim of unlimited platform or protocol coverage
 | User-defined types | Nominal generic enums, constructors, recursive/mutually recursive fields, traced cyclic values, verified canonical layout registry |
 | Hybrid programming | Stack blocks, typed words, multiple results, shared stack within functions, pipelines |
 | Control flow | `if`/`elif`/`else`, `while`, range/sequence `for`, `break`, `continue`, nested patterns, guarded cases and bounded exhaustive enum matching |
-| Modules | Relative, `std:` and locked local `pkg:` imports; explicit function/word/extern/enum exports, private declarations and cycle detection |
+| Modules | Direct and named imports with qualified functions/generics/types/constructors/words/externs; relative, `std:` and local `pkg:` paths; privacy and cycle checks |
 | Recoverable errors | Typed `Result[T,E]`, constructors/accessors, Result patterns and postfix `?` early error propagation |
 | Custom IR | Typed register instructions, control-flow verification, definite-assignment checks, dumps |
 | Reference execution | Typed-IR interpreter using the common runtime |
@@ -42,7 +42,7 @@ and test results.
 
 | Target | Boundary of current implementation |
 |---|---|
-| Error recovery | Bounded top-level parser recovery exists; within-function semantic recovery does not |
+| Error recovery | Bounded parser and cross-function semantic recovery with rollback; lexical/declaration/signature phases remain fail-fast, and one function body stops at its first semantic error |
 | Generic type system | Module-level specialization with concrete operation checks; no traits, generic local declarations or runtime polymorphic dispatch |
 | Pattern exhaustiveness | Finite constructor/tuple/bool/Result combinations are analyzed; unrestricted integer/string/array payloads need a binding or wildcard; guards establish no coverage |
 | Raw-pointer programming | `offset` supports typed/byte offsets; foreign-address validity and lifetime remain unsafe caller obligations; no address-of syntax or use-after-free guarantee |

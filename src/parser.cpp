@@ -70,6 +70,12 @@ class Parser {
             return elements.empty() ? Unit : Type{TypeKind::Tuple, std::move(elements)};
         }
         Token token = expect(TokenKind::Name, "a type");
+        const Location firstName = token.location;
+        Location lastName = token.location;
+        while (accept(".")) {
+            auto member = expect(TokenKind::Name, "a qualified type name");
+            token.text += "." + member.text; lastName = member.location;
+        }
         if (token.text == "i64" || token.text == "int") return I64;
         if (token.text == "f64" || token.text == "float") return F64;
         if (token.text == "bool") return Bool;
@@ -96,13 +102,15 @@ class Parser {
             return {TypeKind::Task, {std::move(result)}};
         }
         Type named{TypeKind::Named, {}, token.text};
+        named.sourceLocation = lastName;
+        if (firstName.column != lastName.column || firstName.line != lastName.line) named.qualifierLocation = firstName;
         if (accept("[")) {
             do { named.args.push_back(type()); } while (accept(","));
             expect("]");
         }
         return named;
     }
-    std::vector<std::string> typeParameters() {
+    std::vector<std::string> typeParameters(std::vector<Location> *locations = nullptr) {
         std::vector<std::string> result;
         if (!accept("[")) return result;
         do {
@@ -110,6 +118,7 @@ class Parser {
             if (std::find(result.begin(), result.end(), parameter.text) != result.end())
                 throw Error(parameter.location, "duplicate type parameter '" + parameter.text + "'");
             result.push_back(parameter.text);
+            if (locations) locations->push_back(parameter.location);
         } while (accept(","));
         expect("]");
         return result;
@@ -211,7 +220,11 @@ class Parser {
     }
     ExprPtr postfix(ExprPtr left) {
         for (;;) {
-            if (is("(")) {
+            if (accept(".")) {
+                if (left->kind != Expr::Kind::Name) throw Error(left->location, "qualified access requires a module alias");
+                auto member = expect(TokenKind::Name, "a module member name");
+                left->text += "." + member.text; left->nameLocation = member.location;
+            } else if (is("(")) {
                 Token open = take();
                 auto call = std::make_shared<Expr>(Expr::Kind::Call, open.location);
                 call->items.push_back(std::move(left));
@@ -289,7 +302,7 @@ class Parser {
             expect("]"); return result;
         }
         if (token.kind == TokenKind::Name) {
-            auto result = std::make_shared<Expr>(Expr::Kind::Name, token.location); result->text = token.text; return result;
+            auto result = std::make_shared<Expr>(Expr::Kind::Name, token.location); result->text = token.text; result->nameLocation = token.location; return result;
         }
         throw Error(token.location, "expected an expression, found " + description(token));
     }
@@ -347,14 +360,16 @@ class Parser {
         }
         if (accept("enum")) {
             auto result = std::make_shared<Stmt>(Stmt::Kind::Enum, start.location);
-            result->name = expect(TokenKind::Name, "an enum name").text;
-            result->typeParameters = typeParameters();
+            auto name = expect(TokenKind::Name, "an enum name");
+            result->name = name.text; result->nameLocation = name.location;
+            result->typeParameters = typeParameters(&result->typeParameterLocations);
             expect(":"); expect(TokenKind::Newline, "a newline after ':'");
             expect(TokenKind::Indent, "enum variants");
             separators();
             while (!is(TokenKind::Dedent) && !is(TokenKind::End)) {
                 auto variant = std::make_shared<Stmt>(Stmt::Kind::Function, peek().location);
-                variant->name = expect(TokenKind::Name, "a variant name").text;
+                auto name = expect(TokenKind::Name, "a variant name");
+                variant->name = name.text; variant->nameLocation = name.location;
                 if (is("(")) variant->parameters = parameters(false, false, variant->variadic);
                 finishSimple(); result->body.push_back(std::move(variant)); separators();
             }
@@ -369,8 +384,9 @@ class Parser {
                 if (!accept("fun") && !accept("fn")) throw Error(peek().location, "expected 'fun' after 'extern'");
             } else word = take().text == "word";
             auto result = std::make_shared<Stmt>(external ? Stmt::Kind::Extern : word ? Stmt::Kind::Word : Stmt::Kind::Function, start.location);
-            result->name = expect(TokenKind::Name, "a function name").text;
-            result->typeParameters = typeParameters();
+            auto name = expect(TokenKind::Name, "a function name");
+            result->name = name.text; result->nameLocation = name.location;
+            result->typeParameters = typeParameters(&result->typeParameterLocations);
             if (external && !result->typeParameters.empty()) throw Error(start.location, "extern functions cannot be generic");
             result->parameters = parameters(word, external, result->variadic);
             if (accept("->")) result->returnType = type();
@@ -398,7 +414,10 @@ class Parser {
                     target->items.push_back(std::move(value));
                 } while (accept(",") && !is(")"));
                 expect(")"); result->target = std::move(target);
-            } else result->name = expect(TokenKind::Name, "a variable name").text;
+            } else {
+                auto name = expect(TokenKind::Name, "a variable name");
+                result->name = name.text; result->nameLocation = name.location;
+            }
             if (accept(":")) { result->type = type(); result->annotated = true; }
             expect("="); result->expression = expression(); finishSimple(); return result;
         }
@@ -417,7 +436,8 @@ class Parser {
         }
         if (accept("for")) {
             auto result = std::make_shared<Stmt>(Stmt::Kind::For, start.location);
-            result->name = expect(TokenKind::Name, "a loop variable").text;
+            auto name = expect(TokenKind::Name, "a loop variable");
+            result->name = name.text; result->nameLocation = name.location;
             expect("in"); result->expression = expression(); result->body = suite(stack);
             if (accept("else")) result->elseBody = suite(stack);
             return result;
@@ -435,7 +455,10 @@ class Parser {
         if (accept("import")) {
             auto result = std::make_shared<Stmt>(Stmt::Kind::Import, start.location);
             result->name = expect(TokenKind::String, "an import path string").text;
-            if (accept("as")) result->other = nameExpression(expect(TokenKind::Name, "an import alias"));
+            if (accept("as")) {
+                auto alias = expect(TokenKind::Name, "an import alias");
+                result->other = nameExpression(alias); result->nameLocation = alias.location;
+            }
             finishSimple(); return result;
         }
         ExprPtr left = expression();
@@ -448,10 +471,7 @@ class Parser {
             if (left->kind == Expr::Kind::Name) result->name = left->text;
             result->expression = expression();
             if (assignment.text != "=") {
-                if (left->kind == Expr::Kind::Index) throw Error(assignment.location, "compound indexed assignment is not supported; use an explicit assignment");
-                auto binary = std::make_shared<Expr>(Expr::Kind::Binary, assignment.location);
-                binary->text = assignment.text.substr(0, 1); binary->items = {left, result->expression};
-                result->expression = std::move(binary);
+                result->operation = assignment.text.substr(0, 1);
             }
             finishSimple(); return result;
         }
@@ -459,7 +479,7 @@ class Parser {
         result->expression = std::move(left); finishSimple(); return result;
     }
     static ExprPtr nameExpression(const Token& token) {
-        auto result = std::make_shared<Expr>(Expr::Kind::Name, token.location); result->text = token.text; return result;
+        auto result = std::make_shared<Expr>(Expr::Kind::Name, token.location); result->text = token.text; result->nameLocation = token.location; return result;
     }
     void recover(size_t before) {
         if (position <= before && position + 1 < tokens.size()) ++position;
@@ -602,6 +622,7 @@ void dumpStatements(std::ostream& out, const std::vector<StmtPtr>& stmts, unsign
     for (const auto& stmt : stmts) {
         out << std::string(depth * 2, ' ') << statementName(stmt->kind);
         if (!stmt->name.empty()) out << ' ' << stmt->name;
+        if (!stmt->operation.empty()) out << " " << stmt->operation << "=";
         for (const auto& parameter : stmt->typeParameters) out << " [" << parameter << "]";
         if (stmt->exported) out << " [export]";
         if (stmt->annotated) out << ": " << stmt->type.str();

@@ -36,6 +36,7 @@ struct Type {
     TypeKind kind = TypeKind::Unit;
     std::vector<Type> args;
     std::string name;
+    Location sourceLocation, qualifierLocation;
     Type() = default;
     Type(TypeKind k) : kind(k) {}
     Type(TypeKind k, std::vector<Type> a) : kind(k), args(std::move(a)) {}

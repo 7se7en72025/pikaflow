@@ -112,8 +112,10 @@ Foreign allocation/load/store/free and C calls require explicit `unsafe` blocks.
 Runtime-owned raw allocations and C-library allocations have separate ownership.
 `pin`/`unpin` create/release persistent GC roots; a pin handle is not an object's
 data pointer. `cstr` borrows a string buffer. General borrow checking, automatic
-foreign ownership inference, moving/concurrent GC, and pointer arithmetic are
-not part of the current implementation.
+foreign ownership inference and moving/concurrent GC are outside this model.
+Explicit unsafe `offset` performs checked element/byte arithmetic for owned
+blocks and overflow checks for foreign addresses; foreign validity and lifetime
+are still caller obligations.
 
 LLVM supplies integration mechanisms rather than a ready-made collector; this
 runtime supplies the collector and allocation policy. [LLVM GC documentation](https://llvm.org/docs/GarbageCollection.html)
@@ -128,21 +130,28 @@ bindings, literals, exclusive integer ranges, and wildcards can be matched.
 Pattern bindings are local to a case. Array shape checks occur before element
 loads. Exhaustive returning branches are treated as terminating control flow;
 `panic` is divergent rather than an ordinary value-returning expression.
-General user-defined algebraic data types, pattern guards, and error-propagation
-syntax remain separate work.
+Generic recursive enums use opaque nominal types and a canonical field-layout
+registry checked by the typed IR verifier. A bounded pattern matrix analyzes
+nested constructor coverage. Guards run after pattern bindings and do not
+establish coverage. Result `?` branches to an early error return with the checked
+enclosing error type; it does not unwind through JIT frames.
 
 ## Modules and C boundary
 
-Files are namespaces with explicit `export` on functions, words and extern
-declarations. Imports expose
+Files are namespaces with explicit `export` on functions, words, enums and extern
+declarations. Direct imports expose
 only directly imported exported declarations; transitive private names and private
 extern aliases do not leak. Import cycles diagnose. `std:` resolves bundled
 standard-library modules from the development or installed library layout.
+`import "file.pf" as module` instead exposes only qualified exports, including
+generic calls, enum types/constructors, foreign declarations and typed words.
+The compiler resolves qualified names to the same concrete declarations before
+IR lowering, so namespaces do not introduce a runtime lookup mechanism.
 
 An extern source alias is independent of its actual C symbol, allowing a name
 such as `libc_free` to refer to `"free"`. Calling conventions, argument layout,
 returns, and vararg promotions are target-specific. The backend supports a bounded
-flat C-record subset rather than claiming arbitrary C/C++ ABI compatibility.
+nested natural C-record/scalar-callback subset rather than arbitrary C/C++ ABI compatibility.
 Its constraints, examples, and target-specific tests are in [ffi.md](ffi.md).
 
 The reference interpreter supports an audited set of exact foreign math signatures.
@@ -158,8 +167,11 @@ deliberate rebuilds, adaptation, and tests rather than assuming compatibility.
 
 Tokens, AST, custom IR, LLVM IR, and target assembly are independently inspectable.
 Compiler errors retain filename/line/column and a source caret. Parser recovery
-collects up to 20 independent top-level errors; lexical and semantic phases still
-stop at their first error. Resource limits prevent pathological nesting from
+collects up to 20 independent top-level errors. Semantic function-body checking
+uses transactions: a failed function discards emitted code/specializations/layouts,
+independent functions are checked, and any errors prevent producing a Program.
+Lexical and declaration/signature validation still fail at the first error.
+Resource limits prevent pathological nesting from
 exhausting the native parser stack.
 
 Output protection rejects loaded source paths and equivalent hard links before
@@ -178,13 +190,13 @@ does not dispatch automatically on pushes or pull requests.
 |---|---|---|
 | Native platforms | Windows x64 and Linux x64 targets | Additional targets need separate ABI/runtime tests |
 | Optimization | LLVM pipelines plus observable/custom-pass work | Further passes need legality checks and regression cases |
-| Debugging | Source metadata generation | End-to-end debugger usability must be verified per target |
+| Debugging | Real GDB scalar/captured-local stepping/watch tests and Windows CodeView inspection | Managed visualization, optimized-code quality and graphical IDE integration remain unverified |
 | Standard library | Numeric, sequence, and ASCII/byte-string source modules | Additional APIs require specified contracts/tests |
-| Generics | Approved compile-time-specialization direction | Post-core implementation; not currently available |
-| Formatter | Approved after grammar stability | Not currently available |
-| LSP | Approved post-v1 direction | Not currently available |
-| Package management | Approved after module/dependency stabilization | Not currently available |
-| Concurrency | Approved separate post-v1 design | Requires memory-model, stack, runtime, and GC coordination |
+| Generics | Inferred/explicit module-level monomorphization; recursive nominal ADTs | Bounded specialization/type expansion; no runtime generic dispatch |
+| Formatter | Compiler-token-equivalent formatting with atomic replacement | No expression/comment reflow |
+| LSP | Compiler diagnostics, formatting, symbols and completion | Advertised protocol capabilities are documented and tested separately |
+| Package management | Local path dependencies with deterministic content locks | No network registry/publishing service |
+| Concurrency | Snapshot-isolated real threads, typed joins and independent heaps | No shared managed heap, cancellation or thread pool |
 
 The project's ambition is measured through specified semantics, working programs,
 reproducible builds, and tested behavior. Neither feature count nor selecting a

@@ -120,6 +120,13 @@ int main() {
         require(propagation.statements[0]->body[0]->expression->items[1]->kind == Expr::Kind::Propagate, "Result propagation AST missing");
         const auto guarded = tree("fun main():\n    match 1:\n        case _ if false:\n            pass\n        case x:\n            print(x)\n");
         require(guarded.statements[0]->body[0]->body[0]->other != nullptr, "match guard missing");
+        const auto qualified = tree("import \"math.pf\" as math\nfun main():\n    let value:math.Box[i64]=math.Boxed::[i64](42)\n");
+        require(qualified.statements[1]->body[0]->type.name == "math.Box", "qualified type missing");
+        require(qualified.statements[1]->body[0]->expression->items[0]->items[0]->text == "math.Boxed", "qualified constructor missing");
+        require(qualified.statements[0]->nameLocation.column == 21, "alias identifier location lost");
+        const auto compound = tree("fun main():\n    values[index()] += right()\n");
+        require(compound.statements[0]->body[0]->operation == "+" && compound.statements[0]->body[0]->expression->kind == Expr::Kind::Call,
+            "compound assignment must preserve one lvalue and one RHS");
         const auto unsafe = tree("fun main():\n    unsafe:\n        let memory: ptr[i64] = alloc_i64(2)\n        store(memory, 0, 42)\n        free(memory)\n");
         require(unsafe.statements[0]->body[0]->kind == Stmt::Kind::Unsafe && unsafe.statements[0]->body[0]->body.size() == 3, "unsafe suite failed");
         require(tree("let n = -9223372036854775808\n").statements[0]->expression->integer == std::numeric_limits<int64_t>::min(), "minimum i64 literal failed");

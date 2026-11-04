@@ -45,6 +45,9 @@ class Compiler {
     std::map<std::string, External> externals;
     std::map<std::string, std::vector<std::pair<std::string, std::string>>> exportedExternals;
     std::map<std::string, std::set<std::string>> imports;
+    std::map<std::string, std::map<std::string, std::string>> moduleAliases;
+    std::set<std::string> exportedExternalKeys;
+    bool indexSymbols = false;
     std::unique_ptr<Context> context;
     unsigned serial = 0;
     std::map<std::string, Declaration> specializations;
@@ -67,7 +70,24 @@ class Compiler {
     std::map<std::string, std::vector<std::string>> exportedConstructors;
     std::map<std::string, EnumInstance> enumInstances;
 
+    std::pair<std::string, std::string> qualifiedModule(const std::string &name, Location loc) {
+        auto dot = name.find('.');
+        if (dot == std::string::npos) return {};
+        if (name.find('.', dot + 1) != std::string::npos) fail(loc, "module qualification requires alias.member");
+        std::string alias = name.substr(0, dot);
+        auto found = moduleAliases[loc.file].find(alias);
+        if (found == moduleAliases[loc.file].end()) fail(loc, "unknown module alias '" + alias + "'");
+        return {found->second, name.substr(dot + 1)};
+    }
+
     StmtPtr enumDeclaration(const std::string &name, Location loc) {
+        auto qualified = qualifiedModule(name, loc);
+        if (!qualified.first.empty()) {
+            auto found = enumDeclarations.find(qualified.first + "::" + qualified.second);
+            if (found == enumDeclarations.end()) return {};
+            if (!found->second->exported) fail(loc, "module type '" + name + "' is private");
+            return found->second;
+        }
         auto own = enumDeclarations.find(loc.file + "::" + name);
         if (own != enumDeclarations.end()) return own->second;
         StmtPtr result;
@@ -81,6 +101,14 @@ class Compiler {
         return result;
     }
     std::pair<StmtPtr, size_t> constructor(const std::string &name, Location loc) {
+        auto qualified = qualifiedModule(name, loc);
+        if (!qualified.first.empty()) {
+            auto found = constructors.find(qualified.first + "::" + qualified.second);
+            if (found == constructors.end()) return {};
+            auto definition = enumDeclarations.at(found->second.first);
+            if (!definition->exported) fail(loc, "module constructor '" + name + "' is private");
+            return {definition, found->second.second};
+        }
         const auto localKey = loc.file + "::" + name;
         auto own = constructors.find(localKey);
         if (own != constructors.end()) return {enumDeclarations.at(own->second.first), own->second.second};
@@ -419,6 +447,14 @@ class Compiler {
         return nullptr;
     }
     Declaration *declaration(const std::string &name, const Location &loc) {
+        auto qualified = qualifiedModule(name, loc);
+        if (!qualified.first.empty()) {
+            auto found = byModule.find(qualified.first + "::" + qualified.second);
+            if (found == byModule.end()) return nullptr;
+            auto &result = declarations[found->second];
+            if (!result.ast->exported) fail(loc, "module member '" + name + "' is private");
+            return &result;
+        }
         auto local = byModule.find(loc.file + "::" + name);
         if (local != byModule.end())
             return &declarations[local->second];
@@ -444,6 +480,14 @@ class Compiler {
         return result;
     }
     External *external(const std::string &name, const Location &loc) {
+        auto qualified = qualifiedModule(name, loc);
+        if (!qualified.first.empty()) {
+            auto key = qualified.first + "::" + qualified.second;
+            auto found = externals.find(key);
+            if (found == externals.end()) return nullptr;
+            if (!exportedExternalKeys.count(key)) fail(loc, "module extern '" + name + "' is private");
+            return &found->second;
+        }
         auto local = externals.find(loc.file + "::" + name);
         if (local != externals.end())
             return &local->second;
@@ -462,6 +506,7 @@ class Compiler {
     void define(const std::string &name, int value, bool mut, Location loc) {
         if (reserved(name))
             fail(loc, "'" + name + "' is reserved for the language or runtime");
+        if (moduleAliases[loc.file].count(name)) fail(loc, "binding name '" + name + "' conflicts with a module alias");
         if (context->scopes.back().count(name))
             fail(loc, "duplicate local name '" + name + "'");
         if (value < 0)
@@ -1601,7 +1646,9 @@ class Compiler {
                 if (!b.mutableValue)
                     fail(s.location,
                          "cannot assign immutable binding '" + target->text + "'; use var");
+                int previous = s.operation.empty() ? -1 : emit(Op::LoadCell, b.type, {b.cell}, target->location);
                 int value = expr(s.expression, &b.type);
+                if (!s.operation.empty()) value = binary(s.operation, previous, value, s.location);
                 require(type(value), b.type, s.location, "assignment");
                 emit(Op::StoreCell, Unit, {b.cell, value}, s.location);
             } else if (target->kind == Expr::Kind::Index) {
@@ -1610,7 +1657,9 @@ class Compiler {
                 if (type(base).kind != TypeKind::Array)
                     fail(s.location, "indexed assignment requires an array");
                 Type element = type(base).args[0];
+                int previous = s.operation.empty() ? -1 : emit(Op::Index, element, {base, index}, target->location);
                 int value = expr(s.expression, &element);
+                if (!s.operation.empty()) value = binary(s.operation, previous, value, s.location);
                 require(type(value), element, s.location, "array assignment");
                 emit(Op::SetIndex, Unit, {base, index, value}, s.location);
             } else
@@ -1845,22 +1894,29 @@ class Compiler {
     }
 
   public:
+    explicit Compiler(bool symbols = false) : indexSymbols(symbols) {}
     Program run(const SyntaxTree &tree) {
         program.sourceFile = tree.filename;
         for (const auto &statement : tree.statements)
-            if (statement->kind == Stmt::Kind::Import) imports[statement->location.file].insert(statement->name);
+            if (statement->kind == Stmt::Kind::Import) {
+                if (statement->other) {
+                    const auto &alias = statement->other->text;
+                    if (reserved(alias) || moduleAliases[statement->location.file].count(alias)) fail(statement->location, "duplicate or reserved module alias '" + alias + "'");
+                    moduleAliases[statement->location.file][alias] = statement->name;
+                } else imports[statement->location.file].insert(statement->name);
+            }
         for (const auto &statement : tree.statements) {
             if (statement->kind != Stmt::Kind::Enum) continue;
             const auto &s = *statement;
             const std::string key = s.location.file + "::" + s.name;
-            if (reserved(s.name) || enumDeclarations.count(key)) fail(s.location, "duplicate or reserved enum name '" + s.name + "'");
+            if (reserved(s.name) || enumDeclarations.count(key) || moduleAliases[s.location.file].count(s.name)) fail(s.location, "duplicate or reserved enum name '" + s.name + "'");
             for (const auto &parameter : s.typeParameters) if (reserved(parameter)) fail(s.location, "reserved enum type parameter '" + parameter + "'");
             enumDeclarations[key] = statement;
             if (s.exported) exportedEnums[s.name].push_back(key);
             for (size_t i = 0; i < s.body.size(); ++i) {
                 const auto &variant = s.body[i];
                 std::string variantKey = s.location.file + "::" + variant->name;
-                if (reserved(variant->name) || constructors.count(variantKey)) fail(variant->location, "duplicate or reserved constructor name '" + variant->name + "'");
+                if (reserved(variant->name) || constructors.count(variantKey) || moduleAliases[s.location.file].count(variant->name)) fail(variant->location, "duplicate or reserved constructor name '" + variant->name + "'");
                 constructors[variantKey] = {key, i};
                 if (s.exported) exportedConstructors[variant->name].push_back(variantKey);
             }
@@ -1883,14 +1939,13 @@ class Compiler {
             auto &s = *resolvedStatement;
             if (s.kind == Stmt::Kind::Enum) continue;
             if (s.kind == Stmt::Kind::Import) {
-                imports[s.location.file].insert(s.name);
                 continue;
             }
             if (s.kind == Stmt::Kind::Extern) {
                 validateType(s.returnType, s.location, true);
                 for (const auto &parameter : s.parameters)
                     validateType(parameter.type, parameter.location);
-                if (reserved(s.name))
+                if (reserved(s.name) || moduleAliases[s.location.file].count(s.name))
                     fail(s.location, "extern name '" + s.name +
                                          "' is reserved; declare a distinct local name with = "
                                          "\"native_symbol\"");
@@ -1920,6 +1975,7 @@ class Compiler {
                 externals[externalKey] = ext;
                 if (s.exported)
                     exportedExternals[s.name].push_back({s.location.file, externalKey});
+                if (s.exported) exportedExternalKeys.insert(externalKey);
                 program.externals.push_back(ext);
                 continue;
             }
@@ -1928,12 +1984,17 @@ class Compiler {
                      "module scope accepts functions, words, imports and extern declarations");
             for (const auto &parameter : s.typeParameters)
                 if (reserved(parameter)) fail(s.location, "reserved generic type parameter '" + parameter + "'");
-            if (reserved(s.name))
+            if (reserved(s.name) || moduleAliases[s.location.file].count(s.name))
                 fail(s.location, "'" + s.name + "' is reserved for the language or runtime");
             std::string key = s.location.file + "::" + s.name;
             if (byModule.count(key) || externals.count(key) || constructors.count(key))
                 fail(s.location, "duplicate function or word '" + s.name + "'");
-            auto definition = s.typeParameters.empty() ? cloneStmt(statement, {}) : statement;
+            auto definition = statement;
+            if (s.typeParameters.empty()) {
+                definition = std::make_shared<Stmt>(*statement);
+                definition->returnType = substitute(s.returnType, {}, s.location);
+                for (auto &parameter : definition->parameters) parameter.type = substitute(parameter.type, {}, parameter.location);
+            }
             std::vector<Type> params;
             for (auto &parameter : definition->parameters)
                 params.push_back(parameter.type);
@@ -1952,15 +2013,54 @@ class Compiler {
         }
         if (!byModule.count(tree.filename + "::main"))
             fail({tree.filename, 1, 1}, "program requires fun main() -> unit or i64");
-        for (auto &d : declarations)
-            if (d.ast->typeParameters.empty()) compileFunction(d.irName, d.ast->parameters, d.ast->returnType, d.ast->body, {},
-                            d.ast->kind == Stmt::Kind::Word, d.ast->location);
+        std::vector<std::pair<Location, std::string>> errors;
+        auto keys = [](const auto &map) {
+            std::set<std::string> result;
+            for (const auto &entry : map) result.insert(entry.first);
+            return result;
+        };
+        auto restoreKeys = [](auto &map, const auto &before) {
+            for (auto entry = map.begin(); entry != map.end(); )
+                if (!before.count(entry->first)) entry = map.erase(entry);
+                else ++entry;
+        };
+        for (auto &d : declarations) {
+            if (!d.ast->typeParameters.empty()) continue;
+            const size_t functionCount = program.functions.size();
+            const auto specializedBefore = keys(specializations);
+            const auto enumBefore = keys(enumInstances);
+            const auto layoutsBefore = keys(program.nominalLayouts);
+            const auto serialBefore = serial;
+            const auto depthBefore = instantiationDepth;
+            const auto budgetBefore = typeExpansionBudget;
+            try {
+                auto definition = cloneStmt(d.ast, {});
+                compileFunction(d.irName, definition->parameters, definition->returnType, definition->body, {},
+                                definition->kind == Stmt::Kind::Word, definition->location);
+            } catch (const Error &error) {
+                errors.emplace_back(error.location, error.what());
+                program.functions.resize(functionCount);
+                restoreKeys(specializations, specializedBefore);
+                restoreKeys(enumInstances, enumBefore);
+                restoreKeys(program.nominalLayouts, layoutsBefore);
+                context.reset(); serial = serialBefore; instantiationDepth = depthBefore; typeExpansionBudget = budgetBefore;
+                if (errors.size() == 20) break;
+            }
+        }
+        if (!errors.empty()) {
+            std::string message = errors.front().second;
+            for (size_t i = 1; i < errors.size(); ++i)
+                message += "\n" + errors[i].first.file + ":" + std::to_string(errors[i].first.line) + ":" +
+                           std::to_string(errors[i].first.column) + ": error: " + errors[i].second;
+            if (errors.size() == 20) message += "\nstopped after 20 semantic function errors";
+            throw Error(errors.front().first, message);
+        }
         verify(program);
         return std::move(program);
     }
 };
 } // namespace
-Program compile(const SyntaxTree &tree) {
-    return Compiler().run(tree);
+Program compile(const SyntaxTree &tree, bool indexSymbols) {
+    return Compiler(indexSymbols).run(tree);
 }
 } // namespace pika

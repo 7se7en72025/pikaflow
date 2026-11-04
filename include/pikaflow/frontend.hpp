@@ -15,6 +15,7 @@ struct Expr {
         Index, Array, Tuple, Lambda, Stack, TypeApply, Propagate };
     Kind kind;
     Location location;
+    Location nameLocation;
     std::string text;
     int64_t integer = 0;
     double real = 0;
@@ -30,12 +31,15 @@ struct Stmt {
         While, For, Import, Extern, Break, Continue, StackOp, Match, Unsafe, Enum };
     Kind kind;
     Location location;
+    Location nameLocation;
     std::string name;
+    std::string operation;
     Type type;
     bool annotated = false, exported = false, variadic = false;
     bool exhaustive = false;
     std::vector<Parameter> parameters;
     std::vector<std::string> typeParameters;
+    std::vector<Location> typeParameterLocations;
     Type returnType;
     ExprPtr expression, target, other;
     std::vector<StmtPtr> body, elseBody;
