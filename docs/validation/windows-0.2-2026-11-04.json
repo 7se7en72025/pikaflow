@@ -1,0 +1,32 @@
+{
+  "source_commit": "39fcac34a3528a4e74ea1cdbbff58dd9e433a19b",
+  "dirty": false,
+  "archive_sha256": "a0a23920e63a4ec67b944ff0263ac10632dd7f31ad1e977d011691abd63dd788",
+  "platform": "Windows x64",
+  "toolchain": "MSVC 19.52 / LLVM 24.0.0git 0247623ddadb8d078a446a704cc20f0a8c944fc8",
+  "native": {
+    "ctest": "19/19 passed",
+    "seconds": 55.3,
+    "binary_sha256": "ceecd3867110d6a03e868bd1e5a3f4f764667205a47f24f45d3736914ed9f8d7"
+  },
+  "reference": {
+    "ctest": "15/15 passed",
+    "seconds": 12.74,
+    "binary_sha256": "153f844784a94b416b5d3677dea45c82b4bc3bf98fccec70630f4494f3fdb1a0"
+  },
+  "checks": {
+    "compiler_integration": 216,
+    "language_extensions": 133,
+    "tools": 14,
+    "abi_execution": 120,
+    "abi_located_failures": 40,
+    "callback_rejections": 3,
+    "task_execution": 50,
+    "task_rejections": 4,
+    "runtime_fatal": 47,
+    "task_fatal": 10,
+    "differential_arithmetic": 30,
+    "contextual_programs": 6,
+    "installed_layout": "passed"
+  }
+}

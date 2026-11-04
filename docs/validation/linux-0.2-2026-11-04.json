@@ -1,0 +1,41 @@
+{
+  "source_commit": "39fcac34a3528a4e74ea1cdbbff58dd9e433a19b",
+  "dirty": false,
+  "archive_sha256": "a0a23920e63a4ec67b944ff0263ac10632dd7f31ad1e977d011691abd63dd788",
+  "platform": "Ubuntu 24.04 x86_64 / WSL2 Linux 6.6.87.2 / glibc2.39",
+  "toolchain": "GNU C++13.3.0 / LLVM24.0.0 nightly5883ca2582af / CMake3.28.3 / GDB15.1",
+  "llvm_package": "1:24~++20261103082040+5883ca2582af-1~exp1~20261103202158.1911",
+  "native": {
+    "ctest": "20/20 passed",
+    "seconds": 180.57,
+    "binary_sha256": "eb8481b564fd150e9f3fd9ba112bcdcca87eee0d0786b03ec97fbe04eef6f848"
+  },
+  "checks": {
+    "compiler_integration": 216,
+    "language_extensions": 133,
+    "tools": 14,
+    "tools_skipped": 1,
+    "tools_skip_reason": "Windows directory junction boundary test is platform-specific",
+    "abi_execution": 120,
+    "abi_located_failures": 40,
+    "callback_rejections": 3,
+    "task_execution": 50,
+    "task_rejections": 4,
+    "runtime_fatal": 47,
+    "task_fatal": 10,
+    "differential_arithmetic": 30,
+    "contextual_programs": 6,
+    "installed_layout": "passed",
+    "source_debugger": "passed: locals and captured-variable source breakpoints, backtraces, watches and stepping"
+  },
+  "provenance": {
+    "archive_files": 100,
+    "host_cxx_sha256": "1353e9bdd29a7295c7226bf6c63abccce056d8cac31f112e5cdbecc3f28c2769",
+    "llvm_config_sha256": "cbfa5eb6fa8a347d4e6a1736292ea18ac9eeb1cc2e77b188b144c48f76a154c1",
+    "full_test_log_sha256": "f24cdead5b1d5090d315778b7084d511ced6143b93b4b878b8e4a531bee5e7c9",
+    "source_archive": "out/linux-validation/source-release-39fcac3.tar",
+    "full_test_log": "out/linux-validation/LastTest-release-39fcac3.log",
+    "ctest_log": "out/linux-validation/ctest-release-39fcac3.log",
+    "configuration": "Release, LLVM enabled, LLVM_DIR=/usr/lib/llvm-24/lib/cmake/llvm, build parallel1"
+  }
+}

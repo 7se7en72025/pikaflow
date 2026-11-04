@@ -3,10 +3,13 @@
 PikaFlow 0.2 extends the tested core with generic specialization, recursive ADTs,
 guarded/exhaustive patterns, Result propagation, isolated threaded tasks, nested
 C records/scalar callbacks/integer-width annotations, and working formatter,
-editor and local-package tools. The implementation has targeted executable
-coverage; final integration counts and exact source provenance belong in the
-[validation record](validation.md), rather than mixing results from evolving
-snapshots.
+editor and local-package tools. Clean release commit `39fcac3` passed **19/19
+Windows native**, **15/15 Windows reference** and **20/20 Linux native** suites.
+Both native hosts passed 216 compiler checks, 133 language-extension checks,
+120 C ABI executions plus 40 located range failures, and 50 task executions.
+Linux also passed the real GDB test. Exact toolchain/source/binary identities,
+the Windows-only skipped Linux tools case, and complete counts are recorded in
+[validation.md](validation.md).
 
 ## Approved target
 
@@ -38,11 +41,12 @@ varargs on the x86-64 targets. Packed records, unions, bitfields, C++ object ABI
 and managed/captured callbacks remain outside that subset. Headless GDB tests
 exercise real breakpoints, stepping, backtraces and mutated/captured scalar
 watches; Windows CodeView line/local records are also inspected. Graphical IDE
-integration remains unverified.
+integration, managed-value visualization and optimized-code debugger quality
+remain unverified.
 
 A bounded 0.2 frontend libFuzzer campaign completed 80,430 executions in 49 seconds
 under ASan/UBSan without a reported failure. Native benchmark outputs were verified before three
-timed repetitions per configuration; [the raw report](benchmarks/windows-2026-11-04.json)
+timed repetitions per configuration; [the 0.2 raw report](benchmarks/windows-0.2-2026-11-04.json)
 does not establish a performance advantage.
 
 The earlier clean `6ca5992` validation/benchmark/install records establish the

@@ -32,7 +32,31 @@ flags, timing scope, and noise in view.
 and report structure without creating native executables. Actual native benchmark
 execution remains a separate verification step.
 
-## Recorded native run
+## 0.2 recorded native run
+
+The [0.2 Windows report](benchmarks/windows-0.2-2026-11-04.json) was captured from
+clean release commit `39fcac34a3528a4e74ea1cdbbff58dd9e433a19b` (`dirty: false`):
+
+```powershell
+python scripts/benchmark.py build/native/pikaflow.exe --repeats 3 --output out/benchmark-0.2-windows.json
+```
+
+The compiler identified itself as `PikaFlow 0.2.0; LLVM enabled;
+x86_64-pc-windows-msvc`, binary SHA-256
+`ceecd3867110d6a03e868bd1e5a3f4f764667205a47f24f45d3736914ed9f8d7`.
+All interpreter references, warmups and timed outputs matched.
+
+| Workload | `-O0` median | `-O2` median |
+|---|---:|---:|
+| Checked loop over 50,000 integers | 34.778 ms | 31.075 ms |
+| Recursive Fibonacci(20) | 20.124 ms | 19.283 ms |
+
+The report retains sources, expected outputs, all three samples, build times,
+machine details and exact identities. Startup/output capture and measurement
+noise are included; these samples establish no general performance or optimization
+advantage and are not a comparison with another compiler or language.
+
+## Historical 0.1 native run
 
 The [2026-11-04 Windows report](benchmarks/windows-2026-11-04.json) was produced
 from normal PowerShell with:

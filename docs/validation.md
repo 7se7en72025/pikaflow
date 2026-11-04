@@ -1,11 +1,103 @@
 # Validation record
 
+## 0.2 clean release validation
+
+The frozen implementation at **`39fcac34a3528a4e74ea1cdbbff58dd9e433a19b`**
+passed the complete host suites below. Both hosts used the same clean source
+archive (`dirty: false`), SHA-256
+`a0a23920e63a4ec67b944ff0263ac10632dd7f31ad1e977d011691abd63dd788`.
+These results establish the supported [0.2 contracts](FEATURES.md), with their
+stated limits; they do not imply unrestricted ABI or editor-protocol support.
+
+| Host / mode | Result | Tracked record |
+|---|---|---|
+| Windows x64, MSVC 19.52 / LLVM 24.0.0git | **19/19 native suites passed**, 55.30 s | [Windows 0.2 manifest](validation/windows-0.2-2026-11-04.json) |
+| Windows x64, reference build | **15/15 suites passed**, 12.74 s | Same Windows manifest |
+| Ubuntu 24.04 x86-64 / WSL, GNU 13.3 / LLVM 24.0.0 | **20/20 native suites passed**, 180.57 s | [Linux 0.2 manifest](validation/linux-0.2-2026-11-04.json) |
+
+The Linux suite includes the additional real GDB test: breakpoints, stepping,
+backtrace and mutated/captured scalar watches. Windows CodeView object inspection
+is separate evidence; graphical IDE integration, managed-value visualization and
+optimized-code debugger quality remain unverified.
+
+The LLVM-enabled suites on each host include:
+
+| Check group | Passed checks |
+|---|---:|
+| Compiler integration | 216 |
+| Generic/recursive ADT/guard/Result/showcase language cases | 133 |
+| Formatter, LSP and local-package integration | 14 tests; Linux skips one Windows-only junction case |
+| Generated C ABI JIT/native execution comparisons | 120 |
+| Located C integer range failures | 40 |
+| Invalid callback declarations | 3 rejected |
+| Threaded task/pointer executions | 50 |
+| Invalid task/pointer source programs | 4 rejected |
+| Fatal runtime cases | 47 |
+| Fatal task cases | 10 |
+| Arithmetic differential programs | 30 |
+| Contextual typing/callable namespace programs | 6 |
+
+Source execution cases compare the interpreter, JIT and native code at `-O0` and
+`-O2` where applicable. Host C fixture calls independently check the expected ABI.
+Runtime tests also check actual simultaneous workers, graph isolation/cycles,
+structured joins and collection. These group counts overlap suite organization;
+they are not a sum of independent CTest executables.
+
+Installation checks passed for the compiler, runtime, standard library and Python
+tools, including a relocated Unicode prefix, source-tree fallback resistance,
+clean-environment native linking and token-checked installed formatting. This is
+a development installation with host toolchain requirements, not a universal
+standalone installer.
+
+The Windows native compiler SHA-256 is
+`ceecd3867110d6a03e868bd1e5a3f4f764667205a47f24f45d3736914ed9f8d7`;
+the reference compiler SHA-256 is
+`153f844784a94b416b5d3677dea45c82b4bc3bf98fccec70630f4494f3fdb1a0`.
+The Linux native compiler SHA-256 is
+`eb8481b564fd150e9f3fd9ba112bcdcca87eee0d0786b03ec97fbe04eef6f848`.
+The manifests retain exact compiler/toolchain and source identities. Windows uses
+LLVM checkout `0247623ddadb8d078a446a704cc20f0a8c944fc8`; Linux uses real LLVM
+24.0.0 nightly `5883ca2582af`. These records do not promise bit-for-bit build
+reproducibility or compatibility with every LLVM main revision.
+
+The separate [0.2 benchmark report](benchmarks/windows-0.2-2026-11-04.json) uses
+that clean source commit and Windows binary. Both workloads verified outputs
+before three timed repetitions at each optimization level. Whole-process median
+times were 34.778/31.075 ms for the checked loop and 20.124/19.283 ms for
+Fibonacci(20), at `-O0`/`-O2`. Startup and output capture are included; no general
+performance or optimization advantage is claimed. See [methodology](benchmarking.md).
+
+The refreshed [frontend fuzz campaign](fuzzing.md) ran **80,430 executions in
+49 seconds** under Clang ASan/UBSan with no reported finding or crash artifacts.
+Its separately identified source snapshot and bounded parser-only scope are
+recorded there; it is not part of the frozen native suite count. Runtime task
+ASan/UBSan checks passed, while this host could not start ThreadSanitizer's
+runtime; no race-clean TSan result is claimed. [Runtime details](runtime.md)
+
+Reproduce the configured release suites with:
+
+```powershell
+ctest --test-dir build/interpreter --output-on-failure
+ctest --test-dir build/native --output-on-failure
+```
+
+Raw host build logs and ignored source archives remain under `out/windows-validation/`
+and `out/linux-validation/`; the tracked manifests above preserve their essential
+identities and results. The manual-only GitHub workflow was not dispatched, so
+these local results are not remote CI claims.
+
+## Historical 0.1 evidence
+
+The records below are retained as the earlier baseline. Their counts, hashes and
+debugger limitations describe 0.1 and are superseded by the 0.2 record above;
+they must not be reported as the current release's feature or test coverage.
+
 **Status: the recorded Windows/Linux native integration checks passed.** This
 record is not a v1 completion declaration. Results below identify tested snapshots
 and their limits; the broader approved roadmap remains tracked in
 [feature status](FEATURES.md).
 
-## Recorded evidence
+### Recorded evidence
 
 | Host / mode | Snapshot | Evidence |
 |---|---|---|
@@ -62,7 +154,7 @@ The Windows CodeView object inspection is retained locally in
 `out/debug-validation/codeview.txt`; readable line records and source locals
 were checked, without claiming interactive debugger validation.
 
-## Reproduce checks
+### Reproduce checks
 
 ```powershell
 ctest --test-dir build/interpreter --output-on-failure

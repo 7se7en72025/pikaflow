@@ -14,6 +14,10 @@ guarded matches, Result propagation, isolated threaded tasks, extended C interop
 and formatter/editor/local-package tools. Native execution targets Windows x64
 and Linux x86-64. See the [validation record](docs/validation.md) for exact tested
 snapshots and [feature status](docs/FEATURES.md) for the supported contracts.
+The frozen clean `39fcac3` release passed **19/19 Windows native**, **15/15 Windows
+reference** and **20/20 Linux native** suites. Both native hosts passed 133
+language-extension checks and 120 generated C ABI comparisons; Linux additionally
+ran the real GDB suite.
 
 ## A small hybrid program
 
