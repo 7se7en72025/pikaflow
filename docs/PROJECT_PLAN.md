@@ -2,13 +2,12 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 04:36 IST.
+**Last updated:** 2026-11-05 04:51 IST.
 
-**Status:** the user expanded the goal beyond the verified 0.3.1 delivery.
-A substantive 0.4 expansion is active: nominal records, stronger optimizations,
-project testing and reusable LLVM passes. The 0.3.1 evidence below remains a
-historical baseline, not validation of the evolving feature branch.
-Historical 0.2 completion records remain below, separately identified.
+**Status:** the substantive 0.4.0 expansion is implemented and verified on
+Windows x64 and Linux x86-64. Corrected implementation `1cfd6aa` passed frozen
+host, default-stack sanitizer and extracted-package checks. Final documentation
+records follow that tested source; historical 0.3.1 and 0.2 deliveries remain below.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -31,7 +30,7 @@ The user authorized advancing beyond 0.3.1 as far as practical and leaving the
 PC on overnight. Work proceeds in this active session with durable Git and log
 checkpoints. The PC being on does not itself restart an ended agent session.
 
-The next deliverable is a coherent compiler/tooling expansion with actual native
+The delivered 0.4.0 is a coherent compiler/tooling expansion with actual native
 execution, negative cases and source-level metadata. Existing language semantics,
 checked traps, file protection and independent execution paths remain required.
 Do not increase feature counts using placeholders or silently widen support claims.
@@ -44,8 +43,8 @@ Do not increase feature counts using placeholders or silently widen support clai
 | Project test workflow | Discover typed `test_*` functions, select real compiler entry without source rewriting, isolate cases with timeout/output bounds, assertions and machine-readable reports | Root | 1–3 h | Implemented; 14 Windows checks and three combined-example native tests pass; new-project test scaffold added |
 | Reusable LLVM pass | Same real new-PM pass in compiler and loadable `opt` plugin; exact pipeline and positive/negative structural/execution checks | Backend agent | 1–3 h | Implemented; 4 FileCheck pipelines and 23 executions pass; Windows backend reuse builds; dynamic plugin remains Linux-only |
 | Semantic editor decorations | Compiler-backed semantic tokens and inferred local type hints, bounded and UTF-16 correct, no source writes | Tooling agent / root | 1–2 h | Implemented; eight actual compiler/protocol tests pass |
-| Independent structured program generation | Python oracles for arrays/loops, capture cells, records, stack/pipelines and task snapshots/GC; repeatable seed and failure replay | Backend agent | 0.5–2 h | Implemented; 150 focused comparisons, timeout/artifact paths and argument bounds checked |
-| Integration and delivery | Current language/tool docs, meaningful combined example, full frozen-host suites, refreshed installation/artifacts/evidence, focused pushed commits | Root / all | 1–2 h | Follows feature integration |
+| Independent structured program generation | Python oracles for arrays/loops, capture cells, records, stack/pipelines and task snapshots/GC; repeatable seed and failure replay | Backend agent | 0.5–2 h | Complete; final 300-program seeded campaign makes 910 independently expected output comparisons, plus focused timeout/artifact and argument-bound checks |
+| Integration and delivery | Current language/tool docs, meaningful combined example, full frozen-host suites, refreshed installation/artifacts/evidence, focused pushed commits | Root / all | 1–2 h | Complete; corrected frozen Windows 30/26 and Linux 32 suites, clean sanitizer run, extracted Windows/Linux archives and output-verified benchmark |
 
 These are focused engineering estimates with parallel work, not a guaranteed
 overnight finish or a claim that an experimental compiler can be made universally
@@ -100,6 +99,83 @@ Source records remain managed nominal values, not automatic C record declaration
   This proof identifies the patched candidate honestly; final clean-archive
   host and sanitizer runs follow from a new snapshot. Parser campaign inputs
   are unchanged and will receive an explicit final-input hash comparison.
+
+
+- 04:37: corrected clean `1cfd6aa` generated-program campaign passes 300
+  programs and 910 output comparisons (300 interpreter, 300 JIT O0, 300 JIT O2,
+  five AOT executions at each level; ten native builds), seed 20261106. Source
+  and compiler identities remain unchanged after the run.
+- 04:39:54: final clean-archive Clang ASan/UBSan run passes on the default 8 MiB
+  stack: four unit groups, 56 record checks, 76 alias checks, 55 language checks
+  and 50 generated programs. Leak detection is enabled; no sanitizer report
+  files or findings are present. All 158 archived source files still match.
+  Instrumentation covers the LLVM-disabled compiler/runtime, not LLVM internals.
+- 04:40:43: corrected Windows native **30/30** and reference **26/26** suites
+  finish; CTest reports 189.98 s / 50.61 s. No suite skips or source changes.
+  The Windows ZIP is then extracted and verified, including the record project
+  output `42,43,52,36`, three native project tests and installed tools/formatter.
+- 04:44:41: corrected Linux **32/32** suites finish in 300.60 s (build 153.55 s),
+  including the actual LLVM plugin, source debugger, C ABI and installed layout.
+  All 158 archived files match after testing. One Windows-only junction case is
+  skipped internally by the Linux tools test; no CTest suite is skipped.
+- 04:45:55: Linux tarball extraction checks pass for showcase execution,
+  records, three project tests in each interpreter/JIT/native mode and the
+  installed plugin loaded by `opt`, followed by `lli`. Installed plugin RUNPATH
+  adjustment changes its bytes; both build/installed hashes are recorded and
+  the installed artifact itself is tested. All package/source post-checks pass.
+- 04:46:25: after all build/test/package processes stop, three-sample native
+  benchmark is captured from clean `1cfd6aa`; all outputs match. Startup-inclusive
+  O0/O2 medians: checked loop 26.218/24.860 ms, Fibonacci(20) 15.972/16.566 ms.
+  These samples establish no general speedup or cross-language advantage.
+- 04:47-04:51: current documentation and eleven machine-readable evidence records
+  are refreshed. Parsed JSON copies match every original field/value. Local
+  documentation links are checked, including correction of one fixture link.
+  The implemented 0.4 contract has no remaining code milestone; artifacts remain
+  verified local builds, with no GitHub release or remote CI dispatch.
+
+### 0.4.0 closeout and remaining limits
+
+The frozen implementation is **`1cfd6aab929c0c608061159900270981c2b3d12c`**.
+Windows, Linux and clean sanitizer captures share source archive SHA-256
+`b976d621302cfae302b552da5469ea805961bf79a702cf552a9c0cc1217b586a`.
+Subsequent closeout commits change documentation/evidence only. The earlier
+`96ae47b` sanitizer failure is preserved above and is not presented as a passing
+release. The 37,183-execution parser fuzz campaign used that earlier candidate;
+all 12 recorded parser-target inputs are byte-identical in the final archive,
+as shown by the [explicit input comparison](validation/parser-input-equivalence-0.4.0-2026-11-05.json).
+This is parser coverage-guided fuzzing plus a separate seeded five-template
+semantic campaign, not coverage-guided whole-language semantic fuzzing.
+
+| Final evidence | Durable record |
+|---|---|
+| Windows native/reference suites and binary identities | [Windows manifest](validation/windows-0.4.0-2026-11-05.json) |
+| Linux native suites and plugin/toolchain identities | [Linux manifest](validation/linux-0.4.0-2026-11-05.json) |
+| Clean default-stack sanitizer checks | [Sanitizer manifest](validation/sanitizer-0.4.0-2026-11-05.json) |
+| Independent expected-output campaign | [Program campaign](validation/programs-0.4.0-2026-11-05.json) |
+| Extracted Windows/Linux packages | [Windows](validation/windows-package-0.4.0-2026-11-05.json), [Linux](validation/linux-package-0.4.0-2026-11-05.json) |
+| Correctness-checked native measurements | [Benchmark](benchmarks/windows-0.4.0-2026-11-05.json) |
+
+Local artifacts under ignored `out/dist/`:
+
+- `pikaflow-0.4.0-windows-x64-1cfd6aa.zip`: 18,237,440 bytes; SHA-256
+  `cdb36b6de3003b1a2f6dc2f51212c63e158e82fdbff54da3b135900b732c4e18`.
+- `pikaflow-0.4.0-linux-x86_64-1cfd6aa.tar.gz`: 25,226,377 bytes; SHA-256
+  `18fa9c473a7d50e503a9abd2d5e4295a6d1aff7e4dabf0204dac698ae8c9e7b9`.
+
+The recorded expansion/verification interval is about 79 minutes from the 03:28
+plan entry to the benchmark/closeout, using parallel agents. Earlier focused
+work preceded that entry; this is elapsed session time, not person-hours or a
+promise for another compiler. Original engineering estimates remain visible.
+The durable next-work boundary is any newly scoped feature or reproduced bug;
+there is no unverified checkbox being called complete.
+
+PikaFlow remains experimental. Supported targets are x64, C interoperability is
+bounded, and the reusable dynamic LLVM plugin is Linux-only. Windows uses the
+same pass statically. Native linking needs compatible local development tools;
+the Linux plugin needs matching LLVM 24. Neither archive is a universal installer.
+ThreadSanitizer could not start on this WSL host in the historical run; a clean
+TSan result, arbitrary architectures/ABIs and universal absence of bugs are not
+claimed. See [feature boundaries](FEATURES.md) and [validation](validation.md).
 
 ## 0.3.1 quality hardening — 2026-11-05 (historical delivery)
 
