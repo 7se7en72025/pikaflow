@@ -1,0 +1,21 @@
+import "tree.pf"
+import "std:numeric"
+
+fun calculate(seed: i64) -> Result[i64, str]:
+    let tree = identity(make_tree(seed)?)
+    let worker = fun() -> i64:
+        gc()
+        return sum_tree(tree)
+    let answer = join(spawn(worker))
+    let adjusted = stack(answer) -> i64:
+        1 +
+    return ok(adjusted)
+
+fun main() -> unit:
+    print(unwrap(calculate(20)))
+    6 |> square |> print
+    match calculate(- 1):
+        case ok(value):
+            print(value)
+        case err(message):
+            print(message)

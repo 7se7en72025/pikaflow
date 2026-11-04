@@ -1,20 +1,25 @@
 # Implementation status
 
-PikaFlow 0.1 has an implemented and tested core compiler. The initial Windows x64
-and Linux x86-64 native/JIT integration runs each passed all 13 CTest suites,
-including 216 compiler checks and 52 generated C ABI execution comparisons per
-host. This establishes the tested first-release core, not completion of the full
-approved roadmap.
+PikaFlow 0.2 extends the tested core with generic specialization, recursive ADTs,
+guarded/exhaustive patterns, Result propagation, isolated threaded tasks, nested
+C records/scalar callbacks/integer-width annotations, and working formatter,
+editor and local-package tools. The implementation has targeted executable
+coverage; final integration counts and exact source provenance belong in the
+[validation record](validation.md), rather than mixing results from evolving
+snapshots.
 
 ## Approved target
 
 - C++ compiler; indentation-based structured syntax plus explicit stack blocks.
 - Static types, inferred local types, typed shared operand-stack contracts.
 - Functions, recursion, closures, pipelines, arrays, tuples, strings, modules.
+- Inferred/explicit generic specialization, recursive nominal enums and guarded
+  exhaustive matches.
 - Checked arithmetic, recoverable `Result` values, explicit unsafe C boundary.
 - Custom typed IR, reference interpreter, LLVM IR and native object generation,
   optimization, ORC JIT, source debug information.
 - Precise non-moving mark/sweep runtime, roots for live managed values.
+- Isolated real-thread tasks, formatter, scoped LSP support and local package locks.
 - Windows x64 and Linux x64, executable regression tests and IR verification.
 
 ## Implemented and checked core
@@ -23,31 +28,42 @@ The repository contains the indentation frontend, static semantic analysis,
 structured/typed-stack compiler, typed IR verifier, reference interpreter, traced
 runtime, LLVM native/JIT backend, CLI, source standard library and executable
 examples. Closures, mutation, Result/destructuring patterns, module privacy,
-checked arithmetic and explicit unsafe memory/foreign calls have executable
+checked arithmetic, generics, recursive enum graphs and explicit unsafe memory/foreign calls have executable
 regression coverage. The LLVM backend includes optimization, native assembly and
 object emission, linking and source debug metadata.
 
-The C boundary supports a bounded set of natural-layout flat records on Windows
-x64 and Linux x86-64, alongside scalar/pointer calls and supported varargs.
-Nested/packed records, unions, bitfields, C++ object ABI and callbacks remain
-outside that subset. CodeView line/local records were inspected on Windows;
-interactive graphical-debugger stepping and usability are not established.
+The C boundary supports natural-layout nested records, scalar noncapturing
+callbacks, scalar/pointer calls, explicit integer boundary widths and supported
+varargs on the x86-64 targets. Packed records, unions, bitfields, C++ object ABI
+and managed/captured callbacks remain outside that subset. Headless GDB tests
+exercise real breakpoints, stepping, backtraces and mutated/captured scalar
+watches; Windows CodeView line/local records are also inspected. Graphical IDE
+integration remains unverified.
 
-A bounded frontend libFuzzer campaign completed 64,258 executions under ASan/UBSan
-without a reported failure. Native benchmark outputs were verified before three
+A bounded 0.2 frontend libFuzzer campaign completed 80,430 executions in 49 seconds
+under ASan/UBSan without a reported failure. Native benchmark outputs were verified before three
 timed repetitions per configuration; [the raw report](benchmarks/windows-2026-11-04.json)
 does not establish a performance advantage.
 
-The implementation is captured by core commit `92e0e38` and backend commit
-`8a96379`, followed by the documented clean checkout `6ca5992`. Final Windows and
-Linux native suites passed against that exact clean checkout. The Windows
-output-checked benchmark and three install/relocation checks also passed against
-it. Archive/binary hashes, exact toolchains, local log paths and limits are in the
-[validation record](validation.md). See [feature status](FEATURES.md) for the
-boundary of each implemented feature and remaining work.
+The earlier clean `6ca5992` validation/benchmark/install records establish the
+0.1 baseline, not automatic verification of every later extension. The 0.2
+language source cases compare interpreter/JIT/native outputs at `-O0`/`-O2`,
+alongside independent host-C fixtures, threaded runtime tests, debugger sessions
+and protocol/tool subprocess tests. Final source/archive/binary hashes and
+host-specific suite results are maintained in [validation.md](validation.md).
 
-## Later roadmap
+## Delivered tooling and task contracts
 
-Generics, formatter, language server, package manager, and concurrency follow
-the core compiler. Concurrent collection and a borrow checker are not part of
-the chosen memory model.
+The formatter preserves real compiler tokens. The language server advertises
+only its implemented document-level capabilities. Package management uses local
+path dependencies and deterministic integrity locks, without a network registry
+or publishing service. Real worker threads copy capture/result graphs between
+isolated heaps and join at function-scope exit; they do not share managed mutable
+state. Concurrent collection and a borrow checker are not part of this model.
+
+The [integrated showcase](../examples/showcase/main.pf) combines imported generic
+recursive trees, exhaustive guarded patterns, Result `?`, a worker with GC,
+typed stack operations, a standard-library word and a pipeline. It prints `43`,
+`36` and `negative seed` in that order.
+
+See [FEATURES.md](FEATURES.md) for the complete supported-feature boundaries.

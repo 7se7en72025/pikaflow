@@ -1,0 +1,20 @@
+export enum Tree[T]:
+    Leaf(value: T)
+    Branch(left: Tree[T], right: Tree[T])
+
+export fun identity[T](value: T) -> T:
+    return value
+
+export fun make_tree(seed: i64) -> Result[Tree[i64], str]:
+    if seed < 0:
+        return err("negative seed")
+    return ok(Branch(Leaf(seed), Leaf(22)))
+
+export fun sum_tree(tree: Tree[i64]) -> i64:
+    match tree:
+        case Leaf(value) if value >= 0:
+            return value
+        case Leaf(_):
+            return 0
+        case Branch(left, right):
+            return sum_tree(left) + sum_tree(right)

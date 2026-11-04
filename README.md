@@ -9,11 +9,11 @@ The project draws inspiration from [Pikapika](https://github.com/7se7en72025/pik
 and [Goof](https://github.com/sneaky-potato/goof). Its implementation and language
 rules are developed here rather than merging the two projects' source code.
 
-**Status:** Windows x64 and Linux x86-64 native/JIT integration each pass all 13
-CTest suites, including 216 compiler checks and 52 generated C ABI cross-checks
-per host. This is a 0.1 implementation,
-not completion of the full approved v1 roadmap. See the [validation record](docs/validation.md)
-and [feature status](docs/FEATURES.md) for what has actually been checked.
+**Status:** the 0.2 implementation includes generic functions and recursive ADTs,
+guarded matches, Result propagation, isolated threaded tasks, extended C interop,
+and formatter/editor/local-package tools. Native execution targets Windows x64
+and Linux x86-64. See the [validation record](docs/validation.md) for exact tested
+snapshots and [feature status](docs/FEATURES.md) for the supported contracts.
 
 ## A small hybrid program
 
@@ -43,11 +43,23 @@ Stack blocks share an operand stack within a function; a word consumes its
 declared input suffix and returns its declared outputs, preserving the caller's
 remaining stack prefix. [Language reference](docs/language.md)
 
+The [integrated showcase](examples/showcase/main.pf) combines imported generic
+recursive trees, exhaustive guarded patterns, Result `?`, a worker that runs GC,
+stack arithmetic and a standard-library pipeline:
+
+```powershell
+.\build\native\pikaflow.exe run examples/showcase/main.pf -O2
+```
+
+It prints `43`, `36` and `negative seed`. Its source is also checked through the
+interpreter and both JIT/native optimization levels by the language suite.
+
 ## Build on Windows
 
 Install Git, CMake 3.24 or later, Ninja, Python 3, and Visual Studio C++ build tools
-with the Windows SDK. Use a **Developer PowerShell** for native compilation and
-linking commands so the SDK/library environment is present.
+with the Windows SDK. Use a **Developer PowerShell** when configuring the MSVC
+build. The configured native compiler captures the toolchain/SDK library paths;
+subsequent language `build` commands can run from ordinary PowerShell.
 
 The reference interpreter does not require LLVM:
 
@@ -142,12 +154,21 @@ source file, including hard links, are rejected.
   and `Result[T,E]`; explicit function signatures and inferred local bindings.
 - `let`/`var`, lexical scopes, recursion, closures with captured mutable cells,
   pipelines, typed stack words and multiple stack outputs.
-- Branches, loops, loop control, and nested tuple/array/Result/range patterns.
+- Inferred/explicit generic function specialization; nominal generic enums with
+  recursive/mutually recursive payloads and GC-managed cycles.
+- Branches, loops, loop control, guarded nested patterns and exhaustive enum
+  matches; Result `?` returns errors early with a checked error type.
+- Real-thread `spawn`/`join` with typed handles, isolated graph snapshots and
+  automatic joins at function-scope exit.
 - Checked integer arithmetic, bounds checks, recoverable Result helpers, and
   source-spanned compile diagnostics with bounded parser recovery.
 - A precise non-moving mark-and-sweep collector, explicit unsafe raw-memory
   helpers, persistent GC root handles, and C symbol aliases.
 - Private-by-default modules, explicit exports, and source standard-library modules.
+
+The [language extension reference](docs/language-extensions.md) specifies syntax,
+inference, recursive types and expansion limits. Task heap isolation and unsafe
+memory obligations are described in [runtime.md](docs/runtime.md).
 
 ```text
 import "std:numeric"
@@ -160,7 +181,8 @@ for checked parsing, sorting/search, numeric helpers, and ASCII operations.
 Strings currently use byte indexing rather than Unicode grapheme indexing.
 
 Foreign calls require `unsafe`. The LLVM backend implements a bounded C ABI
-subset, including compatible flat tuple records; the reference interpreter has
+subset, including nested natural-layout records, scalar noncapturing callbacks
+and explicit C integer widths; the reference interpreter has
 an audited set of supported math calls rather than arbitrary FFI execution.
 See [C interoperability](docs/ffi.md) for exact signatures, ownership, `--load`,
 `--link`, ABI restrictions, and target-specific verification.
@@ -170,6 +192,7 @@ See [C interoperability](docs/ffi.md) for exact signatures, ownership, `--load`,
 ```powershell
 ctest --test-dir build/interpreter --output-on-failure
 python tests/test_cli.py build/interpreter/pikaflow.exe
+python tests/test_language_extensions.py build/native/pikaflow.exe
 python tests/fuzz_frontend.py build/interpreter/pikaflow.exe --cases 30
 python scripts/benchmark.py build/native/pikaflow.exe --repeats 3 --output build/benchmark.json
 ```
@@ -178,8 +201,8 @@ The integration suite detects whether LLVM is enabled. LLVM builds add JIT and
 native output comparisons at `-O0`/`-O2`, object/IR checks, and C ABI tests.
 Bounded generated-program checks complement the parser's malformed-input tests;
 they are not a coverage-guided fuzz campaign.
-The separate [Clang libFuzzer target](docs/fuzzing.md) completed 64,258 frontend
-executions under ASan/UBSan without a reported failure in its bounded campaign.
+The separate [Clang libFuzzer target](docs/fuzzing.md) completed 80,430 frontend
+executions under ASan/UBSan in its bounded 0.2 campaign without a reported failure.
 
 Benchmarks verify results before recording timings, retain repeated measurements,
 and record the compiler binary identity, checkout metadata, machine, source, and
@@ -188,18 +211,41 @@ flags. They do not establish a performance advantage. [Benchmark methodology](do
 GitHub CI is **manual only** (`workflow_dispatch`) for Windows/Linux interpreter
 checks. Commits and pull requests do not automatically consume runner time.
 
+## Formatting, editor support and local packages
+
+The developer tools require Python 3.10 or newer, without third-party Python
+dependencies:
+
+```powershell
+python tools/pikaflow.py --compiler build/native/pikaflow.exe fmt examples/showcase/main.pf --check
+python tools/pikaflow.py --compiler build/native/pikaflow.exe lsp
+python tools/pikaflow.py init my_project --name my_project
+python tools/pikaflow.py deps lock --project my_project
+python tools/pikaflow.py deps check --project my_project
+python tools/pikaflow.py --compiler build/native/pikaflow.exe interpret --project my_project
+```
+
+Formatting verifies compiler-token equivalence before replacing a file. The stdio
+language server supplies unsaved-document/import diagnostics, formatting, document
+symbols and keyword/declaration completion. It advertises only those capabilities.
+Local path packages use deterministic content locks and `pkg:` imports; this is
+not a network registry or publishing service. See [tooling.md](docs/tooling.md)
+for editor configuration, manifest examples and precise limits.
+
 ## Install and continue development
 
 ```powershell
 cmake --install build/native --prefix "$PWD/build/install"
 ```
 
-Installation includes the compiler, runtime archive, and standard-library source
-under `share/pikaflow/stdlib`. Native linking still needs a compatible host C++
+Installation includes the compiler, runtime archive, standard-library source
+under `share/pikaflow/stdlib`, and Python tools under `share/pikaflow/tools`.
+Native linking still needs a compatible host C++
 toolchain and SDK. This is a development install, not a standalone distribution
 or package manager.
 
 Read the [design and decision record](docs/design.md), [language reference](docs/language.md),
 [validation record](docs/validation.md), and [remaining feature scope](docs/FEATURES.md).
-Generics, formatting, LSP support, package management, and concurrency are staged
-future work; none is implied by the current command set.
+The release has bounded, documented contracts; broader ABI, editor-protocol,
+distributed-package and shared-memory concurrency features require their own
+design and validation rather than being implied by these commands.

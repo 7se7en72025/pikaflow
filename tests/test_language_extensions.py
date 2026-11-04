@@ -330,6 +330,15 @@ def main():
         }.items():
             path = root / (name + ".pf"); path.write_text(source, encoding="utf-8")
             run([compiler, "check", str(path)]); count += 1
+        showcase = pathlib.Path(__file__).resolve().parents[1] / "examples/showcase/main.pf"
+        expected = "43\n36\nnegative seed\n"
+        run([compiler, "interpret", str(showcase)], expected); count += 1
+        if native:
+            for optimization in ("-O0", "-O2"):
+                run([compiler, "run", str(showcase), optimization], expected); count += 1
+                executable = root / ("showcase" + optimization + (".exe" if os.name == "nt" else ""))
+                run([compiler, "build", str(showcase), optimization, "-o", str(executable)])
+                run([str(executable)], expected); count += 1
     print(f"{count} language extension checks passed ({'LLVM enabled' if native else 'interpreter'})")
 
 
