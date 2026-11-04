@@ -1,0 +1,190 @@
+# Design and decision record
+
+PikaFlow is intended to teach real compiler engineering through a language that
+combines structured syntax and typed stack operations. The project is implemented
+in C++17 and uses LLVM's C++ APIs. The design deliberately exposes observable
+intermediate stages and keeps an independent reference execution path.
+
+This document records decisions delegated and approved during project planning.
+It separates implemented behavior from the wider roadmap. The authoritative
+syntax/behavior reference is [language.md](language.md), implementation status is
+[FEATURES.md](FEATURES.md), and verification evidence is [validation.md](validation.md).
+
+## Compiler path
+
+```text
+UTF-8 source
+  -> lexer (tokens, indentation, locations)
+  -> parser (AST)
+  -> name/type/stack-effect checking
+  -> custom typed register/control-flow IR
+     -> reference interpreter -> common runtime
+     -> LLVM IR -> verification/optimization -> object + runtime -> executable
+                                           -> ORC JIT -> execution
+```
+
+The custom IR uses typed virtual registers and explicit control-flow operations.
+It is not presented as LLVM SSA: control-flow joins may write a shared virtual
+register. The verifier checks instruction types, signatures, valid targets,
+side-effect destinations, closure environments, and definite assignment at joins.
+The LLVM backend lowers these registers to local storage and allows LLVM's
+optimization pipeline to promote/simplify that representation.
+
+The interpreter and LLVM backend share language/runtime contracts but implement
+execution separately. Agreement between interpreter, JIT, and optimized/unoptimized
+native output is evidence for tested programs; it is not a proof of compiler
+correctness. LLVM's verifier likewise checks IR invariants rather than proving
+the source translation correct.
+
+## Structured and stack composition
+
+The language uses indentation-based structured blocks, named functions, local
+bindings, and explicit stack blocks. A stack block is an expression whose declared
+outputs become structured values. Multiple outputs are represented as tuples.
+Values remaining beneath those outputs stay on the enclosing function's operand
+stack and can be consumed by later blocks.
+
+```text
+stack(10, 20):
+    swap
+let difference = stack() -> i64:
+    -
+```
+
+Each function has a shared stack across its own blocks. This is a deliberate,
+statically checkable interpretation of shared stack programming rather than an
+untyped process-global operand stack. A typed word consumes the declared suffix
+of its caller's stack and produces its declared outputs. The prefix remains
+untouched by that call. Structured function calls pass their normal parameters
+and result; hidden cross-function stack mutation is not allowed.
+
+Stack inputs are pushed left-to-right, with the last input on top. Binary postfix
+operators pop the right operand before the left. Branches must leave compatible
+stack shapes/types, and loop backedges preserve their declared carried state.
+Break/continue use their appropriate loop exit/backedge contracts. Structured
+returns cannot silently discard residual stack values.
+
+These rules make the interaction with LLVM control flow and SSA lowering visible
+while keeping stack effects statically checkable. Stack blocks have lexical
+local scopes even though their operand stack is shared.
+
+## Types and evaluation
+
+- Static types with explicit function signatures and locally inferred initializers.
+- `let` freezes the binding; `var` allows same-typed reassignment. Referenced array
+  objects can still be mutated through a `let` binding.
+- Arithmetic requires matching numeric types. Potentially lossy numeric conversion
+  is explicit. `unit` represents absence of a result and is not a container element
+  or parameter value.
+- Evaluation is left-to-right, including the callable before its arguments.
+  Structured boolean operations short-circuit; postfix boolean inputs have already
+  been evaluated when their operator executes.
+- Pipelines evaluate their left input once and insert it as the first call argument.
+- Integer overflow, invalid division/remainder, and invalid bounds produce defined
+  runtime failures. Optimization must not introduce unchecked signed-overflow
+  assumptions that change these semantics.
+
+Keywords, canonical type names, and built-in operations are reserved in declarations.
+This prevents direct calls and first-class references from resolving the same name
+to different meanings. Module/private symbol resolution is performed before
+lowering to globally unique IR names.
+
+## Closures and memory
+
+Closures have typed signatures and managed environments. Immutable captures retain
+their original value; mutable captures share cells whose lifetime can outlive the
+declaring function. References to arrays are captured as references to the same
+object. Named nested functions can capture their own function cell, supporting
+recursive closures after the outer function returns.
+
+Managed strings, arrays, tuples, closures, and cells use a precise, non-moving
+mark-and-sweep collector. Runtime frames expose managed-reference roots, and the
+collector traverses object children. Stable addresses simplify interaction with
+foreign code, but rooting is still required: a stable address does not guarantee
+that an otherwise unreachable object stays alive.
+
+The current implementation roots managed register slots for a frame's lifetime.
+This can keep dead temporaries alive until their slots are overwritten or the
+function returns. It is a correctness-oriented baseline, not a liveness-optimal
+collector or a claim of minimal memory use.
+
+Foreign allocation/load/store/free and C calls require explicit `unsafe` blocks.
+Runtime-owned raw allocations and C-library allocations have separate ownership.
+`pin`/`unpin` create/release persistent GC roots; a pin handle is not an object's
+data pointer. `cstr` borrows a string buffer. General borrow checking, automatic
+foreign ownership inference, moving/concurrent GC, and pointer arithmetic are
+not part of the current implementation.
+
+LLVM supplies integration mechanisms rather than a ready-made collector; this
+runtime supplies the collector and allocation policy. [LLVM GC documentation](https://llvm.org/docs/GarbageCollection.html)
+
+## Recoverable errors and matching
+
+`Result[T,E]` distinguishes ordinary recoverable failures from programming errors.
+`ok`/`err` construct alternatives. `unwrap` and `error` validate the active
+alternative before exposing its payload. Nested tuples, arrays, Result constructors,
+bindings, literals, exclusive integer ranges, and wildcards can be matched.
+
+Pattern bindings are local to a case. Array shape checks occur before element
+loads. Exhaustive returning branches are treated as terminating control flow;
+`panic` is divergent rather than an ordinary value-returning expression.
+General user-defined algebraic data types, pattern guards, and error-propagation
+syntax remain separate work.
+
+## Modules and C boundary
+
+Files are namespaces with explicit `export` on functions/words. Imports expose
+only directly imported exported declarations; transitive private names and private
+extern aliases do not leak. Import cycles diagnose. `std:` resolves bundled
+standard-library modules from the development or installed library layout.
+
+An extern source alias is independent of its actual C symbol, allowing a name
+such as `libc_free` to refer to `"free"`. Calling conventions, argument layout,
+returns, and vararg promotions are target-specific. The backend supports a bounded
+flat C-record subset rather than claiming arbitrary C/C++ ABI compatibility.
+Its constraints, examples, and target-specific tests are in [ffi.md](ffi.md).
+
+The reference interpreter supports an audited set of exact foreign math signatures.
+It does not cast arbitrary addresses to guessed C++ function types or emulate the
+whole platform ABI. Foreign libraries can be loaded for JIT execution or linked
+for native execution where the declared boundary is supported.
+
+## Build, diagnostics, and observability
+
+LLVM 24 APIs and a recorded source revision are used for integration. A working
+LLVM configuration/library set is versioned as a unit; following LLVM main requires
+deliberate rebuilds, adaptation, and tests rather than assuming compatibility.
+
+Tokens, AST, custom IR, LLVM IR, and target assembly are independently inspectable.
+Compiler errors retain filename/line/column and a source caret. Parser recovery
+collects up to 20 independent top-level errors; lexical and semantic phases still
+stop at their first error. Resource limits prevent pathological nesting from
+exhausting the native parser stack.
+
+Output protection rejects loaded source paths and equivalent hard links before
+writing. Native linking launches the compiler driver with structured arguments
+rather than constructing a shell command from user paths.
+
+Tests cover valid and invalid programs, arithmetic/bounds failures, closures/GC,
+stack joins, module visibility, aliasing, source preservation, ABI fixtures, and
+execution-mode agreement. Generated arithmetic programs use an independent Python
+reference with truncating division/remainder semantics. The manual GitHub workflow
+does not dispatch automatically on pushes or pull requests.
+
+## Staged scope
+
+| Decision | Current direction | Later work |
+|---|---|---|
+| Native platforms | Windows x64 and Linux x64 targets | Additional targets need separate ABI/runtime tests |
+| Optimization | LLVM pipelines plus observable/custom-pass work | Further passes need legality checks and regression cases |
+| Debugging | Source metadata generation | End-to-end debugger usability must be verified per target |
+| Standard library | Numeric, sequence, and ASCII/byte-string source modules | Additional APIs require specified contracts/tests |
+| Generics | Approved compile-time-specialization direction | Post-core implementation; not currently available |
+| Formatter | Approved after grammar stability | Not currently available |
+| LSP | Approved post-v1 direction | Not currently available |
+| Package management | Approved after module/dependency stabilization | Not currently available |
+| Concurrency | Approved separate post-v1 design | Requires memory-model, stack, runtime, and GC coordination |
+
+The project's ambition is measured through specified semantics, working programs,
+reproducible builds, and tested behavior. Neither feature count nor selecting a
+more difficult design establishes a "10x" correctness or performance advantage.
