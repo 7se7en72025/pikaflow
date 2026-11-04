@@ -1,5 +1,6 @@
 #include "pikaflow/backend.hpp"
 #include "pikaflow/optimizer.hpp"
+#include "llvm/CheckedArithmeticPass.hpp"
 #include "pikaflow/runtime.h"
 #include "pikaflow/backend_config.hpp"
 
@@ -85,38 +86,6 @@ std::string nativeName(const std::string& sourceName) {
     return name;
 }
 
-// LLVM cannot infer the contracts of our checked runtime calls. These identities
-// are valid even with checked overflow, so folding them never removes a failure.
-class CheckedIdentityPass : public llvm::OptionalPassInfoMixin<CheckedIdentityPass> {
-public:
-    llvm::PreservedAnalyses run(llvm::Function& function,llvm::FunctionAnalysisManager&) {
-        bool changed=false;
-        for(auto& block:function) {
-            for(auto it=block.begin();it!=block.end();) {
-                auto* instruction=&*it++;
-                auto* call=llvm::dyn_cast<llvm::CallInst>(instruction);
-                if(!call || call->arg_size()!=2 || !call->getCalledFunction()) continue;
-                auto* constant=llvm::dyn_cast<llvm::ConstantInt>(call->getArgOperand(1));
-                if(!constant || !constant->getType()->isIntegerTy(64)) continue;
-                auto name=call->getCalledFunction()->getName();
-                llvm::Value* replacement=nullptr;
-                if(constant->isZero() && (name=="pf_checked_add" || name=="pf_checked_sub"))
-                    replacement=call->getArgOperand(0);
-                else if(constant->isOne() && (name=="pf_checked_mul" || name=="pf_checked_div"))
-                    replacement=call->getArgOperand(0);
-                else if((constant->isZero() && name=="pf_checked_mul") ||
-                    (constant->isOne() && name=="pf_checked_mod"))
-                    replacement=llvm::ConstantInt::get(call->getType(),0);
-                if(replacement) {
-                    call->replaceAllUsesWith(replacement);
-                    call->eraseFromParent(); changed=true;
-                }
-            }
-        }
-        return changed?llvm::PreservedAnalyses::none():llvm::PreservedAnalyses::all();
-    }
-};
-
 class Emitter {
     const Program& program;
     llvm::LLVMContext& context;
@@ -182,6 +151,7 @@ class Emitter {
     llvm::Value* runtime(const char* name, llvm::Type* result,
         llvm::ArrayRef<llvm::Type*> parameters, llvm::ArrayRef<llvm::Value*> args) {
         auto callee = module.getOrInsertFunction(name, llvm::FunctionType::get(result, parameters, false));
+        if(auto* function = llvm::dyn_cast<llvm::Function>(callee.getCallee())) markCheckedArithmeticRuntime(*function);
         return builder.CreateCall(callee, args);
     }
     llvm::FunctionType* signature(const std::vector<Type>& params, const Type& result, bool hiddenEnv) {
@@ -881,7 +851,7 @@ Generated generate(const Program& program,unsigned optimization,bool debug) {
     pipeline.run(*g.module,modules);
     if(optimization) {
         llvm::ModulePassManager custom;
-        custom.addPass(llvm::createModuleToFunctionPassAdaptor(CheckedIdentityPass()));
+        custom.addPass(llvm::createModuleToFunctionPassAdaptor(CheckedArithmeticPass()));
         custom.run(*g.module,modules);
     }
     if(llvm::verifyModule(*g.module,&errors)) throw std::runtime_error("invalid optimized LLVM IR:\n"+errors.str());
