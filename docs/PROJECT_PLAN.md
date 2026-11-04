@@ -2,11 +2,12 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 02:18 IST.
+**Last updated:** 2026-11-05 02:36 IST.
 
-**Status:** 0.3 implementation complete and pushed at `5f0b109`; final Windows
-native 25/25, Windows reference 21/21 and Linux native 26/26 suites pass.
-Documentation/evidence closeout is committed and pushed through `7d91858`.
+**Status:** the verified 0.3 delivery is preserved below. Following the request
+for further quality hardening, a corrective 0.3.1 pass is active. New fixes need
+fresh focused checks and final host evidence; prior 0.3 results do not establish
+the correctness of evolving source.
 Historical 0.2 completion records remain below, separately identified.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
@@ -24,7 +25,28 @@ Windows x64/Linux x86-64 native and interpreter checks. Each feature needs valid
 examples, negative diagnostics, relevant edge cases, and cross-mode execution
 where applicable. Preserve explicit unsafe boundaries and source-file protection.
 
-## 0.3 completion continuation — 2026-11-04
+## 0.3.1 quality hardening — 2026-11-05
+
+The user requested further hardening after the completed 0.3 handoff. Review
+focuses on reproducible correctness, crash and file-protection failures within
+the supported contract. It does not promise proof of perfection or introduce
+unrelated language features.
+
+| Finding / acceptance | Owner | State |
+|---|---|---|
+| Formatter must preserve all five compound assignment operators in scalar/indexed statements and LSP edits | Root | Fixed; 16 developer-tool tests pass on Windows with Python 3.11 |
+| Invalid URI types must produce protocol errors without killing the LSP; wire JSON must be UTF-8 | Root | Fixed; subprocess recovery and encoding regressions pass |
+| Short deeply chained expressions and `elif` ladders must diagnose rather than exhaust the native stack | Frontend agent | Reproduced; bounded AST/conditional parsing fix underway |
+| Printing a finite deep managed graph must preserve formatting without recursive native-stack exhaustion | Runtime agent | 50,000-node crash reproduced; iterative renderer underway |
+| Debug native linking must not delete source or unrelated files through implicit `.ilk`/PDB sidecars | Backend agent | Source deletion reproduced on Windows; fix and tests underway |
+| Buffered output failures must return an error after flushing/closing | Root | Linux `/dev/full` incorrectly returned success; fix and regression added, rebuild pending |
+| Integrate, run full host suites, refresh installed package/evidence and push focused commits | Root / all | Pending integration |
+
+**02:36 IST estimate:** allow roughly 30–90 minutes for fixes, integration and
+host checks if no additional failure appears. This is an estimate, not a promised
+completion time; independent review runs in parallel. Update from actual results.
+
+## 0.3 completion continuation — 2026-11-04 (historical delivery)
 
 The renewed audit found stale statements in the main language reference and
 unfinished source/editor/package workflows. Correct these in code and docs;
