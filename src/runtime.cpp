@@ -69,7 +69,6 @@ thread_local SourceLocation sourceLocation;
 
 [[noreturn]] void fail(const char* message) {
     pf_fail(message, nullptr, 0);
-    std::abort();
 }
 
 bool managed(uint32_t tag) { return (tag >= StringTag && tag <= CellTag) || tag == ResultTag; }

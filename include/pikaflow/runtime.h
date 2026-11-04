@@ -1,12 +1,23 @@
 #pragma once
 #include <stdint.h>
+#if defined(__cplusplus)
+#define PF_NORETURN [[noreturn]]
+#elif defined(_MSC_VER)
+#define PF_NORETURN __declspec(noreturn)
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define PF_NORETURN _Noreturn
+#elif defined(__GNUC__) || defined(__clang__)
+#define PF_NORETURN __attribute__((noreturn))
+#else
+#define PF_NORETURN
+#endif
 #ifdef __cplusplus
 extern "C" {
 #endif
 // Tags match pika::TypeKind. Managed references use tags 4 through 8 and 10.
 typedef struct PFValue { uint64_t bits; uint32_t tag; uint32_t reserved; } PFValue;
 void pf_print(uint64_t bits, uint32_t tag);
-void pf_fail(const char* message, const char* file, int32_t line);
+PF_NORETURN void pf_fail(const char* message, const char* file, int32_t line);
 void pf_source_location(const char* file, int32_t line, int32_t column);
 void pf_panic(void* message);
 uint64_t pf_result_value(void* result);
@@ -48,3 +59,4 @@ void pf_unpin(void* handle);
 #ifdef __cplusplus
 }
 #endif
+#undef PF_NORETURN
