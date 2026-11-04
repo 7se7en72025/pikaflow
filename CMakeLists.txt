@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.24)
-project(PikaFlow VERSION 0.3.1 LANGUAGES C CXX)
+project(PikaFlow VERSION 0.4.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 option(PIKAFLOW_ENABLE_LLVM "Build LLVM native and JIT backends" ON)
+option(PIKAFLOW_BUILD_LLVM_PLUGIN "Build the standalone LLVM pass plugin when supported" ON)
 include(CTest)
 find_package(Threads REQUIRED)
 
@@ -39,7 +40,7 @@ if(PIKAFLOW_ENABLE_LLVM)
         llvm_map_components_to_libnames(PIKAFLOW_ABI_LIBRARY abi)
         list(APPEND PIKAFLOW_LLVM_LIBRARIES ${PIKAFLOW_ABI_LIBRARY})
     endif()
-    add_library(pikaflow_backend STATIC src/backend.cpp)
+    add_library(pikaflow_backend STATIC src/backend.cpp src/llvm/CheckedArithmeticPass.cpp)
     if(MSVC AND NOT "$ENV{LIB}" STREQUAL "")
         set(PIKAFLOW_NATIVE_LIBRARY_DIRS "$ENV{LIB}" CACHE STRING "SDK and CRT library directories for native linking" FORCE)
     endif()
@@ -60,6 +61,20 @@ if(PIKAFLOW_ENABLE_LLVM)
     target_link_libraries(pikaflow_backend PUBLIC pikaflow_core ${PIKAFLOW_LLVM_LIBRARIES})
     target_link_libraries(pikaflow PRIVATE pikaflow_backend)
     target_compile_definitions(pikaflow PRIVATE PF_HAS_LLVM=1)
+    if(PIKAFLOW_BUILD_LLVM_PLUGIN AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND
+       LLVM_ENABLE_PLUGINS AND LLVM_LINK_LLVM_DYLIB AND TARGET LLVM)
+        list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+        include(AddLLVM)
+        add_llvm_pass_plugin(pikaflow_checked_passes
+            src/llvm/PassPlugin.cpp src/llvm/CheckedArithmeticPass.cpp)
+        set_target_properties(pikaflow_checked_passes PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}")
+        target_include_directories(pikaflow_checked_passes SYSTEM PRIVATE ${LLVM_INCLUDE_DIRS})
+        target_compile_options(pikaflow_checked_passes PRIVATE ${PIKAFLOW_LLVM_DEFINITIONS})
+        target_compile_definitions(pikaflow_checked_passes PRIVATE PF_PLUGIN_VERSION="${PROJECT_VERSION}")
+        install(TARGETS pikaflow_checked_passes LIBRARY DESTINATION lib/pikaflow/plugins)
+    elseif(PIKAFLOW_BUILD_LLVM_PLUGIN)
+        message(STATUS "Standalone LLVM pass plugin unavailable in this LLVM configuration; compiler pass remains enabled")
+    endif()
 endif()
 
 if(MSVC)
@@ -123,6 +138,19 @@ if(BUILD_TESTING)
         add_test(NAME interpreter COMMAND pikaflow_interpreter_tests)
     endif()
     find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_FOUND AND TARGET pikaflow_checked_passes)
+        find_program(PIKAFLOW_OPT NAMES opt opt-24 HINTS "${LLVM_TOOLS_BINARY_DIR}")
+        find_program(PIKAFLOW_FILECHECK NAMES FileCheck FileCheck-24 HINTS "${LLVM_TOOLS_BINARY_DIR}")
+        find_program(PIKAFLOW_LLI NAMES lli lli-24 HINTS "${LLVM_TOOLS_BINARY_DIR}")
+        find_program(PIKAFLOW_LLC NAMES llc llc-24 HINTS "${LLVM_TOOLS_BINARY_DIR}")
+        if(PIKAFLOW_OPT AND PIKAFLOW_FILECHECK AND PIKAFLOW_LLI AND PIKAFLOW_LLC)
+            add_test(NAME llvm_pass_plugin COMMAND "${Python3_EXECUTABLE}"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_llvm_plugin.py"
+                "$<TARGET_FILE:pikaflow_checked_passes>" "${PIKAFLOW_OPT}" "${PIKAFLOW_FILECHECK}"
+                "${PIKAFLOW_LLI}" "${PIKAFLOW_LLC}" "$<TARGET_FILE:pikaflow>"
+                "$<TARGET_FILE:pikaflow_runtime>" "${CMAKE_CXX_COMPILER}")
+        endif()
+    endif()
     if(Python3_FOUND AND TARGET pikaflow_runtime_tests AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime_failures.py")
         add_test(NAME runtime_failures COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/runtime_failures.py" "$<TARGET_FILE:pikaflow_runtime_tests>")
@@ -146,6 +174,15 @@ if(BUILD_TESTING)
     if(Python3_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_namespaces_assignments.py")
         add_test(NAME namespaces_assignments COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_namespaces_assignments.py" "$<TARGET_FILE:pikaflow>")
+    endif()
+    if(Python3_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_records.py")
+        add_test(NAME records COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_records.py" "$<TARGET_FILE:pikaflow>")
+    endif()
+    if(Python3_FOUND AND Python3_VERSION VERSION_GREATER_EQUAL 3.10 AND
+       EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_project_tests.py")
+        add_test(NAME project_tests COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_project_tests.py" "$<TARGET_FILE:pikaflow>")
     endif()
     if(Python3_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_optimization.py")
         add_test(NAME optimization_semantics COMMAND "${Python3_EXECUTABLE}"

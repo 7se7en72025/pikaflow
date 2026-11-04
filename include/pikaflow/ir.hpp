@@ -2,6 +2,7 @@
 #include "pikaflow/common.hpp"
 #include "pikaflow/frontend.hpp"
 #include <map>
+#include <set>
 
 namespace pika {
 enum class Op {
@@ -102,6 +103,8 @@ struct Symbol {
     Location definition;
     std::vector<Location> uses;
     Type type;
+    bool renameable = true;
+    bool generic = false;
 };
 struct Program {
     std::vector<Function> functions;
@@ -110,8 +113,10 @@ struct Program {
     std::string sourceFile;
     std::map<std::string, Type> nominalLayouts{};
     std::vector<Symbol> symbols{};
+    std::set<std::string> nominalRecords{};
 };
-Program compile(const SyntaxTree &tree, bool indexSymbols = false);
+Program compile(const SyntaxTree &tree, bool indexSymbols = false,
+                const std::string &entryFunction = "main");
 void verify(const Program &program);
 std::string dumpIR(const Program &program);
 int interpret(const Program &program);

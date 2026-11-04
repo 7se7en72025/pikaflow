@@ -14,8 +14,8 @@ from editor import Editor, apply_changes, point
 import packages
 
 LIMIT = 4 * 1024 * 1024
-DECLARATION = re.compile(r"^(\s*)(?:export\s+)?(?:(?:extern\s+)?(fun|word|enum)|(let|var))\s+([A-Za-z_]\w*)")
-KEYWORDS = "fun word enum let var if elif else while for in return match case break continue unsafe import export true false Result i64 f64 bool str unit spawn join".split()
+DECLARATION = re.compile(r"^(\s*)(?:export\s+)?(?:(?:extern\s+)?(fun|word|enum|record)|(let|var))\s+([A-Za-z_]\w*)")
+KEYWORDS = "fun word enum record let var if elif else while for in return match case break continue unsafe import export true false Result i64 f64 bool str unit spawn join".split()
 
 
 def path_from_uri(uri: str) -> pathlib.Path:
@@ -99,7 +99,7 @@ def symbols(source: str) -> list[dict]:
         start = utf16_length(line[:match.start(4)])
         selection = {"start": {"line": number, "character": start},
                      "end": {"line": number, "character": start + len(name)}}
-        found.append({"name": name, "kind": {"fun": 12, "word": 12, "enum": 10}.get(match[2], 13),
+        found.append({"name": name, "kind": {"fun": 12, "word": 12, "enum": 10, "record": 23}.get(match[2], 13),
                       "range": {"start": {"line": number, "character": 0},
                                 "end": {"line": number, "character": utf16_length(line)}},
                       "selectionRange": selection, "detail": line.strip()})
@@ -203,7 +203,7 @@ class Server:
                 "hoverProvider": True, "definitionProvider": True, "referencesProvider": True,
                 "renameProvider": {"prepareProvider": True},
                 "completionProvider": {"resolveProvider": False}},
-                "serverInfo": {"name": "PikaFlow", "version": "0.3.1"}}
+                "serverInfo": {"name": "PikaFlow", "version": "0.4.0"}}
         if not self.initialized:
             return {"__error__": -32002, "message": "server not initialized"}
         if method == "shutdown":
@@ -254,7 +254,7 @@ class Server:
             if method.endswith("documentSymbol"):
                 return declarations
             items = [{"label": name, "kind": 14} for name in KEYWORDS]
-            items.extend({"label": item["name"], "kind": 3 if item["kind"] == 12 else 6,
+            items.extend({"label": item["name"], "kind": {12: 3, 10: 13, 23: 22}.get(item["kind"], 6),
                           "detail": item["detail"]} for item in declarations)
             return {"isIncomplete": False, "items": items}
         return {"__error__": -32601, "message": f"method not found: {method}"}

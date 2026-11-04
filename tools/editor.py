@@ -269,6 +269,8 @@ class Editor:
             path.is_relative_to(base) for base in self.roots_for(root))
 
     def rename(self, path: pathlib.Path, symbol: dict, new_name: str, index: dict) -> dict:
+        if not symbol.get("renameable", True):
+            raise EditorError("rename is unavailable because some field references cannot be resolved; annotate receiver types")
         if not packages.NAME.fullmatch(new_name) or len(new_name) > 128:
             raise EditorError("rename requires an ASCII identifier of at most 128 characters")
         if symbol["name"] == "main":
@@ -353,6 +355,8 @@ class Editor:
                        item["range"]["start"]["character"]): item for item in locations}
             return list(unique.values())
         if method.endswith("prepareRename"):
+            if not symbol.get("renameable", True):
+                raise EditorError("rename is unavailable because some field references cannot be resolved; annotate receiver types")
             if not self.editable(pathlib.Path(symbol["definition"]["file"]).resolve(), path) or symbol["name"] == "main":
                 raise EditorError("this declaration cannot be renamed")
             source = self.server.source(path)

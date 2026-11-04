@@ -61,6 +61,48 @@ class EditorWorkflows(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             return result.stdout.replace("\r\n", "\n")
 
+    def test_record_field_rename_covers_labels_writes_patterns_and_unreachable_uses(self):
+        source = ('record Cell:\n    value:i64\n'
+            'fun unused(cell:Cell)->unit:\n    return\n    print(cell.value)\n'
+            'fun read(cell:Cell)->i64:\n    return cell.value\n'
+            'fun main()->unit:\n    let cell=Cell(value:41)\n    cell.value+=1\n'
+            '    print(read(cell))\n    match cell:\n        case Cell(value:answer):\n            print(answer)\n')
+        path = write(self.root / "main.pf", source)
+        result, changed = self.renamed(path, "value", "item", kind="field")
+        rewritten = changed[path]
+        self.assertEqual(self.interpreted(source), "42\n42\n")
+        self.assertEqual(self.interpreted(rewritten), "42\n42\n")
+        self.assertNotIn(".value", rewritten)
+        self.assertIn("Cell(item:41)", rewritten)
+        self.assertIn("Cell(item:answer)", rewritten)
+        self.assertEqual(path.read_bytes(), source.encode())
+        self.assertTrue(result["documentChanges"])
+
+    def test_generic_record_type_and_constructor_share_rename_identity(self):
+        source = ('record Cell[T]:\n    value:T\n'
+            'fun read(cell:Cell[i64])->i64:\n    return cell.value\n'
+            'fun main()->unit:\n    let cell=Cell::[i64](value:42)\n    print(read(cell))\n')
+        path = write(self.root / "main.pf", source)
+        _, changed = self.renamed(path, "Cell", "Box", kind="record")
+        self.assertEqual(self.interpreted(changed[path]), "42\n")
+        self.assertNotIn("Cell", changed[path])
+        self.assertEqual(path.read_bytes(), source.encode())
+
+    def test_unresolved_record_field_refuses_both_prepare_and_actual_rename(self):
+        source = ('record Cell:\n    value:i64\nenum Wrapper:\n    Wrapped(cell:Cell)\n'
+            'fun unused(wrapper:Wrapper)->unit:\n    return\n    match wrapper:\n'
+            '        case Wrapped(cell):\n            print(cell.value)\n'
+            'fun main()->unit:\n    print(Cell(value:42).value)\n')
+        path = write(self.root / "main.pf", source)
+        index, symbol = self.index_symbol(path, "value", kind="field")
+        self.assertFalse(symbol["renameable"])
+        with self.assertRaisesRegex(editor.EditorError, "cannot be resolved"):
+            self.server.editor.rename(path, symbol, "item", index)
+        with self.assertRaisesRegex(editor.EditorError, "cannot be resolved"):
+            self.server.handle({"method": "textDocument/prepareRename", "params": {
+                "textDocument": {"uri": path.as_uri()}, "position": {"line": 1, "character": 5}}})
+        self.assertEqual(path.read_bytes(), source.encode())
+
     def test_utf16_crlf_changes_and_atomic_failures(self):
         text = "a\U0001f600b\r\nnext\r\n"
         self.assertEqual(editor.offset(text, {"line": 0, "character": 3}), 2)

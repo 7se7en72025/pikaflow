@@ -108,6 +108,9 @@ void verify(const Program &program) {
             layout.args.empty() || layout.args[0] != I64 || !validType(layout))
             throw Error({program.sourceFile, 1, 1}, "invalid nominal IR layout");
     }
+    for (const auto &name : program.nominalRecords)
+        if (!program.nominalLayouts.count(name))
+            throw Error({program.sourceFile, 1, 1}, "record has no nominal IR layout");
     auto canonical = [&](Type type) {
         if (type.kind == TypeKind::Tuple && !type.name.empty())
             return program.nominalLayouts.at(type.name);
@@ -424,6 +427,10 @@ void verify(const Program &program) {
                     check(ins.args.size() == t.args.size(), ins, "tuple arity");
                     for (size_t i = 0; i < ins.args.size(); ++i)
                         check(arg(i) == t.args[i], ins, "tuple element");
+                    if (program.nominalRecords.count(t.name))
+                        check(constants.count(ins.args[0]) && !nonconstant.count(ins.args[0]) &&
+                                  constants.at(ins.args[0]) == 0,
+                              ins, "record tag must be constant zero");
                 } else {
                     arity(3);
                     check(arg(0) == Bool && arg(1) == t.args[0] && arg(2) == t.args[1], ins,
@@ -455,12 +462,25 @@ void verify(const Program &program) {
                     check(false, ins, "non-indexable base type");
                 break;
             }
-            case Op::SetIndex:
+            case Op::SetIndex: {
                 arity(3);
-                check(ins.dst < 0, ins, "array store cannot define a register");
-                check(arg(0).kind == TypeKind::Array && arg(1) == I64 && arg(0).args[0] == arg(2),
-                      ins, "array store type");
+                check(ins.dst < 0, ins, "indexed store cannot define a register");
+                check(arg(1) == I64, ins, "indexed store index type");
+                if (arg(0).kind == TypeKind::Array)
+                    check(arg(0).args[0] == arg(2), ins, "array store type");
+                else {
+                    check(arg(0).kind == TypeKind::Tuple && program.nominalRecords.count(arg(0).name),
+                          ins, "indexed store requires an array or registered record");
+                    check(constants.count(ins.args[1]) && !nonconstant.count(ins.args[1]),
+                          ins, "record field index must be constant");
+                    const auto index = constants.at(ins.args[1]);
+                    const auto record = canonical(arg(0));
+                    check(index >= 1 && static_cast<size_t>(index) < record.args.size(),
+                          ins, "record field index bounds");
+                    check(arg(2) == record.args[static_cast<size_t>(index)], ins, "record field store type");
+                }
                 break;
+            }
             case Op::Length:
                 arity(1);
                 check(dst() == I64 && (arg(0) == String || arg(0).kind == TypeKind::Array ||

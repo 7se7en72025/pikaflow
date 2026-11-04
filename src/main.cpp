@@ -117,7 +117,10 @@ std::string symbolJSON(const pika::Program &program, const std::set<std::string>
         comma = true;
         output << "{\"id\":" << json(symbol.id) << ",\"name\":" << json(symbol.name)
                << ",\"kind\":" << json(symbol.kind) << ",\"detail\":" << json(symbol.detail)
-               << ",\"type\":" << json(symbol.type.str()) << ",\"definition\":" << position(symbol.definition)
+               << ",\"type\":" << json(symbol.type.str())
+               << ",\"renameable\":" << (symbol.renameable ? "true" : "false")
+               << ",\"generic\":" << (symbol.generic ? "true" : "false")
+               << ",\"definition\":" << position(symbol.definition)
                << ",\"uses\":[";
         for (size_t i = 0; i < symbol.uses.size(); ++i) {
             if (i) output << ',';
@@ -352,6 +355,7 @@ void help() {
               << "usage: pikaflow COMMAND FILE [-O0|-O1|-O2|-O3] [--debug] [-o OUTPUT]\n"
               << "  check         parse, type-check and verify typed IR\n"
               << "                --library checks modules without a source main\n"
+              << "                --entry NAME selects a root-module function for compiled commands\n"
               << "  symbols       emit compiler-resolved source bindings as JSON\n"
               << "  interpret     execute the reference interpreter\n"
               << "  run           execute through LLVM ORC JIT\n"
@@ -390,12 +394,24 @@ int runCLI(int argc, char **argv) {
         [[maybe_unused]] unsigned optimization = 0;
         [[maybe_unused]] bool debug = false;
         bool libraryMode = command == "symbols";
+        std::string entryFunction = "main";
+        bool explicitEntry = false;
         std::string overlay;
         std::vector<fs::path> indexSources;
         std::vector<std::string> links, loads;
         for (int i = 3; i < argc; ++i) {
             std::string option = argv[i];
-            if (option == "-o") {
+            if (option == "--entry") {
+                if (++i >= argc) throw std::runtime_error("--entry requires a function name");
+                entryFunction = argv[i];
+                if (entryFunction.empty() ||
+                    !(std::isalpha(static_cast<unsigned char>(entryFunction[0])) || entryFunction[0] == '_') ||
+                    !std::all_of(entryFunction.begin(), entryFunction.end(), [](unsigned char c) {
+                        return std::isalnum(c) || c == '_';
+                    }))
+                    throw std::runtime_error("--entry requires an unqualified function name");
+                explicitEntry = true;
+            } else if (option == "-o") {
                 if (++i >= argc)
                     throw std::runtime_error("-o requires output path");
                 output = argv[i];
@@ -423,6 +439,8 @@ int runCLI(int argc, char **argv) {
         }
         if (!links.empty() && command != "build")
             throw std::runtime_error("--link is supported by build only");
+        if (explicitEntry && (libraryMode || command == "dump-tokens" || command == "dump-ast"))
+            throw std::runtime_error("--entry requires a compiled command without --library");
         if (!loads.empty() && command != "run")
             throw std::runtime_error("--load is supported by JIT run only");
         if (libraryMode && command != "check" && command != "symbols")
@@ -460,7 +478,7 @@ int runCLI(int argc, char **argv) {
             if (command == "dump-ast")
                 text = pika::dumpAST(tree);
             else {
-                auto program = pika::compile(tree, command == "symbols");
+                auto program = pika::compile(tree, command == "symbols", entryFunction);
                 if (command == "check") {
                     std::cout << "OK: " << source.u8string() << "\n";
                     return 0;

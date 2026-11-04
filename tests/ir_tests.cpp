@@ -23,6 +23,26 @@ Program valid() {
     program.functions.push_back(function);
     return program;
 }
+Program recordProgram() {
+    auto program = valid();
+    Type point{TypeKind::Tuple, {}, "Point"};
+    program.nominalLayouts["Point"] = Type{TypeKind::Tuple, {I64, I64, Bool}, "Point"};
+    program.nominalRecords.insert("Point");
+    Function function;
+    function.name = "update_record";
+    function.parameters = {I64};
+    function.result = I64;
+    function.registers = {I64, I64, I64, Bool, point, I64};
+    function.code = {instruction(Op::ConstI64, 1), instruction(Op::ConstI64, 2),
+                     instruction(Op::ConstBool, 3), instruction(Op::ConstI64, 5),
+                     instruction(Op::MakeTuple, 4, {1, 2, 3}),
+                     instruction(Op::SetIndex, -1, {4, 5, 2}), instruction(Op::Return, -1, {2})};
+    function.code[1].integer = 42;
+    function.code[2].integer = 1;
+    function.code[3].integer = 1;
+    program.functions.push_back(std::move(function));
+    return program;
+}
 void rejects(const char *label, const std::function<void(Program &)> &corrupt) {
     auto program = valid();
     corrupt(program);
@@ -37,6 +57,29 @@ void rejects(const char *label, const std::function<void(Program &)> &corrupt) {
 int main() {
     try {
         verify(valid());
+        verify(recordProgram());
+        rejects("record without canonical layout", [](Program &p) { p.nominalRecords.insert("missing"); });
+        rejects("record tag mutation", [](Program &p) {
+            p = recordProgram(); p.functions[1].code[3].integer = 0;
+        });
+        rejects("record out-of-range field", [](Program &p) {
+            p = recordProgram(); p.functions[1].code[3].integer = 3;
+        });
+        rejects("record field type mismatch", [](Program &p) {
+            p = recordProgram(); p.functions[1].code[3].integer = 2;
+        });
+        rejects("dynamic record field", [](Program &p) {
+            p = recordProgram(); p.functions[1].code[5].args[1] = 0;
+        });
+        rejects("unregistered nominal mutation", [](Program &p) {
+            p = recordProgram(); p.nominalRecords.clear();
+        });
+        rejects("nonzero record constructor tag", [](Program &p) {
+            p = recordProgram(); p.functions[1].code[0].integer = 1;
+        });
+        rejects("record tag supplied by parameter", [](Program &p) {
+            p = recordProgram(); p.functions[1].code[4].args[0] = 0;
+        });
         rejects("out-of-range destination", [](Program &p) { p.functions[0].code[0].dst = 99; });
         rejects("out-of-range operand", [](Program &p) { p.functions[0].code[1].args = {99}; });
         rejects("uninitialized operand", [](Program &p) { p.functions[0].code[1].args = {1}; });
