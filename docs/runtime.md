@@ -54,7 +54,9 @@ or native pointer elements. `pf_raw_load` and `pf_raw_store` check the bounds,
 element type, and interior offset when the pointer belongs to an allocation
 known to this runtime. `pf_raw_free` accepts only an allocation's original base
 pointer and rejects unknown or already freed allocations. Manual memory is not
-scanned by the garbage collector.
+scanned by the garbage collector. Runtime-owned raw blocks must be released with
+`pf_raw_free`, not a foreign `free`; foreign allocations must be released by
+their matching foreign allocator API.
 
 Foreign pointers have no runtime allocation metadata. Their validity, bounds,
 aliasing, and lifetime remain the caller's unsafe responsibility. Stale pointers
