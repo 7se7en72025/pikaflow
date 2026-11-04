@@ -1,0 +1,15 @@
+import "library.pf" as _
+
+enum Token:
+    _
+
+fun main() -> unit:
+    let (_, value) = (0, 42)
+    let constructed = _()
+    match value:
+        case _.Ctor(payload):
+            print(payload)
+        case _():
+            pass
+        case _:
+            pass
