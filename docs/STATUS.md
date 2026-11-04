@@ -1,5 +1,32 @@
 # Implementation status
 
+PikaFlow **0.4.0** delivers nominal generic records and mutable named fields,
+transparent generic aliases, local scalar common expressions and CFG dead-result
+removal, project tests/assertions, semantic tokens/type hints, and a shared LLVM
+checked-arithmetic pass with a Linux `opt` plugin. The
+[record project](../examples/record_project/README.md) exercises these language,
+task and test-runner paths together. Feature contracts are in
+[FEATURES.md](FEATURES.md).
+
+Clean frozen `1cfd6aa` passed **30/30 Windows native** (189.98 s), **26/26 Windows
+reference** (50.61 s) and **32/32 Linux native** (300.60 s) CTest suites. The
+final clean Clang ASan/UBSan campaign passed its focused units and source cases
+with the default 8 MiB stack and leak detection. An earlier candidate did expose
+a compiler stack overflow; the fix and failed result remain explicit in
+[validation.md](validation.md).
+
+The parser campaign completed 37,183 executions with no finding; every recorded
+parser/build input is byte-equal to the final archive. Separately, 300 generated
+programs matched independent Python expectations in 910 executions, with native
+builds capped at ten. The local Windows/Linux archives passed extracted-program,
+tool and project-test checks; Linux additionally exercised the installed plugin.
+The output-verified [benchmark](benchmarks/windows-0.4.0-2026-11-05.json) retains
+three process-inclusive samples per configuration and establishes no general
+speedup. Exact identities, counts and limitations are recorded below the
+[validation entry](validation.md).
+
+## Historical 0.3.1 corrective release
+
 PikaFlow **0.3.1** is a corrective release of the 0.3 contract. It preserves
 compound assignment tokens during formatting, rejects malformed LSP messages,
 bounds syntax/semantic traversal, prints deep managed graphs iteratively, fixes

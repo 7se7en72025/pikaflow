@@ -1,0 +1,69 @@
+{
+  "campaign_source_commit": "96ae47b209eac483595fd264cc3cc0ba5d93fdd1",
+  "final_source_commit": "1cfd6aab929c0c608061159900270981c2b3d12c",
+  "final_source_archive_sha256": "b976d621302cfae302b552da5469ea805961bf79a702cf552a9c0cc1217b586a",
+  "scope": "Exact archived bytes of every source/build input recorded by the parser-only fuzz campaign; compiler.cpp is not a parser fuzz target input.",
+  "files": {
+    "CMakeLists.txt": {
+      "campaign_sha256": "8ec6cc639684cf21686c68b46b6465f68413d45aa818778d2794d039699e5ee6",
+      "final_archive_sha256": "8ec6cc639684cf21686c68b46b6465f68413d45aa818778d2794d039699e5ee6",
+      "match": true
+    },
+    "cmake/Fuzzing.cmake": {
+      "campaign_sha256": "971897de17d088a52c503e2ec21c922f286ab95e1136fd903832b8508571bea6",
+      "final_archive_sha256": "971897de17d088a52c503e2ec21c922f286ab95e1136fd903832b8508571bea6",
+      "match": true
+    },
+    "include/pikaflow/backend.hpp": {
+      "campaign_sha256": "c0d2fd0aa4dd3e6c36dd120772fe78f637784783f362fc0580c52fdfdd2ddb4e",
+      "final_archive_sha256": "c0d2fd0aa4dd3e6c36dd120772fe78f637784783f362fc0580c52fdfdd2ddb4e",
+      "match": true
+    },
+    "include/pikaflow/common.hpp": {
+      "campaign_sha256": "421a3562ee8521f4ea9d504463710d3bef5f1b45b10a50603b5b8b174e65c517",
+      "final_archive_sha256": "421a3562ee8521f4ea9d504463710d3bef5f1b45b10a50603b5b8b174e65c517",
+      "match": true
+    },
+    "include/pikaflow/frontend.hpp": {
+      "campaign_sha256": "8bb884f517d31ee84f7f559da80ca49c4dadd7073378dbbd06916fb96a07968d",
+      "final_archive_sha256": "8bb884f517d31ee84f7f559da80ca49c4dadd7073378dbbd06916fb96a07968d",
+      "match": true
+    },
+    "include/pikaflow/ir.hpp": {
+      "campaign_sha256": "835d86e323f909d09a8b1c46f98e57fd4a6222796a6dca1297d9defcd623e5e3",
+      "final_archive_sha256": "835d86e323f909d09a8b1c46f98e57fd4a6222796a6dca1297d9defcd623e5e3",
+      "match": true
+    },
+    "include/pikaflow/optimizer.hpp": {
+      "campaign_sha256": "84482217cb6ce6db804465343373fc0d6c07523f9d52145b5bf0ec3f04e084f0",
+      "final_archive_sha256": "84482217cb6ce6db804465343373fc0d6c07523f9d52145b5bf0ec3f04e084f0",
+      "match": true
+    },
+    "include/pikaflow/runtime.h": {
+      "campaign_sha256": "1424d412d2455afaf0bc6d85209958238d789f0617e11969887b6f52b9bc9a0c",
+      "final_archive_sha256": "1424d412d2455afaf0bc6d85209958238d789f0617e11969887b6f52b9bc9a0c",
+      "match": true
+    },
+    "src/common.cpp": {
+      "campaign_sha256": "cad0d2b4b70aecffa791d35324bc52c15b53b25bd92abafb2b99100c9f481a05",
+      "final_archive_sha256": "cad0d2b4b70aecffa791d35324bc52c15b53b25bd92abafb2b99100c9f481a05",
+      "match": true
+    },
+    "src/lexer.cpp": {
+      "campaign_sha256": "8437da631c1310b349c6045590ebbfb7f183441dfc1d51be4f18cc8c1f0914b1",
+      "final_archive_sha256": "8437da631c1310b349c6045590ebbfb7f183441dfc1d51be4f18cc8c1f0914b1",
+      "match": true
+    },
+    "src/parser.cpp": {
+      "campaign_sha256": "973b3d13128b8d759e2457d2f7e36f9f2d2138aff6911e3e3437b81e0972951a",
+      "final_archive_sha256": "973b3d13128b8d759e2457d2f7e36f9f2d2138aff6911e3e3437b81e0972951a",
+      "match": true
+    },
+    "tests/fuzz_parser.cpp": {
+      "campaign_sha256": "6e1ed0990b0a418b5c3bac505418cc72c604e183db5c5e1e49e162e27f5c10ca",
+      "final_archive_sha256": "6e1ed0990b0a418b5c3bac505418cc72c604e183db5c5e1e49e162e27f5c10ca",
+      "match": true
+    }
+  },
+  "all_match": true
+}

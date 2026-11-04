@@ -9,17 +9,16 @@ The project draws inspiration from [Pikapika](https://github.com/7se7en72025/pik
 and [Goof](https://github.com/sneaky-potato/goof). Its implementation and language
 rules are developed here rather than merging the two projects' source code.
 
-**Status:** PikaFlow 0.3.1 hardens formatting, protocol validation, syntax bounds,
-managed printing, IR validation and Windows native output protection. PikaFlow 0.3
-adds named module namespaces, single-evaluation compound
-updates, cross-function diagnostics, typed-IR dataflow optimization and a compiler
-semantic index for incremental editor navigation and verified rename. It includes
-generic recursive ADTs, Result propagation, isolated threaded tasks, C interop,
-formatting and exact-commit Git/local packages. Native targets are Windows x64
-and Linux x86-64. The [validation record](docs/validation.md) identifies frozen
-source/toolchain results. Clean `d77a3b5` passed 25/25 Windows native, 21/21
-Windows reference and 26/26 Linux native suites; historical records remain separate.
-See [feature status](docs/FEATURES.md) for supported contracts and limits.
+**Status:** PikaFlow 0.4 adds nominal records with named mutable fields,
+transparent type aliases, bounded scalar CSE/dead-result optimization, project
+tests and assertions, semantic coloring/type hints, and a shared LLVM pass with
+a Linux `opt` plugin. Existing generics, recursive ADTs, Result propagation,
+isolated threaded tasks, C interop and pinned Git packages remain supported.
+Clean `1cfd6aa` passed **30/30 Windows native**, **26/26 Windows reference** and
+**32/32 Linux native** suites, plus a clean ASan/UBSan campaign and independent
+generated-program checks. The [validation record](docs/validation.md) identifies
+exact source/toolchains, the corrected sanitizer candidate and historical results.
+See [feature scope](docs/FEATURES.md) for the supported boundaries.
 
 ## A small hybrid program
 
@@ -59,6 +58,15 @@ stack arithmetic and a standard-library pipeline:
 
 It prints `43`, `36` and `negative seed`. Its source is also checked through the
 interpreter and both JIT/native optimization levels by the language suite.
+
+The [record project](examples/record_project/README.md) adds generic mutable
+records, transparent aliases, snapshot-isolated workers and three project tests.
+Its application prints `42`, `43`, `52`, `36`:
+
+```powershell
+python tools/pikaflow.py --compiler build/native/pikaflow.exe run --project examples/record_project -O2
+python tools/pikaflow.py --compiler build/native/pikaflow.exe test --project examples/record_project --backend native -O2
+```
 
 ## Build on Windows
 
@@ -167,7 +175,12 @@ source file, including hard links, are rejected.
 The [typed-IR optimizer](docs/optimization.md) propagates integer/boolean constants
 over the CFG, folds safe arithmetic/branches and removes unreachable instructions
 before LLVM lowering. Checked failures and reachable effects are preserved; LLVM
-optimization remains a separate stage.
+optimization remains a separate stage. Local scalar value numbering reuses
+successful dynamic checked expressions; CFG liveness removes only dead,
+nontrapping scalar results. Managed operations and root lifetimes are retained.
+The same [checked-arithmetic LLVM pass](docs/llvm-pass-plugin.md) is also a Linux
+LLVM 24 plugin for `opt`, with real FileCheck/`lli`/`llc` execution tests.
+Windows uses the shared pass internally; its current LLVM build skips the DLL.
 
 ## Language and runtime features
 
@@ -175,6 +188,8 @@ optimization remains a separate stage.
   and `Result[T,E]`; explicit function signatures and inferred local bindings.
 - `let`/`var`, lexical scopes, recursion, closures with captured mutable cells,
   pipelines, typed stack words and multiple stack outputs.
+- Nominal generic records, named field construction/access/update and record
+  patterns; transparent generic type aliases with module privacy and cycle checks.
 - Inferred/explicit generic function specialization; nominal generic enums with
   recursive/mutually recursive payloads and GC-managed cycles.
 - Branches, loops, loop control, guarded nested patterns and exhaustive enum
@@ -222,6 +237,7 @@ ctest --test-dir build/interpreter --output-on-failure
 python tests/test_cli.py build/interpreter/pikaflow.exe
 python tests/test_language_extensions.py build/native/pikaflow.exe
 python tests/fuzz_frontend.py build/interpreter/pikaflow.exe --cases 30
+python tests/fuzz_programs.py build/native/pikaflow.exe --cases 10 --seed 20261105 --artifacts out/program-failures
 python scripts/benchmark.py build/native/pikaflow.exe --repeats 3 --output build/benchmark.json
 ```
 
@@ -229,11 +245,12 @@ The integration suite detects whether LLVM is enabled. LLVM builds add JIT and
 native output comparisons at `-O0`/`-O2`, object/IR checks, and C ABI tests.
 Bounded generated-program checks complement the parser's malformed-input tests;
 they are not a coverage-guided fuzz campaign.
-The separate [Clang libFuzzer target](docs/fuzzing.md) completed 79,589 parser
-executions under ASan/UBSan in its historical 0.3 campaign. The 0.3.1 refresh
-completed 48,721 executions without a reported finding. The final native suites
-include 216 Windows / 217 Linux compiler, 139 language, 61 namespace,
-115 optimizer execution and 19 editor workflow checks on each host, with
+The separate [Clang libFuzzer target](docs/fuzzing.md) completed 37,183 parser
+executions without a reported finding; its exact parser inputs match the final
+archive. An independent [program oracle](docs/program-testing.md) also checked
+300 seeded programs through 910 interpreter/JIT/native output comparisons.
+Final native suites include 90 record, 116 type-alias, 135 optimizer execution,
+23 editor workflow and 8 semantic decoration checks on each host, alongside
 [host-specific counts and identities](docs/validation.md).
 
 Benchmarks verify results before recording timings, retain repeated measurements,
@@ -260,10 +277,16 @@ python tools/pikaflow.py --compiler build/native/pikaflow.exe interpret --projec
 Formatting verifies compiler-token equivalence before replacing a file. The stdio
 language server supports incremental/full document changes, unsaved diagnostics,
 formatting, symbols/completion, compiler-backed hover, definitions, references
-and verified rename. Renames are checked against the candidate binding graph to
+and verified rename, full semantic tokens and inferred-local type hints.
+Renames are checked against the candidate binding graph to
 reject capture and stay within the editable workspace. Multi-project workspaces
 are indexed by project context. See [editor.md](docs/editor.md) for the advertised
 protocol subset and limits.
+
+Project tests use compiler-resolved `test_*` functions and `std:testing`
+assertions. Each case runs in a bounded process; interpreter/JIT/native backends,
+filters, parallel jobs and JSON/JUnit reports are available. New projects include
+a test scaffold. [Testing workflow](docs/testing.md)
 
 Packages may use local paths or exact Git commit pins. Restore reviewed Git pins
 explicitly, then build offline from the verified cache:

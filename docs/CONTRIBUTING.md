@@ -36,7 +36,9 @@ of independent execution paths before studying optimization differences.
 | Do namespaces and indexed updates preserve visibility/evaluation order? | Compiler resolvers/assignment lowering and parser lvalues | [Namespace/assignment tests](../tests/test_namespaces_assignments.py) |
 | How do source names retain identity through shadows, captures and generics? | Optional compiler semantic source pass and AST name locations | [Semantic index tests](../tests/test_semantic_symbols.py), [editor tests](../tests/test_editor.py) |
 | What does our own IR guarantee before LLVM sees it? | [ir.hpp](../include/pikaflow/ir.hpp), [ir.cpp](../src/ir.cpp) | [Malformed IR tests](../tests/ir_tests.cpp) |
-| How do constants and executable CFG edges drive our own optimization? | [optimizer.cpp](../src/optimizer.cpp), [optimizer.hpp](../include/pikaflow/optimizer.hpp) | [Optimizer unit tests](../tests/optimizer_tests.cpp), [cross-mode optimizer tests](../tests/test_optimization.py), [pass description](optimization.md) |
+| How do constants, value identities and live results drive our own optimization? | [optimizer.cpp](../src/optimizer.cpp), [optimizer.hpp](../include/pikaflow/optimizer.hpp) | [Optimizer unit tests](../tests/optimizer_tests.cpp), [cross-mode optimizer tests](../tests/test_optimization.py), [pass description](optimization.md) |
+| How do records and aliases preserve type/field identity? | Compiler type expansion, nominal registry and source field resolution | [Record tests](../tests/test_records.py), [alias tests](../tests/test_type_aliases.py), [record project](../examples/record_project/README.md) |
+| How does the same LLVM pass run in the compiler and `opt`? | [Shared pass](../src/llvm/CheckedArithmeticPass.cpp), [plugin entry](../src/llvm/PassPlugin.cpp) | [Plugin contract](llvm-pass-plugin.md), [FileCheck fixtures](../tests/llvm/checked_simplify.ll), Linux `opt`/`lli`/`llc` tests |
 | How can we execute without relying on LLVM lowering? | [interpreter.cpp](../src/interpreter.cpp) | [Interpreter tests](../tests/interpreter_tests.cpp), [arithmetic differential tests](../tests/fuzz_frontend.py) |
 | How do C++ LLVM APIs build types, instructions and control flow? | [backend.cpp](../src/backend.cpp) | [Backend tests](../tests/backend_tests.cpp); inspect emitted O0 IR |
 | How are object generation, target layout, passes and ORC connected? | [backend.cpp](../src/backend.cpp), [CMakeLists.txt](../CMakeLists.txt) | Native/JIT O0/O2 and object/assembly tests |
@@ -44,6 +46,9 @@ of independent execution paths before studying optimization differences.
 | Does a foreign aggregate really match the host ABI? | Backend C ABI helpers and [host C fixture](../tests/ffi_fixture.c) | [Generated C comparisons](../tests/test_ffi.py); run separately on both hosts |
 | Do debug records actually let a debugger inspect values? | Backend DIBuilder/variable declarations | [Real GDB checks](../tests/test_debugger.py), not only IR metadata checks |
 | How do tools preserve unsaved sources and reject rename capture? | [LSP](../tools/lsp.py), [semantic editor operations](../tools/editor.py) and compiler overlays | [Tool tests](../tests/test_tools.py), editor tests and [editor contract](editor.md) |
+| How do resolved names become semantic colors and inferred type hints? | [Read-only editor features](../tools/editor_features.py) | [Real compiler/protocol tests](../tests/test_editor_features.py), [editor contract](editor.md) |
+| How are project tests isolated and reported? | [Test runner](../tools/project_tests.py), [Windows jobs](../tools/process_jobs.py), [assertions](../stdlib/testing.pf) | [Runner tests](../tests/test_project_tests.py), [testing workflow](testing.md) |
+| Can an independently calculated result expose a shared backend mistake? | [Seeded program generator](../tests/fuzz_programs.py) | [Five-template oracle and replay contract](program-testing.md) |
 | How are Git dependency blobs pinned, verified and restored without hooks? | [Package manager](../tools/packages.py), [Git source reader](../tools/git_sources.py) | [Real local-Git fixture tests](../tests/test_packages.py), [workflow](tooling.md) |
 
 PikaFlow's typed register IR is not LLVM SSA. LLVM lowering initially stores
@@ -56,6 +61,24 @@ incorrect resolver. Add independent fixture tests that execute the original and
 renamed programs and compare output. Cover legal `_` bindings versus pattern
 wildcards and constructor/function/value precedence in each AST context; the
 language server must not execute user programs as part of a rename request.
+
+## Exercise project and LLVM-pass workflows
+
+```powershell
+python tools/pikaflow.py --compiler build/native/pikaflow.exe test --project examples/record_project --backend interpret
+python tests/fuzz_programs.py build/native/pikaflow.exe --cases 10 --seed 20261105 --artifacts out/program-failures
+```
+
+On a matching Linux LLVM 24 plugin host, build `pikaflow_checked_passes` and run
+the [documented `opt` pipeline](llvm-pass-plugin.md). Read the producer contract
+before marking a runtime helper; an incorrect attribute can authorize an invalid
+transformation even when LLVM verification succeeds. Keep a checked-trap and an
+observable-effect counterexample beside each new identity.
+
+Sanitizer resource checks should retain ordinary host stack limits. The 0.4
+candidate's valid generic-chain failure required reducing expression-dispatch
+frame size, followed by a clean default-8-MiB rerun. Raising the stack for
+diagnosis did not count as the release fix. [Validation history](validation.md)
 
 ## Make a change reviewable
 

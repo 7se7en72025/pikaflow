@@ -1,0 +1,326 @@
+{
+  "source_commit": "1cfd6aab929c0c608061159900270981c2b3d12c",
+  "compiler_git_blob_sha256": "516e30c98c7fab079330e4a0b94d010602ccbdb6d21aae71d84a130d7413a82b",
+  "compiler_archive_file_sha256": "c25c67a7d0c778864f5331a8556c4a27e89f7ee92b93b9723c4d2b5329d9a62d",
+  "original_binary_sha256": "91630b785e9b8edb3c71a673fcc0fbe68278b997034061bbe5327dad34bca050",
+  "final_binary_sha256": "503407682a90a476a660d49c6116086fcef28a57b4be8f824329bfed2fd760b2",
+  "old_expr_asan_dynamic_frame_bytes": 17568,
+  "frames": {
+    "expr": {
+      "symbol": "00000000002285c0 t pika::(anonymous namespace)::Compiler::expr(std::shared_ptr<pika::Expr> const&, pika::Type const*)",
+      "asan_dynamic_frame_bytes": 7392,
+      "prologue_sha256": "3f189cf562721a4a234f9c840fe225cecd5024c8112d58fc14d1347a1f20760a"
+    },
+    "exprCall": {
+      "symbol": "0000000000248420 t pika::(anonymous namespace)::Compiler::exprCall(pika::Expr const&, pika::Type const*)",
+      "asan_dynamic_frame_bytes": 7872,
+      "prologue_sha256": "19629ec444b4da922af129c648c0c9734af22ff9303003cf0adcac790f8934cf"
+    },
+    "exprAggregate": {
+      "symbol": "0000000000253710 t pika::(anonymous namespace)::Compiler::exprAggregate(pika::Expr const&, pika::Type const*)",
+      "asan_dynamic_frame_bytes": 1632,
+      "prologue_sha256": "9904ff74af60be25dd0a16b547fbbe27edae0e21ed6ac4368e62cf793205271a"
+    },
+    "exprAdvanced": {
+      "symbol": "0000000000250ce0 t pika::(anonymous namespace)::Compiler::exprAdvanced(pika::Expr const&)",
+      "asan_dynamic_frame_bytes": 4224,
+      "prologue_sha256": "f9c5b1d6fd7b40bc7d424d7e0040469af5987e04c6d90e21b1c98b68e9a633bd"
+    }
+  },
+  "default_stack_regressions_passed": true,
+  "ir_comparisons": [
+    {
+      "source": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/hello.pf",
+      "optimization": "-O0",
+      "byte_equal": true,
+      "sha256": "601b4159b8e8f0403dca8fc43ee4c665493e6874a395086465ee265fa7f6ff57",
+      "baseline_stack_mib": 32,
+      "candidate_stack_mib": 8
+    },
+    {
+      "source": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/hello.pf",
+      "optimization": "-O2",
+      "byte_equal": true,
+      "sha256": "601b4159b8e8f0403dca8fc43ee4c665493e6874a395086465ee265fa7f6ff57",
+      "baseline_stack_mib": 32,
+      "candidate_stack_mib": 8
+    },
+    {
+      "source": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/records.pf",
+      "optimization": "-O0",
+      "byte_equal": true,
+      "sha256": "56284b57f52e57b68692e6b06e26db20a19d514cca0a9a2f5a1af0dac0326997",
+      "baseline_stack_mib": 32,
+      "candidate_stack_mib": 8
+    },
+    {
+      "source": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/records.pf",
+      "optimization": "-O2",
+      "byte_equal": true,
+      "sha256": "56284b57f52e57b68692e6b06e26db20a19d514cca0a9a2f5a1af0dac0326997",
+      "baseline_stack_mib": 32,
+      "candidate_stack_mib": 8
+    },
+    {
+      "source": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/type_aliases.pf",
+      "optimization": "-O0",
+      "byte_equal": true,
+      "sha256": "8f54a3e424c807afd8ab73cab8b2b506af7811111b6874b1b8d9e4b90f2dc193",
+      "baseline_stack_mib": 32,
+      "candidate_stack_mib": 8
+    },
+    {
+      "source": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/type_aliases.pf",
+      "optimization": "-O2",
+      "byte_equal": true,
+      "sha256": "8f54a3e424c807afd8ab73cab8b2b506af7811111b6874b1b8d9e4b90f2dc193",
+      "baseline_stack_mib": 32,
+      "candidate_stack_mib": 8
+    },
+    {
+      "source": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/generic-eight.pf",
+      "optimization": "-O0",
+      "byte_equal": true,
+      "sha256": "27a4522dadc2087c7222fdf8fc0ca216afc5ce9081fd7ed47d7c2b21df8ec33e",
+      "baseline_stack_mib": 32,
+      "candidate_stack_mib": 8
+    },
+    {
+      "source": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/generic-eight.pf",
+      "optimization": "-O2",
+      "byte_equal": true,
+      "sha256": "845d8800195fc7d50c6193f242e8702286d8a8fa245f0860b4513a83b21cca27",
+      "baseline_stack_mib": 32,
+      "candidate_stack_mib": 8
+    }
+  ],
+  "observations": [
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "interpret",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/generic-eight.pf"
+      ],
+      "stack_mib": 8,
+      "exit_code": 0,
+      "stdout_sha256": "f8de392b88cbc0c25ad7724620c3cbc750be7032e2f6c0938eb175dbada2640d",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "check",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-final/generic-twenty.pf"
+      ],
+      "stack_mib": 8,
+      "exit_code": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-final/generic-twenty.pf:18:117: error: compiler traversal depth limit (512) exceeded\n      return f9(value)+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1\n                                                                                                                      ^\n"
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "symbols",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-final/generic-twenty.pf"
+      ],
+      "stack_mib": 8,
+      "exit_code": 1,
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-final/generic-twenty.pf:18:117: error: compiler traversal depth limit (512) exceeded\n      return f9(value)+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1\n                                                                                                                      ^\n"
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/hello.pf",
+        "-O0"
+      ],
+      "stack_mib": 32,
+      "exit_code": 0,
+      "stdout_sha256": "601b4159b8e8f0403dca8fc43ee4c665493e6874a395086465ee265fa7f6ff57",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/hello.pf",
+        "-O0"
+      ],
+      "stack_mib": 8,
+      "exit_code": 0,
+      "stdout_sha256": "601b4159b8e8f0403dca8fc43ee4c665493e6874a395086465ee265fa7f6ff57",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/hello.pf",
+        "-O2"
+      ],
+      "stack_mib": 32,
+      "exit_code": 0,
+      "stdout_sha256": "601b4159b8e8f0403dca8fc43ee4c665493e6874a395086465ee265fa7f6ff57",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/hello.pf",
+        "-O2"
+      ],
+      "stack_mib": 8,
+      "exit_code": 0,
+      "stdout_sha256": "601b4159b8e8f0403dca8fc43ee4c665493e6874a395086465ee265fa7f6ff57",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/records.pf",
+        "-O0"
+      ],
+      "stack_mib": 32,
+      "exit_code": 0,
+      "stdout_sha256": "56284b57f52e57b68692e6b06e26db20a19d514cca0a9a2f5a1af0dac0326997",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/records.pf",
+        "-O0"
+      ],
+      "stack_mib": 8,
+      "exit_code": 0,
+      "stdout_sha256": "56284b57f52e57b68692e6b06e26db20a19d514cca0a9a2f5a1af0dac0326997",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/records.pf",
+        "-O2"
+      ],
+      "stack_mib": 32,
+      "exit_code": 0,
+      "stdout_sha256": "56284b57f52e57b68692e6b06e26db20a19d514cca0a9a2f5a1af0dac0326997",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/records.pf",
+        "-O2"
+      ],
+      "stack_mib": 8,
+      "exit_code": 0,
+      "stdout_sha256": "56284b57f52e57b68692e6b06e26db20a19d514cca0a9a2f5a1af0dac0326997",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/type_aliases.pf",
+        "-O0"
+      ],
+      "stack_mib": 32,
+      "exit_code": 0,
+      "stdout_sha256": "8f54a3e424c807afd8ab73cab8b2b506af7811111b6874b1b8d9e4b90f2dc193",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/type_aliases.pf",
+        "-O0"
+      ],
+      "stack_mib": 8,
+      "exit_code": 0,
+      "stdout_sha256": "8f54a3e424c807afd8ab73cab8b2b506af7811111b6874b1b8d9e4b90f2dc193",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/type_aliases.pf",
+        "-O2"
+      ],
+      "stack_mib": 32,
+      "exit_code": 0,
+      "stdout_sha256": "8f54a3e424c807afd8ab73cab8b2b506af7811111b6874b1b8d9e4b90f2dc193",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/source/examples/type_aliases.pf",
+        "-O2"
+      ],
+      "stack_mib": 8,
+      "exit_code": 0,
+      "stdout_sha256": "8f54a3e424c807afd8ab73cab8b2b506af7811111b6874b1b8d9e4b90f2dc193",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/generic-eight.pf",
+        "-O0"
+      ],
+      "stack_mib": 32,
+      "exit_code": 0,
+      "stdout_sha256": "27a4522dadc2087c7222fdf8fc0ca216afc5ce9081fd7ed47d7c2b21df8ec33e",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/generic-eight.pf",
+        "-O0"
+      ],
+      "stack_mib": 8,
+      "exit_code": 0,
+      "stdout_sha256": "27a4522dadc2087c7222fdf8fc0ca216afc5ce9081fd7ed47d7c2b21df8ec33e",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/generic-eight.pf",
+        "-O2"
+      ],
+      "stack_mib": 32,
+      "exit_code": 0,
+      "stdout_sha256": "845d8800195fc7d50c6193f242e8702286d8a8fa245f0860b4513a83b21cca27",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "dump-ir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-validation/generic-eight.pf",
+        "-O2"
+      ],
+      "stack_mib": 8,
+      "exit_code": 0,
+      "stdout_sha256": "845d8800195fc7d50c6193f242e8702286d8a8fa245f0860b4513a83b21cca27",
+      "stderr": ""
+    }
+  ],
+  "sanitizer_reports": [],
+  "runner_sha256": "bd8c241d113c2d3c3ad4a9ad60e040895ec0e2442a590d6e9330086e5634b5b5"
+}

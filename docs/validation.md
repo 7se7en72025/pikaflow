@@ -1,6 +1,133 @@
 # Validation record
 
-## 0.3.1 corrective release validation
+## 0.4.0 clean release validation
+
+The final frozen implementation is **`1cfd6aab929c0c608061159900270981c2b3d12c`**.
+Windows, Linux and the final sanitizer run captured clean source (`dirty: false`)
+with archive SHA-256
+`b976d621302cfae302b552da5469ea805961bf79a702cf552a9c0cc1217b586a`.
+Linux and sanitizer post-checks verified all 158 archived files unchanged;
+Windows also recorded no source changes. Later commits update documentation.
+The tracked JSON preserves captured fields/values with repository line endings;
+original raw files and logs remain in the indicated ignored `out/` directories.
+
+| Host / mode | Complete result | Record |
+|---|---|---|
+| Windows x64, MSVC 19.52 / LLVM 24.0.0git | **30/30 native suites**, 189.98 s | [Windows](validation/windows-0.4.0-2026-11-05.json) |
+| Windows x64, MSVC 19.52, LLVM disabled | **26/26 reference suites**, 50.61 s | [Same Windows record, reference mode](validation/windows-0.4.0-2026-11-05.json) |
+| Ubuntu 24.04 x86-64 / WSL2, GNU 13.3 / LLVM 24.0.0 | **32/32 native suites**, 300.60 s | [Linux](validation/linux-0.4.0-2026-11-05.json) |
+
+These are CTest-reported times. Windows wrapper measurements were 190.000 /
+50.641 s; Linux's build took 153.545 s. No CTest suite was skipped. One internal
+Linux developer-tools unittest is Windows-junction-only and skips there. Linux
+adds real GDB and standalone LLVM-plugin suites. The current Windows LLVM build
+does not support that standalone plugin; it runs the same pass source internally.
+Windows used Python 3.14.2 for CTest; Linux used Python 3.12.3. Toolchain/LLVM
+identities remain explicit in the manifests rather than implying every revision
+is compatible.
+
+| Check group | Windows native / Linux native |
+|---|---:|
+| Compiler integration | 216 / 217 |
+| Language extensions / namespace and assignment | 139 / 61 on each host |
+| Records | 90 / 90 |
+| Type aliases / extra C wire alias executions and traps | 116 / 8 on each host |
+| Optimizer output comparisons | 135 / 135 |
+| Project-runner tests | 14 / 14 |
+| Editor workflows / semantic decorations | 23 / 8 on each host |
+| Git packages / developer-tools tests | 11 / 16 on each host (one internal Linux skip) |
+| Generated C ABI comparisons / located range failures | 120 / 40 on each host |
+| Task/pointer executions / rejected programs | 50 / 4 on each host |
+| Fatal runtime / task cases | 47 / 10 on each host |
+| Default independent program campaign | 10 programs, 40 outputs, 10 native builds per host |
+| Linux `opt` plugin | 4 FileCheck pipelines, 23 execution checks |
+
+These groups overlap CTest organization. Runtime, frontend, verifier, optimizer,
+interpreter, semantic-symbol, contextual/arithmetic, installed-layout and native
+environment checks also passed. Reference-mode counts include 99 compiler,
+55 language, 56 record, 76 alias and 27 optimizer executions; C wire alias
+execution requires LLVM. Native comparisons cover `-O0`/`-O2` and independent
+host-C fixtures where applicable. Project tests cover process/report/source
+protection, including Windows descendants surviving an exited parent. The
+[feature contracts](FEATURES.md) define the supported subset.
+
+### Sanitizer finding, correction and final rerun
+
+Candidate `96ae47b` passed Release checks but its LLVM-disabled Clang ASan/UBSan
+language run **failed**: a valid eight-function generic chain with 60 additions
+per function exhausted the default 8 MiB stack. The
+[failed candidate record](validation/sanitizer-candidate-0.4.0-2026-11-05.json)
+retains that stack-overflow finding. Larger-stack probes helped diagnosis; they
+are not the successful final validation.
+
+Extracting call, aggregate and advanced-expression dispatch into helpers reduced
+the measured Clang-ASan `expr` frame from **17,568 to 7,392 bytes**, preserving
+the existing 512 traversal budget. The final clean archive was rebuilt and tested
+at the ordinary **8 MiB** limit with ASan/UBSan and leak detection. Four unit
+suites, 56 record cases, 76 alias cases, 55 language cases and 50 independent
+generated interpreter programs passed with no reported sanitizer finding.
+[Final sanitizer manifest](validation/sanitizer-0.4.0-2026-11-05.json)
+
+The [post-check record](validation/sanitizer-post-checks-0.4.0-2026-11-05.json)
+also confirms the valid-chain result, a controlled 512-limit diagnostic for a
+larger chain, and eight byte-equal O0/O2 IR comparisons with the earlier compiler.
+Its measured frame sizes are toolchain-specific, not universal stack guarantees.
+It distinguishes LF Git-blob hashes from CRLF archive-export hashes; the final
+build used the actual archive bytes. LLVM backend code was not sanitizer
+instrumented. The earlier unavailable TSan runtime remains a limitation.
+
+### Independent program and parser campaigns
+
+The [extended program record](validation/programs-0.4.0-2026-11-05.json) ran
+**300 programs**, seed `20261106`, against independently calculated Python
+expectations: 300 interpreter, 300 O0 JIT, 300 O2 JIT, five O0 native and five O2
+native outputs, totaling **910 comparisons** and **ten native builds** in
+34.859 s. Each of five templates contributed 60 programs. The compiler hash and
+clean revision match the Windows final build; source post-checks passed. Native
+execution is sampled by template rather than run for all 300 programs.
+[Generator and replay contract](program-testing.md)
+
+The separate parser libFuzzer campaign completed **37,183 executions** under
+ASan/UBSan with no reported finding. It was captured at `96ae47b`, with 13 seeds
+and a 45-second requested budget. All 12 recorded source/build inputs match raw
+members of the final archive byte for byte, proven separately without newline
+normalization. `compiler.cpp` is outside that parser-only target; this equality
+does not erase its earlier semantic sanitizer finding.
+[Parser record](validation/parser-0.4.0-2026-11-05.json),
+[input equivalence](validation/parser-input-equivalence-0.4.0-2026-11-05.json),
+[fuzzing scope](fuzzing.md)
+
+### Binary, benchmark and local package identities
+
+| Artifact | SHA-256 |
+|---|---|
+| Windows native compiler | `a249b48ae614d847fe6253aa071558053aa62647d043701912349f65753b7df4` |
+| Windows reference compiler | `bea2c6ff05531444d924536d9564b737425f51d65378eba5bf4b127e6b7ab232` |
+| Linux native compiler | `2c13068996de3ab15cf115e8daaa7091f801971f16816864ffbb2e9466799263` |
+| Final sanitizer compiler | `503407682a90a476a660d49c6116086fcef28a57b4be8f824329bfed2fd760b2` |
+
+The [quiet Windows benchmark](benchmarks/windows-0.4.0-2026-11-05.json) used the
+same clean revision and native binary after host/package processes finished.
+All outputs matched across three process-inclusive samples per configuration.
+O0/O2 medians were **26.218/24.860 ms** for the checked loop and
+**15.972/16.566 ms** for Fibonacci(20). These small workloads and startup-inclusive
+timings establish no general optimization or cross-language advantage.
+[Methodology](benchmarking.md)
+
+| Local archive | Bytes | SHA-256 / verification |
+|---|---:|---|
+| `pikaflow-0.4.0-windows-x64-1cfd6aa.zip` | 18,237,440 | `cdb36b6de3003b1a2f6dc2f51212c63e158e82fdbff54da3b135900b732c4e18`; [Windows package record](validation/windows-package-0.4.0-2026-11-05.json) |
+| `pikaflow-0.4.0-linux-x86_64-1cfd6aa.tar.gz` | 25,226,377 | `18fa9c473a7d50e503a9abd2d5e4295a6d1aff7e4dabf0204dac698ae8c9e7b9`; [Linux package record](validation/linux-package-0.4.0-2026-11-05.json) |
+
+Extracted packages passed showcase, installed tools and record/project checks.
+Linux exercised three project cases under each backend, native/JIT demos and the
+installed plugin through `opt`/`lli`. Its installed plugin hash differs from the
+build copy because installation changes RUNPATH; both identities and that change
+are recorded. These are local tested artifacts, not published Releases or universal
+installers. Host libraries/SDKs remain necessary, and the plugin needs matching
+shared LLVM 24 libraries. The manual GitHub workflow was not dispatched.
+
+## Historical 0.3.1 corrective release validation
 
 The frozen implementation **`d77a3b5cdab180e061d66f0fee18634a913ad001`**
 passed the complete host suites below. Both captures were clean (`dirty: false`)

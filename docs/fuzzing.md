@@ -41,7 +41,53 @@ This is bounded bug discovery, not a proof of correctness or a performance
 benchmark. `tests/fuzz_frontend.py` separately compares generated arithmetic
 programs with an independent Python result; it is not coverage-guided fuzzing.
 
-## 0.3.1 depth-bound hardening refresh
+## 0.4 campaigns and their input boundaries
+
+The latest parser campaign is recorded at clean candidate
+`96ae47b209eac483595fd264cc3cc0ba5d93fdd1`. It used Clang 18.1.3,
+libFuzzer/ASan/UBSan, leak detection and the LLVM 24 symbolizer. Seed `20261105`
+and the existing command budgets (`45` seconds, `4096` bytes, `1024` MiB RSS,
+`5` seconds per input) produced **37,183 executions**, exit **0**, with no reported
+sanitizer finding, crash artifact or warning.
+
+The 13 starting inputs totaled 13,264 bytes: eight tracked seeds and five
+generated depth stress inputs. Final in-memory statistics were 556 retained
+inputs/299 KiB, coverage counter 2,282, feature count 9,645, peak RSS 414 MiB and
+an evolving size limit of 3,809 bytes. LibFuzzer reported 46 elapsed seconds;
+the runner recorded 42.545 seconds. Both observations remain intact in the
+[campaign manifest](validation/parser-0.4.0-2026-11-05.json); neither counter nor
+timing is a coverage percentage or compiler performance measurement.
+
+The full source archive SHA-256 was
+`114adda2c5ee3352df3a290ca06806eb88de57d4e42d23fa1a726541fe8cc547`;
+the fuzzer binary SHA-256 was
+`3e5a41368e8f77ced2a56d927fec5e4805960add3410813f566009c2fe643ded`.
+The [input-equivalence record](validation/parser-input-equivalence-0.4.0-2026-11-05.json)
+checks all 12 recorded source/build inputs against raw members of final archive
+`b976d621302cfae302b552da5469ea805961bf79a702cf552a9c0cc1217b586a`
+at `1cfd6aa`: every byte matches, without newline normalization. The later
+compiler-expression fix changed `compiler.cpp`, which the parser target does
+not compile. Original logs/corpus/artifacts stay in `out/fuzz-0.4-validation/`.
+
+Separate [generated-program tests](program-testing.md) use five bounded templates
+and independent Python expectations rather than coverage-guided mutation. The
+[extended final run](validation/programs-0.4.0-2026-11-05.json) checked 300 programs
+with seed `20261106`: 910 interpreter/JIT/native outputs and ten native builds.
+Each template supplied 60 cases; native execution sampled the first of each
+template at both optimization levels. No mismatch occurred. This evidence is
+specific to the template/parameter space, not arbitrary semantic coverage.
+
+A further [clean final ASan/UBSan run](validation/sanitizer-0.4.0-2026-11-05.json)
+instrumented the LLVM-disabled semantic compiler, verifier, optimizer,
+interpreter and runtime. It passed focused units/source cases and 50 generated
+programs with leak detection at the default 8 MiB stack. An earlier candidate
+had a real compiler stack-overflow finding, retained in
+[the failed manifest](validation/sanitizer-candidate-0.4.0-2026-11-05.json).
+The [correction/post-checks](validation/sanitizer-post-checks-0.4.0-2026-11-05.json)
+and [validation history](validation.md) distinguish that failure from the final
+successful rerun. LLVM backend code was not sanitizer instrumented.
+
+## Historical 0.3.1 depth-bound hardening refresh
 
 The latest campaign used clean source and corpus commit
 `d77a3b5cdab180e061d66f0fee18634a913ad001`, source archive SHA-256

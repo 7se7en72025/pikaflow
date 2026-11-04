@@ -1,0 +1,44 @@
+{
+  "source_commit": "1cfd6aab929c0c608061159900270981c2b3d12c",
+  "dirty": false,
+  "compiler_sha256": "a249b48ae614d847fe6253aa071558053aa62647d043701912349f65753b7df4",
+  "script_sha256": "d4da445b26ad9eab2457233f99b6894ac0a894accb847750b1492ac4531de4f8",
+  "started_utc": "2026-11-04T23:06:52.121077+00:00",
+  "command": [
+    "C:\\Users\\RAIYYAN\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+    "C:\\Users\\RAIYYAN\\pikaflow\\tests\\fuzz_programs.py",
+    "C:\\Users\\RAIYYAN\\pikaflow\\build\\native\\pikaflow.exe",
+    "--cases",
+    "300",
+    "--seed",
+    "20261106",
+    "--artifacts",
+    "C:\\Users\\RAIYYAN\\pikaflow\\out\\program-0.4-final\\failures"
+  ],
+  "exit_code": 0,
+  "seconds": 34.859,
+  "log_sha256": "f137f4212a842e1d52c6fb5d82d7072a9dec89fe81c4ff975a4ec2c01a0e0d9c",
+  "finished_utc": "2026-11-04T23:07:26.999275+00:00",
+  "summary": {
+    "executions": {
+      "interpreter": 300,
+      "jit_O0": 300,
+      "jit_O2": 300,
+      "native_O0": 5,
+      "native_O2": 5
+    },
+    "native_builds": 10,
+    "programs": 300,
+    "seed": 20261106,
+    "templates": {
+      "array_loops": 60,
+      "closure_cells": 60,
+      "generic_record_aliases": 60,
+      "stack_words_pipeline": 60,
+      "task_snapshots_gc": 60
+    }
+  },
+  "head_after": "1cfd6aab929c0c608061159900270981c2b3d12c",
+  "status_after": "",
+  "source_unchanged": true
+}

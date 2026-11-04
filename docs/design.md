@@ -19,7 +19,7 @@ UTF-8 source
   -> name/type/stack-effect checking
   -> custom typed register/control-flow IR
      -> reference interpreter -> common runtime
-     -> LLVM IR -> verification/optimization -> object + runtime -> executable
+     -> verified scalar optimization -> LLVM IR -> object + runtime -> executable
                                            -> ORC JIT -> execution
 ```
 
@@ -72,7 +72,7 @@ local scopes even though their operand stack is shared.
 
 - Static types with explicit function signatures and locally inferred initializers.
 - `let` freezes the binding; `var` allows same-typed reassignment. Referenced array
-  objects can still be mutated through a `let` binding.
+  objects and record fields can still be mutated through a `let` binding.
 - Arithmetic requires matching numeric types. Potentially lossy numeric conversion
   is explicit. `unit` represents absence of a result and is not a container element
   or parameter value.
@@ -88,6 +88,23 @@ Keywords, canonical type names, and built-in operations are reserved in declarat
 This prevents direct calls and first-class references from resolving the same name
 to different meanings. Module/private symbol resolution is performed before
 lowering to globally unique IR names.
+
+## Records and transparent aliases
+
+Records add nominal types and named fields over the existing traced tuple/layout
+machinery. A constructor evaluates supplied field expressions in written order
+and stores them in declaration order; field updates evaluate their receiver once.
+Record assignment/capture preserves reference aliases, while task transfer still
+copies the reachable graph. Recursive record references use the canonical nominal
+registry. The compiler checks field identity and module privacy before lowering.
+These managed records do not acquire a C struct ABI through their source shape.
+
+Transparent aliases expand in their defining module and retain the underlying
+type's identity. They add no constructor or runtime wrapper. Explicit expansion
+and node budgets reject cycles/pathological growth; recursion through a nominal
+record stays representable. Public aliases may expose private nominal types as
+opaque handles without exporting their fields or constructors. See
+[language.md](language.md) for written syntax and exact limits.
 
 ## Closures and memory
 
@@ -138,8 +155,8 @@ enclosing error type; it does not unwind through JIT frames.
 
 ## Modules and C boundary
 
-Files are namespaces with explicit `export` on functions, words, enums and extern
-declarations. Direct imports expose
+Files are namespaces with explicit `export` on functions, words, enums, records,
+type aliases and extern declarations. Direct imports expose
 only directly imported exported declarations; transitive private names and private
 extern aliases do not leak. Import cycles diagnose. `std:` resolves bundled
 standard-library modules from the development or installed library layout.
@@ -171,9 +188,19 @@ deliberate rebuilds, adaptation, and tests rather than assuming compatibility.
 Tokens, AST, custom IR, LLVM IR, and target assembly are independently inspectable.
 At optimized levels, the typed register IR first passes through verified integer/
 boolean constant propagation, checked arithmetic/branch folding and unreachable
-instruction removal. This dataflow analysis accounts for mutable registers and
-loop backedges; LLVM's optimization pipeline remains a separate stage.
+instruction removal, followed by local scalar CSE and backwards CFG liveness.
+Value identities account for mutable registers; liveness accounts for backedges.
+The first possible checked failure and reachable effects remain. Managed
+assignments/roots and floating-point operations stay opaque to these new passes.
+LLVM's optimization pipeline remains a separate stage.
 [Optimization details](optimization.md)
+
+The backend and Linux standalone plugin share one checked-arithmetic LLVM pass.
+The plugin transforms only exact helper signatures carrying the explicit
+`pikaflow.checked-arithmetic=v1` producer contract. Names alone are insufficient:
+the producer promises the identity inputs have no other effects or failures.
+The Linux `opt` tests include invalid contracts and effectful unmarked helpers.
+[Plugin contract](llvm-pass-plugin.md)
 Compiler errors retain filename/line/column and a source caret. Parser recovery
 collects up to 20 independent top-level errors. Semantic function-body checking
 uses transactions: a failed function discards emitted code/specializations/layouts,
@@ -186,7 +213,8 @@ An optional compiler semantic source pass reuses the module/export tables and
 AST lexical scopes to emit definition/reference IDs. It includes writes,
 qualified aliases/types, capture references and unused generic templates, while
 omitting synthetic entry/argument names as rename targets. This powers editor
-hover, definitions, references and candidate-checked rename; the editor does not
+hover, definitions, references, full semantic tokens, inferred-local hints and
+candidate-checked rename; the editor does not
 infer bindings with a separate regex parser. Incremental/unsaved buffers use
 original-path compiler overlays. Workspace groups are checked in their project
 contexts. [Editor contract](editor.md)
@@ -201,17 +229,36 @@ execution-mode agreement. Generated arithmetic programs use an independent Pytho
 reference with truncating division/remainder semantics. The manual GitHub workflow
 does not dispatch automatically on pushes or pull requests.
 
+## Project execution and independent expectations
+
+Project tests are ordinary non-generic zero-argument unit-returning functions.
+Compiler metadata discovers them, and `--entry` selects them without rewriting
+source. Assertions live in a source standard-library module. Each case has its
+own bounded worker process; Windows starts it suspended and assigns a lifetime
+job before resuming, while Linux uses process groups. This supports cleanup,
+timeouts and output bounds rather than sandboxing project code. Source/compiler
+fingerprints and atomic JSON/JUnit reports make the result inspectable.
+[Testing contract](testing.md)
+
+Compiler development also uses generated source with independently calculated
+Python expectations. Five bounded templates cover mutable arrays, captured cells,
+generic record aliasing, stack/pipeline composition and isolated task graphs.
+The seed and template parameters reproduce a campaign; independent expectations
+can detect a mistake shared by interpreter and LLVM paths. This complements
+parser libFuzzer and sanitizer runs rather than measuring semantic coverage.
+[Program oracle](program-testing.md)
+
 ## Staged scope
 
 | Decision | Current direction | Later work |
 |---|---|---|
 | Native platforms | Windows x64 and Linux x64 targets | Additional targets need separate ABI/runtime tests |
-| Optimization | Verified typed-IR constant/CFG propagation plus LLVM pipelines and checked identities | Heap/interprocedural/floating-point custom analyses require separate legality tests |
+| Optimization | Verified typed-IR constants, local scalar CSE/liveness, LLVM pipelines and shared checked identities | Heap/interprocedural/floating-point custom analyses require separate legality tests |
 | Debugging | Real GDB scalar/captured-local stepping/watch tests and Windows CodeView inspection | Managed visualization, optimized-code quality and graphical IDE integration remain unverified |
 | Standard library | Numeric, sequence, and ASCII/byte-string source modules | Additional APIs require specified contracts/tests |
 | Generics | Inferred/explicit module-level monomorphization; recursive nominal ADTs | Bounded specialization/type expansion; no runtime generic dispatch |
 | Formatter | Compiler-token-equivalent formatting with atomic replacement | No expression/comment reflow |
-| LSP | Compiler diagnostics, incremental sync, semantic hover/navigation/references/verified rename, formatting and completion | Bounded project contexts and advertised methods; no claim of every protocol extension/editor |
+| LSP | Compiler diagnostics, incremental sync, semantic navigation/rename/tokens/hints, formatting and completion | Bounded project contexts and advertised methods; no claim of every protocol extension/editor |
 | Package management | Local paths and exact-commit Git pins with deterministic locks, explicit fetching and verified offline use | No registry service, version solver, publishing or install hooks |
 | Concurrency | Snapshot-isolated real threads, typed joins and independent heaps | No shared managed heap, cancellation or thread pool |
 

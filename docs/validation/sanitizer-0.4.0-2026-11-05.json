@@ -1,0 +1,532 @@
+{
+  "source_commit": "1cfd6aab929c0c608061159900270981c2b3d12c",
+  "dirty": false,
+  "archive_sha256": "b976d621302cfae302b552da5469ea805961bf79a702cf552a9c0cc1217b586a",
+  "source_file_count": 158,
+  "started_utc": "2026-11-04T23:08:37.262725+00:00",
+  "finished_utc": "2026-11-04T23:09:54.881791+00:00",
+  "scope": "LLVM-disabled compiler, typed-IR verifier/optimizer, interpreter, runtime and source semantic cases under Clang ASan/UBSan; no LLVM backend instrumentation",
+  "configuration": [
+    "cmake",
+    "-S",
+    "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source",
+    "-B",
+    "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+    "-G",
+    "Ninja",
+    "-DCMAKE_BUILD_TYPE=Debug",
+    "-DCMAKE_C_COMPILER=clang-18",
+    "-DCMAKE_CXX_COMPILER=clang++-18",
+    "-DCMAKE_C_FLAGS=-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage",
+    "-DCMAKE_CXX_FLAGS=-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage",
+    "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined",
+    "-DCMAKE_SHARED_LINKER_FLAGS=-fsanitize=address,undefined",
+    "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+    "-DPIKAFLOW_ENABLE_LLVM=OFF",
+    "-DBUILD_TESTING=ON"
+  ],
+  "compiler": "/usr/lib/llvm-18/bin/clang",
+  "compiler_sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+  "toolchains": {
+    "clang": {
+      "command": [
+        "clang++-18",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n",
+      "stderr": ""
+    },
+    "cmake": {
+      "command": [
+        "cmake",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "cmake version 3.28.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "stderr": ""
+    },
+    "ninja": {
+      "command": [
+        "ninja",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "1.11.1\n",
+      "stderr": ""
+    },
+    "python": {
+      "command": [
+        "python3",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Python 3.12.3\n",
+      "stderr": ""
+    },
+    "linker": {
+      "command": [
+        "ld",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "GNU ld (GNU Binutils for Ubuntu) 2.42\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis program is free software; you may redistribute it under the terms of\nthe GNU General Public License version 3 or (at your option) a later version.\nThis program has absolutely no warranty.\n",
+      "stderr": ""
+    }
+  },
+  "environment": {
+    "ASAN_OPTIONS": "detect_leaks=1:abort_on_error=1:log_path=/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-final/sanitizer-report",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1:log_path=/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-final/sanitizer-report",
+    "ASAN_SYMBOLIZER_PATH": "/usr/lib/llvm-24/bin/llvm-symbolizer",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "symbolizer_sha256": "3a7455769a3ed69075351d52eefc4bc827dd95e49a905d119f541455a96c6821",
+  "build_parallel": 1,
+  "stack_limit_bytes": 8388608,
+  "snapshot": {
+    "source_commit": "1cfd6aab929c0c608061159900270981c2b3d12c",
+    "dirty": false,
+    "capture_head": "1cfd6aab929c0c608061159900270981c2b3d12c",
+    "capture_worktree_status": "",
+    "captured_utc": "2026-11-04T23:08:33.662390+00:00",
+    "archive_sha256": "b976d621302cfae302b552da5469ea805961bf79a702cf552a9c0cc1217b586a",
+    "source_file_count": 158,
+    "source_files": {
+      ".clang-format": "3c3d140e3bc89210b2dc7468a07bb536a77125f6a9b947203fe24b6499ab99d3",
+      ".gitignore": "18480ab46d922814f2d08ed103167db633dfaee04d7f2ebce79800f89d981380",
+      "CMakeLists.txt": "8ec6cc639684cf21686c68b46b6465f68413d45aa818778d2794d039699e5ee6",
+      "README.md": "9d40c2098780c6fdf496e1c670d8fc7d49a74d08873269b6bd5a0d0ce0fca2b8",
+      ".github/workflows/ci.yml": "a7b21ebad4f6c7acf977761c3f010917e0a1c62001bb65b478732eddd18732f1",
+      "cmake/BackendConfig.hpp.in": "fef683820861d98bbe84ce6bdfd59acd7e2a34172ebe8a052668988f878ff3de",
+      "cmake/Fuzzing.cmake": "971897de17d088a52c503e2ec21c922f286ab95e1136fd903832b8508571bea6",
+      "docs/benchmarking.md": "f3e118a659a2a0e1bdea7909ae45650ea8305e3dc5c7905d148896b32463d27f",
+      "docs/CONTRIBUTING.md": "e81ef97f2ab0348afd449691169d19265151b32d55cb6c34289fa25f471cfd87",
+      "docs/design.md": "0b23990cdb3417dc48f93112f3b5da58d34c0e58109b3b0b6dc5f9907db6d8d2",
+      "docs/editor.md": "f2203760631ebd58a1d7b11e23963b19b51d0bb80c704ba4ce1413a28641c4a5",
+      "docs/FEATURES.md": "64ccab518bde130f25a250bdc130e367217e0050ece6497e70a31b0a7f37d1ec",
+      "docs/ffi.md": "5ed807a5959afeb9a1c1ffe9ff9155666029c4c4bc9bdaaa6be5d6c4321c117f",
+      "docs/fuzzing.md": "579e1bc53fe4ba7ec6a62cdb438cd624ab13fadd6ac2359b50d0aa0b68a7b7ad",
+      "docs/language-extensions.md": "3080b5cdd104c810a36078ac46e3e4182e197d3f573394f0e0dd0e467d3bc146",
+      "docs/language.md": "6d9b4bd8e24957315b49660d5daa8b94a2d98a5190d9fc4b720069df3fe42eab",
+      "docs/llvm-pass-plugin.md": "5f620098454c5eb4337d8a208344ca8c6ce968bb6bb053974957980d880452bc",
+      "docs/optimization.md": "6825093f26e5b8adb6f128a19eabd953aba3ddfa1fc31e7e5b4d3571220baaf3",
+      "docs/program-testing.md": "e6b362c768dc6928e20a734b0ec0e7bf2dce879c016b975fec33dba240e9e471",
+      "docs/PROJECT_PLAN.md": "4dce41e7c8459afe08c64266a8e5ea5ca7f493f9e42d0c328d7b5ea368e9f162",
+      "docs/runtime.md": "5e9feb2ca308406a4e5c94f7f30de3958d259ed5ed97ae5f3a244e6cc27e86bc",
+      "docs/STATUS.md": "2ed1b19cfbca8b6c400d69a7d37921284462a8a63ab345477b437aeef4525ff1",
+      "docs/testing.md": "5c032807b57e219caf4c95e740e24a951868590360a5b17501ee541ca1a19a71",
+      "docs/tooling.md": "05388c266d24653bce22d6b3045e170fef6719b8c3258e7f9857c58bec135b09",
+      "docs/validation.md": "1068a22347ff8be6c6f5cbaf18c2dee55364ae4124747828774905b799480c91",
+      "docs/benchmarks/windows-0.2-2026-11-04.json": "a7165e61b85ba739e9adf6d576f44a642d2f69a554872e494708b1fa56cb4d2d",
+      "docs/benchmarks/windows-0.3-2026-11-04.json": "f78d35e7dc9df43a328f5c417bf591c6c9a338324fcec1cbd8bb85a538d1e8ad",
+      "docs/benchmarks/windows-0.3.1-2026-11-05.json": "7fe80f2f56182f6a26a93c876d67233446d4900065c720f0e866866b770f506e",
+      "docs/benchmarks/windows-2026-11-04.json": "7645b02a00ea39501a027a023806c6b91d149e9c58d4bd0e536eacb6ebd38c4c",
+      "docs/validation/focused-sanitizers-0.3.1-2026-11-05.json": "077c3bf2aa49f0e71deb0e49d4ba3a40dff0983299372632736db3ee25312bbe",
+      "docs/validation/install-windows-2026-11-04.json": "94a5b6c8d5f355d1d7465cc90b2ecc8718cecdc593c281f60ff0da7d88a97304",
+      "docs/validation/linux-0.2-2026-11-04.json": "c527173efa39d2474d9ad7a990bf5593dcee9b0641bbb1b9f50801ddf11ab37a",
+      "docs/validation/linux-0.3-2026-11-04.json": "4c2b0d1269f457061ec70d9535c42221a54a2bb63892278b8a4f5948878f7424",
+      "docs/validation/linux-0.3.1-2026-11-05.json": "4eb4fde634cdab11286f451e508f94ed2eeaccafa1ddedf450034240d514cd2a",
+      "docs/validation/linux-2026-11-04.json": "7d7daae792a9b894037538aa1e1b8709ad8101d13457ebe4ba0da6dadb0f7328",
+      "docs/validation/parser-0.3.1-2026-11-05.json": "20cf2f8db6486360d4ff704cf501b75086fdc62686a30ed4fac5a3694245293d",
+      "docs/validation/windows-0.2-2026-11-04.json": "37e45e453ff83ba75a837183d57fa230b5446b1dcf7e561886d6770a71848dbb",
+      "docs/validation/windows-0.3-2026-11-04.json": "9f9237332c65ff60e2ef3575e6315577bee9e8d170921a971264ea0d0e01f577",
+      "docs/validation/windows-0.3.1-2026-11-05.json": "97b31b939a8a78a1e50780954677c564155f8d19d29b9f041a47ce8e1ddfae4a",
+      "docs/validation/windows-package-0.3-2026-11-04.json": "78c3224156c542f6dfafb1479d860fbbce831115e737a9f71f0025239a44f582",
+      "docs/validation/windows-package-0.3.1-2026-11-05.json": "a14b90e66d2c7cc78f1f750f99e9ed2c8ccf23475aa13ee3ca505b91132c2a6a",
+      "docs/validation/windows-reference-0.3-2026-11-04.json": "529aa6d79046d71c12f271b7282b0f42199e9948ac6e55d5adb876a92be1dc3e",
+      "examples/arrays.pf": "08f74a3c2cbb544938820fa60b0f606cd6b2b6d84608795344fcf5801ddbf727",
+      "examples/closures.pf": "c862365130b26d2d01befb6e05dc6cddb6f544bdfda9cd98fc3eea6cdb2a4eb4",
+      "examples/control_flow.pf": "4e694bb1b9f2041246ed7e292c83beaa6c49f2bcfa98e409fd27cf946fd79a43",
+      "examples/ffi.pf": "cfa8e942f6f2c94ea117c729cfd8a5213d289bb22ebaa89d3aba1f827e6d9069",
+      "examples/generics_patterns.pf": "19e51a793acf6efefaec843ce7adbbe05523ed1bb65851b648e9e0e48cb0410e",
+      "examples/hello.pf": "e4921ad387f34a6a8e373b03f91327fb5e02cb430fc86b37f53939a71f38599c",
+      "examples/patterns.pf": "26adb33682eee4e260c1a589b277f9eaa5041dd653f7fea8260f5e7dc6d258a9",
+      "examples/pointers.pf": "b7191f8a86e8fe32c29f241e22c016c112d559c2ec42b9f9cefbf72f3b7bb3d1",
+      "examples/pointer_offsets.pf": "ef0c9846b97f0def132ac6e48fd8ba99cbc4a7c97cd57ef24d3f3c2e71656b64",
+      "examples/records.pf": "78545661bfcfa73bf74aaea03080b51a21717181f055ab64a103b833f4f977e7",
+      "examples/recursion.pf": "d8c41fa5ab97bed949bf168963b9ef70edce016475b61c71c380d1c94ad6d382",
+      "examples/recursive_closure.pf": "0259aeb5c79d79284ae36f18eb39ab1888d3945a039bc27f4c328e9c731a8d43",
+      "examples/results.pf": "6ac3f6ae443b07c936a5930a20ee7204dcd9e87d1f113d58c521e1bfd7032fb7",
+      "examples/shared_stack.pf": "b18be1caf10b3ee0a76a50f9c429b90ff3c607521ae2f8af0d493f740c48db65",
+      "examples/stdlib.pf": "615871d04244998775699f392dcf4f5a716051b5f303a54f132779631ffe7c8e",
+      "examples/strings.pf": "d36bd04be916f7030ae33efdd140da0201d3de3dbae6153cd80adf2b098dba23",
+      "examples/tasks.pf": "5233e035ab28f6be1005319420a959cd9693e601fa354f6801f009268d464658",
+      "examples/type_aliases.pf": "eccf50fe43124189cc275cd012d2db973ab3ae7188637b0c74079c944adda49e",
+      "examples/modules/main.pf": "2ef75266339ee8966744f2d71e5609a06ff1d64a174dc3d109a87bbf712b819a",
+      "examples/modules/math.pf": "b68fbc3338f2b4edaec757d26aef4132c0efb283041bce2caf7f43b035077504",
+      "examples/modules/qualified.pf": "23c072f4141e1c5165361b244ce4c01d940755d26433c080dd2b62d7ef12e634",
+      "examples/packages/app/pika.json": "4ac0949c65fb53b3c5ecb78f37d58d70afcdfbc150157b5b32f928b8ea07dcf7",
+      "examples/packages/app/pika.lock": "49e3d58ecb9ec4bc816e85d2be48f5933c00bf3c75d3f342abf250034fc311bd",
+      "examples/packages/app/src/main.pf": "ce2674daddbba729f13842239aafcca25aadf110cc764b25c1aafc7d0631da5f",
+      "examples/packages/mathkit/lib.pf": "e16cac1bd3cafefa6ab39aedd1b3d15a2ea041b41462bda44b16e5b37e7f6d90",
+      "examples/packages/mathkit/pika.json": "8097e5ed518eaf3a91bf76a0245f9932f8258a617fa78c6632bd682b508b5be8",
+      "examples/record_project/pika.json": "35fa2b710bd714c4aec5bcae2b02e8852da6e9334bef014de7667011849a04d8",
+      "examples/record_project/pika.lock": "4cafe2b0259d19a2dc14f70f14d6d65365592d72cf9a53d1059bf3b365431fdf",
+      "examples/record_project/README.md": "522046f7d17a294eeb7b95d8574c365bb5bb49bcbc10ff359a86446eb149af5a",
+      "examples/record_project/src/main.pf": "d4435f6e2b31088d892553dd0c45933710a7032881292047544fcdba88f76716",
+      "examples/record_project/src/model.pf": "913ab31f0415fb56a1a46e93be8aa3562c1d10561334e5f9b1a9496fa24809f1",
+      "examples/record_project/tests/test_model.pf": "f859999ce6443ab82978a401745937ba63a249c36687a52a83c8d90b1db9668f",
+      "examples/showcase/main.pf": "f5b2d084695eab89e1650ba5b3c350e60317027177c702328b965b73c77cfd43",
+      "examples/showcase/tree.pf": "dd481cbf1063a260151dd4024b7cb8ebcafbd177316b426194e9f4452caa7dc2",
+      "include/pikaflow/backend.hpp": "c0d2fd0aa4dd3e6c36dd120772fe78f637784783f362fc0580c52fdfdd2ddb4e",
+      "include/pikaflow/common.hpp": "421a3562ee8521f4ea9d504463710d3bef5f1b45b10a50603b5b8b174e65c517",
+      "include/pikaflow/frontend.hpp": "8bb884f517d31ee84f7f559da80ca49c4dadd7073378dbbd06916fb96a07968d",
+      "include/pikaflow/ir.hpp": "835d86e323f909d09a8b1c46f98e57fd4a6222796a6dca1297d9defcd623e5e3",
+      "include/pikaflow/optimizer.hpp": "84482217cb6ce6db804465343373fc0d6c07523f9d52145b5bf0ec3f04e084f0",
+      "include/pikaflow/runtime.h": "1424d412d2455afaf0bc6d85209958238d789f0617e11969887b6f52b9bc9a0c",
+      "scripts/benchmark.py": "df21c4689293441964bb82c8e41819f141abc0f8b0771777007bd2bd29064a19",
+      "scripts/build.ps1": "885e146dcaf78844b650520ea368584326a34f2fb7a50bba3a71b86c2e448371",
+      "src/backend.cpp": "a867a2500bccc40775765f3661b13f4e948210f30eeb7e6961350e4ad69c386d",
+      "src/common.cpp": "cad0d2b4b70aecffa791d35324bc52c15b53b25bd92abafb2b99100c9f481a05",
+      "src/compiler.cpp": "c25c67a7d0c778864f5331a8556c4a27e89f7ee92b93b9723c4d2b5329d9a62d",
+      "src/interpreter.cpp": "b3de1d65f30ba5969ee59cf52c50ab55a1f285f7a1e5a227a9b8df17d6f3e51d",
+      "src/ir.cpp": "bb1b0e83b355db6ef9695fd41200966b49f9a53bdd3315f3d6b6da8c23e7b3fa",
+      "src/lexer.cpp": "8437da631c1310b349c6045590ebbfb7f183441dfc1d51be4f18cc8c1f0914b1",
+      "src/main.cpp": "46866927d7082281f7e8ae569b79f83364845ec9f10f89187677ef4a38d4e359",
+      "src/optimizer.cpp": "17e5c05d3f5c70bcd55d396ba734e5577598f0e672a01015df293b54159d6a3c",
+      "src/parser.cpp": "973b3d13128b8d759e2457d2f7e36f9f2d2138aff6911e3e3437b81e0972951a",
+      "src/runtime.cpp": "a61b6f5ebca6c1c02e8597d79934cb633df7ac716ce99c303a18a2c6a94320e9",
+      "src/llvm/CheckedArithmeticPass.cpp": "e7c192501583800440c2158e8526ab00509d44093bc808fedd0e39b552152d85",
+      "src/llvm/CheckedArithmeticPass.hpp": "17de7464fe0f7e0cd2eeda500584ef5265e9f35ba70fcab2b21f3b904865380f",
+      "src/llvm/PassPlugin.cpp": "444caa8b64a665f8033590b05c920084e8133701e6ebe741ced0bdf4e47e228a",
+      "stdlib/numeric.pf": "546579e294ec6871dc6eab6b0f9e3046d01929469d2ca36e82d99133302891cc",
+      "stdlib/README.md": "31186316f156468d58bf101c8d643b7dbc7ee6737ce47be660277490be9bfd82",
+      "stdlib/sequences.pf": "814c4fb194992289f4ff08ef577dd8cce7b7a1158b450030adb6cd012d9892fb",
+      "stdlib/strings.pf": "1eccc6a5f1bd2468ef53f72008a7e15cae8a2e8b2bdf26a939a59ced1f4e955b",
+      "stdlib/testing.pf": "f74b351ff51005201a1129bfd7eb2d8162da73657adbbe51879e9ece4508a749",
+      "tests/backend_tests.cpp": "8ec684fe218895dbe84bb2ed46893a68413bace5ce851cfb8cb19b8b6f2c5ada",
+      "tests/ffi_fixture.c": "fb7573d2f10824c6a6b85ae909c4ab05a8c07b149f90eb6c0220cf26366d2f1b",
+      "tests/ffi_fixture.h": "7778859f2e92a7927a470efca809037b447d48dfda9f505e0acaec7786112de2",
+      "tests/ffi_host_tests.c": "3d302566596ff58f558274fc5ddc5b5b2cc717a7515b2a99d50d36c3f3dfdb93",
+      "tests/frontend_tests.cpp": "c6a8f4706e245586425520eb9ea4fbf82112a2a7ae79446896c554f25c21d1b1",
+      "tests/fuzz_frontend.py": "a648245abd4d5fc23436d3386c42faf6c54d8e53548cac62a04f09a0b6a72bbf",
+      "tests/fuzz_parser.cpp": "6e1ed0990b0a418b5c3bac505418cc72c604e183db5c5e1e49e162e27f5c10ca",
+      "tests/fuzz_programs.py": "acb6b0170f0518fe089b0f661f82d50709a2a772c02289b9500bf8a39daea9e4",
+      "tests/interpreter_tests.cpp": "862daf2782fccb85ea25e5cdef200ee4ea3fa411a267ce8e02890f3f74bbcd46",
+      "tests/ir_tests.cpp": "7690960a4c27d4d47165b73c8d241111f48de53ce2213785421e1f0ddb80c355",
+      "tests/optimizer_tests.cpp": "351efbfdb932cca539d508ebdc5145c72aa9dc807bb35bb668c8c19f4e712a4a",
+      "tests/runtime_failures.py": "d3d64f789464d0e05ad8f243459ed8ca708c14c09c854acbc924b5e22a253050",
+      "tests/runtime_tests.cpp": "25a30a42f6d07261933be666a6d8d6384e140b63eaa75efb8b2de0f8e94aaf05",
+      "tests/task_failures.py": "caa8ec9bf1c43b076acde2071d81126cd203b73cc9d0279a082eeca595d6be8a",
+      "tests/task_tests.cpp": "ace8ab83dd92a18ff1c6194bf158c7ee9f3ef8a619679461cc524b0d2dc2df9a",
+      "tests/test_benchmark.py": "6f4759b0078ead01e58df16ae42c7c8c13fa0526c37cb4b713f0853a9e3cad42",
+      "tests/test_cli.py": "ff7145e23e5736e658bc7be68d79ff8c92c9727e6d1b8dcda1bc8262dcd5506a",
+      "tests/test_contextual_types.py": "41fc22bc4b8daa291c63ab6eb4396cf5030c870581c640263ba044bee0eadbde",
+      "tests/test_debugger.py": "e1e1503dc4dbef2625dda60c24daaac1262cac45b9534c02425812c480ae3854",
+      "tests/test_editor.py": "e182bb91574397013e07d7a5bfc46524f080b719201bec16bd9425a5bed5bce4",
+      "tests/test_editor_features.py": "1a3b70ee193c0a12b647ef0b1060fd901b316d30d4f83cd6d21cf4e6d812ab32",
+      "tests/test_ffi.py": "a18cf4b372b11089579d275afb389f868c652fad30eee0ef157c187b671c2cec",
+      "tests/test_install.py": "32cc2cec4758bed17b6be4f6327da3e219340e9e2f10607b274ccd09a721bde6",
+      "tests/test_language_extensions.py": "b5ecc628e728aafbdbab9b0823c44ae3386e652fdd23959262550980068d7ec3",
+      "tests/test_llvm_plugin.py": "082d622c6805fcf6c0a5d5ac426d33a254ddc4ce68c2b9ab360066c34030f41f",
+      "tests/test_namespaces_assignments.py": "1926951e81e8cf6526708c2f146ac4b2e27a10c821a790908265f732d036e00c",
+      "tests/test_native_environment.py": "7c6fb23cb19b3c8f5a82aac5f44a8f1778d63e0024b9a75005bdc56bbc35104d",
+      "tests/test_optimization.py": "17d8ab624281fbf37cd96644ca4dec260bfd65ae9ae86171ad7b2f708763d6b2",
+      "tests/test_packages.py": "af9a552410cc7abfc4e0973436fa93c81540ebae8b8fde1c095a1c46f4543971",
+      "tests/test_project_tests.py": "cd154eb73f5ed71fcba2bd46f8f44336120442f2856c0b7de67187a5424e6edd",
+      "tests/test_records.py": "f84e09b1d589c9fe6584504783e4c6d9a2c249e6921ef5f46fcbb0b1c3e011c5",
+      "tests/test_semantic_symbols.py": "4190a500c303a181c7d8091d36c1e34a0304590b87a3d9652796db838fe16c84",
+      "tests/test_tasks.py": "c8fe7ae54e97d3c5e877e3c2935f3ffb6b281e2b4e345c7677f9ae7f025a8537",
+      "tests/test_tools.py": "06b69353f8844850af3a86f132ff1bc3ce5652da6310798eb68ec199d82632bd",
+      "tests/test_type_aliases.py": "2bc2223b122d4196da67704a37080fb1a5c3ab887a240bd6cf3ff7304d703e47",
+      "tests/fuzz_corpus/generics_enums": "1240a3b02aefa0b8d86409940956ed2f3d019d804bae0fd9de3f08549309e366",
+      "tests/fuzz_corpus/hybrid": "186e6e0ce28cd1aa47d4b1a41b1e3537d78eb89a652f551d34099fc893b05196",
+      "tests/fuzz_corpus/patterns": "361c41add5fb9b9f789c02b9c7ae35fad1dbaa2551f9a0222d0e2661a6c1f414",
+      "tests/fuzz_corpus/qualified": "3a7d147778bb8a4b455ecaf8c4268b55ec4df9ae9dab4fdeea5a9ae992eb6f9c",
+      "tests/fuzz_corpus/records_aliases": "7aa08ba2077898a63ee5172d20514c9f3b975d930e13a93d27766332430f9ebe",
+      "tests/fuzz_corpus/strings": "2fb563c0b1b2d0f0b1533131861a9d67da595a39e61e4282d11810a8a6d6d514",
+      "tests/fuzz_corpus/tasks_ffi": "08bde1107937386585172ad19ff6154025fc4d164fcd271669388aef39effb7a",
+      "tests/fuzz_corpus/underscore_patterns": "5790f9a80c8d466c670d5857f120b0d69e291c9c3fa2c3f980a8be229204a6cd",
+      "tests/llvm/checked_execution.ll": "3f35dc915469fafd9905b0d88936ccc6156a3b89bb0a6195516f68d522173f09",
+      "tests/llvm/checked_invalid_contract.ll": "cebcf4cd669c188a123f926a96dd51392d6cd133c3435e774974ebd0163abc2a",
+      "tests/llvm/checked_simplify.ll": "2ce728a86b9390215f2f148dbec7cb21f42b3b2e960cc95566e8ccb989c87543",
+      "tests/llvm/checked_untrusted.ll": "4eb13032067ed0171ceca9735cb4c3826bf902a968a152a8c0ab7141b8deeaf1",
+      "tools/editor.py": "e75887af72e32e97c7a048677c4ed7cbccf4c49ffb5f6454babf149e63ac13e1",
+      "tools/editor_features.py": "f0ef70568b4d734d6254ddb9363020556b5ac16b62a08153092d1b074327847d",
+      "tools/formatter.py": "13f6a17f1e2716b1614fe13c8a718823702dec237f6b6d1e901ed83a55b5ba59",
+      "tools/git_sources.py": "9888749b090a33f54455571dc9822017188707f8dc5b4f06c6c29831b1d6ebbf",
+      "tools/lsp.py": "42c451be8eea3c5793b69b61d3e8ce7a687545d40541bf46f54c170c8d37140c",
+      "tools/packages.py": "b49148595dbba79f6d60b493255add5abfd78a489c6c6f92010f98921dc3db83",
+      "tools/pikaflow.py": "a0c1b653862d5fdeadcf9130885b70cdd640707f898a2535d3108ec87d6b3d4b",
+      "tools/process_jobs.py": "028822a08abdf442acca38ae691bb7486b33e9c0593d3cea5656160dc011a4f8",
+      "tools/project_tests.py": "6fa12b9c86df313570b049161b8b2c8469889d5cdb093b016cf4eaf39070dd35"
+    },
+    "actual_build_source_directory": "C:\\Users\\RAIYYAN\\pikaflow\\out\\sanitizer-0.4-fix-validation\\source",
+    "updated_files": [
+      "docs/PROJECT_PLAN.md",
+      "src/compiler.cpp"
+    ],
+    "preserved_unchanged_file_mtimes": 156,
+    "cpp_source_difference": "LF candidate overlay versus CRLF archive export; recompile required for exact file-byte identity",
+    "compiler_git_blob_sha256": "516e30c98c7fab079330e4a0b94d010602ccbdb6d21aae71d84a130d7413a82b",
+    "compiler_archive_file_sha256": "c25c67a7d0c778864f5331a8556c4a27e89f7ee92b93b9723c4d2b5329d9a62d",
+    "prior_candidate_binary_sha256": "503407682a90a476a660d49c6116086fcef28a57b4be8f824329bfed2fd760b2",
+    "prior_candidate_compiler_sha256": "516e30c98c7fab079330e4a0b94d010602ccbdb6d21aae71d84a130d7413a82b"
+  },
+  "sanitizer_reports": [],
+  "stages": [
+    {
+      "name": "configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+        "-G",
+        "Ninja",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DCMAKE_C_COMPILER=clang-18",
+        "-DCMAKE_CXX_COMPILER=clang++-18",
+        "-DCMAKE_C_FLAGS=-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage",
+        "-DCMAKE_CXX_FLAGS=-O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage",
+        "-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined",
+        "-DCMAKE_SHARED_LINKER_FLAGS=-fsanitize=address,undefined",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DPIKAFLOW_ENABLE_LLVM=OFF",
+        "-DBUILD_TESTING=ON"
+      ],
+      "started_utc": "2026-11-04T23:08:37.374258+00:00",
+      "seconds": 2.021,
+      "exit_code": 0,
+      "log": "configure.log",
+      "log_sha256": "2ddf2a7cc66262879e5397d27d277ef6f5ec4277f2c07b0184babd015e537f1c"
+    },
+    {
+      "name": "build",
+      "command": [
+        "cmake",
+        "--build",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+        "--target",
+        "pikaflow",
+        "pikaflow_frontend_tests",
+        "pikaflow_ir_tests",
+        "pikaflow_optimizer_tests",
+        "pikaflow_runtime_tests",
+        "--parallel",
+        "1"
+      ],
+      "started_utc": "2026-11-04T23:08:39.400606+00:00",
+      "seconds": 49.98,
+      "exit_code": 0,
+      "log": "build.log",
+      "log_sha256": "79802d308ef61bb9374ce8a0e9827c3289b1b4c90a3ed3a91099419e9eaf747e"
+    },
+    {
+      "name": "units",
+      "command": [
+        "ctest",
+        "--test-dir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+        "--output-on-failure",
+        "-R",
+        "^(frontend|typed_ir|ir_optimizer|runtime)$"
+      ],
+      "started_utc": "2026-11-04T23:09:32.365514+00:00",
+      "seconds": 0.618,
+      "exit_code": 0,
+      "log": "units.log",
+      "log_sha256": "4e33429eb3ca3693614f9eda82549da749d0723e6cd5c8321eed85bed5e73998"
+    },
+    {
+      "name": "records",
+      "command": [
+        "python3",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/test_records.py",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow"
+      ],
+      "started_utc": "2026-11-04T23:09:32.987127+00:00",
+      "seconds": 3.825,
+      "exit_code": 0,
+      "log": "records.log",
+      "log_sha256": "05a62e74b2dbae7e4479e592c4da5b220a2c93c7ddcd52717dec5ef7e1705f31"
+    },
+    {
+      "name": "type_aliases",
+      "command": [
+        "python3",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/test_type_aliases.py",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow"
+      ],
+      "started_utc": "2026-11-04T23:09:36.815661+00:00",
+      "seconds": 4.728,
+      "exit_code": 0,
+      "log": "type_aliases.log",
+      "log_sha256": "d55c4b68fad0a43c565748221b9412af4c70bcb5ecab171a5455acb053831d65"
+    },
+    {
+      "name": "language",
+      "command": [
+        "python3",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/test_language_extensions.py",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow"
+      ],
+      "started_utc": "2026-11-04T23:09:44.042091+00:00",
+      "seconds": 4.48,
+      "exit_code": 0,
+      "log": "language.log",
+      "log_sha256": "0b595f9b9c5913b2371af6b7fdc0bd331a2181b155cbcdd129fb634ff190efe9"
+    },
+    {
+      "name": "generated_semantics",
+      "command": [
+        "python3",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/fuzz_programs.py",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/pikaflow",
+        "--cases",
+        "50",
+        "--seed",
+        "20261105",
+        "--artifacts",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-final/failures"
+      ],
+      "started_utc": "2026-11-04T23:09:48.526150+00:00",
+      "seconds": 4.73,
+      "exit_code": 0,
+      "log": "generated_semantics.log",
+      "log_sha256": "20f65fe7db3d3b3ee7caec15558a29d15519e5a7d60cc39bba34dbb9fa1cface"
+    }
+  ],
+  "exit_code": 0,
+  "sanitizer_findings": [],
+  "source_changes_after_tests": [],
+  "source_new_files_after_tests": [],
+  "source_matches_archive_after_tests": true,
+  "maximum_child_rss_kib": 502244,
+  "runner_sha256": "401f7c44f30362203a80420b5ac64be3f7e1d01934d80fc81100e275e4e68894",
+  "binary_sha256": "503407682a90a476a660d49c6116086fcef28a57b4be8f824329bfed2fd760b2",
+  "binary_version": {
+    "exit_code": 0,
+    "stdout": "PikaFlow 0.4.0; LLVM disabled; reference interpreter only\n",
+    "stderr": ""
+  },
+  "compile_commands.json_sha256": "8d485b1a5fd6156bbcd4b3a6786596fc67be66ed7d6d1097be8091214da93c42",
+  "CMakeCache.txt_sha256": "3f2d68e6b903da6532d7898ad7328f2be338eae377a55aacdd3be1ae5064138c",
+  "compile_commands": [
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -fPIC -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_runtime.dir/src/runtime.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/runtime.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/runtime.cpp",
+      "output": "CMakeFiles/pikaflow_runtime.dir/src/runtime.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/common.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/common.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/common.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/common.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/lexer.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/lexer.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/lexer.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/lexer.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/parser.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/parser.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/parser.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/parser.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/compiler.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/compiler.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/compiler.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/compiler.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/ir.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/ir.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/ir.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/ir.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/interpreter.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/interpreter.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/interpreter.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/interpreter.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/optimizer.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/optimizer.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/optimizer.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/optimizer.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -DPF_COMPILER_DRIVER=\\\"/usr/bin/clang++-18\\\" -DPF_RUNTIME_LIBRARY=\\\"/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build/libpikaflow_runtime.a\\\" -DPF_STDLIB_DIR=\\\"/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/stdlib\\\" -DPF_VERSION=\\\"0.4.0\\\" -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow.dir/src/main.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/main.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/src/main.cpp",
+      "output": "CMakeFiles/pikaflow.dir/src/main.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang-18 -DPF_BUILD_FIXTURE=1 -Dpikaflow_ffi_fixture_EXPORTS -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=gnu11 -fPIC -o CMakeFiles/pikaflow_ffi_fixture.dir/tests/ffi_fixture.c.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/ffi_fixture.c",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/ffi_fixture.c",
+      "output": "CMakeFiles/pikaflow_ffi_fixture.dir/tests/ffi_fixture.c.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang-18 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=gnu11 -o CMakeFiles/pikaflow_ffi_host_tests.dir/tests/ffi_host_tests.c.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/ffi_host_tests.c",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/ffi_host_tests.c",
+      "output": "CMakeFiles/pikaflow_ffi_host_tests.dir/tests/ffi_host_tests.c.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -o CMakeFiles/pikaflow_runtime_tests.dir/tests/runtime_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/runtime_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/runtime_tests.cpp",
+      "output": "CMakeFiles/pikaflow_runtime_tests.dir/tests/runtime_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -o CMakeFiles/pikaflow_task_tests.dir/tests/task_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/task_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/task_tests.cpp",
+      "output": "CMakeFiles/pikaflow_task_tests.dir/tests/task_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -o CMakeFiles/pikaflow_frontend_tests.dir/tests/frontend_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/frontend_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/frontend_tests.cpp",
+      "output": "CMakeFiles/pikaflow_frontend_tests.dir/tests/frontend_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -o CMakeFiles/pikaflow_ir_tests.dir/tests/ir_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/ir_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/ir_tests.cpp",
+      "output": "CMakeFiles/pikaflow_ir_tests.dir/tests/ir_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -o CMakeFiles/pikaflow_optimizer_tests.dir/tests/optimizer_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/optimizer_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/optimizer_tests.cpp",
+      "output": "CMakeFiles/pikaflow_optimizer_tests.dir/tests/optimizer_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/include -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -fstack-usage -g -std=c++17 -o CMakeFiles/pikaflow_interpreter_tests.dir/tests/interpreter_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/interpreter_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-0.4-fix-validation/source/tests/interpreter_tests.cpp",
+      "output": "CMakeFiles/pikaflow_interpreter_tests.dir/tests/interpreter_tests.cpp.o"
+    }
+  ],
+  "post_checks": {
+    "path": "post-checks.json",
+    "sha256": "138662c0c55e6808ad93fa6132aaada8272242ccca5690302f29d70941f440d8",
+    "default_stack_bytes": 8388608,
+    "byte_equal_ir_comparisons": 8,
+    "expr_dynamic_asan_frame_bytes": 7392,
+    "prior_expr_dynamic_asan_frame_bytes": 17568,
+    "compiler_git_blob_sha256": "516e30c98c7fab079330e4a0b94d010602ccbdb6d21aae71d84a130d7413a82b",
+    "compiler_archive_file_sha256": "c25c67a7d0c778864f5331a8556c4a27e89f7ee92b93b9723c4d2b5329d9a62d"
+  },
+  "source_files_after_sha256": "662805ae15f16f7a9d056dfc7cc105a91b58d2be66edcc74f6f50569e12a69d4",
+  "source_files_after_count": 158,
+  "prior_failure": {
+    "source_commit": "96ae47b209eac483595fd264cc3cc0ba5d93fdd1",
+    "path": "../sanitizer-0.4-validation/results.json",
+    "sha256": "19aff4569b92698fc083ef82c19f4aa1f0d92327753db60229c04c31000c9d7e",
+    "finding": "ASan stack overflow on valid generic_bounded_expression_chain at default 8 MiB stack"
+  },
+  "prior_dirty_candidate": {
+    "path": "../sanitizer-0.4-fix-validation/candidate-validation.json",
+    "sha256": "63f2ee88fa2714da45556bb51c93b3b384dfed21beb019734c56f93a8682a828"
+  }
+}

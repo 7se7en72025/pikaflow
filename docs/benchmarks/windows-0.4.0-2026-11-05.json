@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "recorded_at_utc": "2026-11-04T23:16:24.924315+00:00",
+  "compiler": {
+    "path": "C:\\Users\\RAIYYAN\\pikaflow\\build\\native\\pikaflow.exe",
+    "version": "PikaFlow 0.4.0; LLVM enabled; x86_64-pc-windows-msvc",
+    "sha256": "a249b48ae614d847fe6253aa071558053aa62647d043701912349f65753b7df4"
+  },
+  "benchmark_checkout": {
+    "revision": "1cfd6aab929c0c608061159900270981c2b3d12c",
+    "dirty": false
+  },
+  "machine": {
+    "platform": "Windows-10-10.0.26300-SP0",
+    "machine": "AMD64",
+    "processor": "AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD",
+    "logical_cpus": 16,
+    "python": "3.11.9"
+  },
+  "measurement_scope": "wall-clock seconds per complete process, including startup and captured output",
+  "repeats": 3,
+  "workloads": [
+    {
+      "name": "checked_loop",
+      "source": "fun main() -> unit:\n    var total = 0\n    for value in range(50000):\n        total = total + value\n    print(total)\n",
+      "expected_stdout": "1249975000\n",
+      "flags": [
+        "-O0"
+      ],
+      "output_verified": true,
+      "build_seconds": 0.3320647000000463,
+      "run_seconds": [
+        0.026423600000271108,
+        0.026217900005576666,
+        0.02599999999802094
+      ],
+      "median_seconds": 0.026217900005576666,
+      "min_seconds": 0.02599999999802094,
+      "max_seconds": 0.026423600000271108
+    },
+    {
+      "name": "checked_loop",
+      "source": "fun main() -> unit:\n    var total = 0\n    for value in range(50000):\n        total = total + value\n    print(total)\n",
+      "expected_stdout": "1249975000\n",
+      "flags": [
+        "-O2"
+      ],
+      "output_verified": true,
+      "build_seconds": 0.3428351000038674,
+      "run_seconds": [
+        0.024401100003160536,
+        0.025148300002911128,
+        0.02486019999923883
+      ],
+      "median_seconds": 0.02486019999923883,
+      "min_seconds": 0.024401100003160536,
+      "max_seconds": 0.025148300002911128
+    },
+    {
+      "name": "recursive_fibonacci",
+      "source": "fun fibonacci(value: i64) -> i64:\n    if value < 2:\n        return value\n    return fibonacci(value - 1) + fibonacci(value - 2)\nfun main() -> unit:\n    print(fibonacci(20))\n",
+      "expected_stdout": "6765\n",
+      "flags": [
+        "-O0"
+      ],
+      "output_verified": true,
+      "build_seconds": 0.3295237000056659,
+      "run_seconds": [
+        0.015971900000295136,
+        0.017230800003744662,
+        0.015587499998218846
+      ],
+      "median_seconds": 0.015971900000295136,
+      "min_seconds": 0.015587499998218846,
+      "max_seconds": 0.017230800003744662
+    },
+    {
+      "name": "recursive_fibonacci",
+      "source": "fun fibonacci(value: i64) -> i64:\n    if value < 2:\n        return value\n    return fibonacci(value - 1) + fibonacci(value - 2)\nfun main() -> unit:\n    print(fibonacci(20))\n",
+      "expected_stdout": "6765\n",
+      "flags": [
+        "-O2"
+      ],
+      "output_verified": true,
+      "build_seconds": 0.3320610000009765,
+      "run_seconds": [
+        0.01656639999418985,
+        0.016774800002167467,
+        0.016043900002841838
+      ],
+      "median_seconds": 0.01656639999418985,
+      "min_seconds": 0.016043900002841838,
+      "max_seconds": 0.016774800002167467
+    }
+  ]
+}

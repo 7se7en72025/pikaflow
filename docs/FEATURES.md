@@ -1,15 +1,14 @@
 # Feature status
 
-PikaFlow 0.3.1 implements the language, runtime and developer-tool contracts
+PikaFlow 0.4.0 implements the language, runtime and developer-tool contracts
 below. The boundaries are part of the release contract. Integration results are
 recorded by exact source/toolchain snapshot in [validation.md](validation.md);
 an implemented feature is not a claim of unlimited platform or protocol coverage.
 
-The 0.3.1 hardening keeps these feature boundaries. Regressions cover compound
-formatting, malformed protocol input, bounded syntax and nominal-type checks,
-dynamic heterogeneous indexes, deep graph printing and protected Windows linker
-sidecars. Passing these cases is evidence for the recorded inputs and hosts,
-not a proof that further defects cannot exist.
+The 0.4 additions have executable positive/negative and host integration checks.
+The earlier 0.3.1 formatting, protocol, traversal, IR, deep-printing and linker
+protection regressions remain in the suite. These results establish the recorded
+contracts and inputs; they do not prove every program or platform correct.
 
 ## Available implementation
 
@@ -19,23 +18,25 @@ not a proof that further defects cannot exist.
 | Language | Static types, locals, explicit signatures, inferred initializers, lexical scopes |
 | Values | Checked `i64`, `f64`, booleans, byte strings, arrays, tuples |
 | Functions | Named functions, recursion, nested/anonymous closures, function values, inferred/explicit generic monomorphization and typed generic words |
-| User-defined types | Nominal generic enums, constructors, recursive/mutually recursive fields, traced cyclic values, verified canonical layout registry |
+| User-defined types | Nominal generic enums and records, mutable named fields, named/positional patterns, transparent generic aliases, recursive graphs and verified canonical layouts |
 | Hybrid programming | Stack blocks, typed words, multiple results, shared stack within functions, pipelines |
 | Control flow | `if`/`elif`/`else`, `while`, range/sequence `for`, `break`, `continue`, nested patterns, guarded cases and bounded exhaustive enum matching |
 | Modules | Direct and named imports with qualified functions/generics/types/constructors/words/externs; relative, `std:` and local `pkg:` paths; privacy and cycle checks |
 | Recoverable errors | Typed `Result[T,E]`, constructors/accessors, Result patterns and postfix `?` early error propagation |
 | Custom IR | Typed register instructions, bounded canonical nominal layouts, constant heterogeneous indexes, control-flow verification, definite-assignment checks, dumps |
-| Typed-IR optimization | Verified CFG integer/boolean constant propagation, safe arithmetic/branch folding, unreachable-instruction removal and bounded fallback |
+| Typed-IR optimization | Verified CFG constants/branches, local scalar value numbering/CSE, effect-aware scalar liveness/dead-result removal, bounded fallback and public statistics |
 | Reference execution | Typed-IR interpreter using the common runtime |
 | Runtime | Iterative graph printing with cycle markers, bounds checks, checked arithmetic, arrays/tuples/closures, traced non-moving GC |
 | Concurrency | Real OS-thread `spawn`/`join`, typed task handles, isolated capture/result graph copies, automatic scoped joins, independent worker heaps |
-| LLVM backend | LLVM IR generation/verification, optimization pipelines, a checked-arithmetic identity transform, object emission, native linking, ORC JIT |
+| LLVM backend | LLVM IR generation/verification, optimization pipelines, a shared checked-arithmetic transform, object emission, native linking, ORC JIT |
+| LLVM plugin | Linux LLVM 24 `opt` plugin using the same new-pass-manager transform; semantic contract attributes, FileCheck and execution checks |
 | Foreign calls | Scalar/pointer and nested natural C records, explicit 8/16/32/64-bit integer boundary annotations, varargs, scalar noncapturing callbacks and symbol aliases |
 | Unsafe memory | Explicit unsafe blocks, typed raw allocation/load/store/free/offset, checked owned-block offsets, C-string exposure and persistent GC roots |
-| Source standard library | Recoverable numeric helpers, integer sequences/sorting/search, checked decimal parsing, ASCII classification |
+| Source standard library | Recoverable numeric helpers, integer sequences/sorting/search, checked decimal parsing, ASCII classification and test assertions |
 | Developer CLI | `check`, `interpret`, `run`, `emit-ir`, `emit-obj`, `build`, inspection commands and optional compiler-resolved source-binding JSON |
 | Formatter | Compiler-token-equivalent formatting with atomic replacement, refusal of invalid source, check mode and idempotence tests |
-| Editor integration | Incremental/full LSP sync, compiler-backed unsaved diagnostics, hover/definitions/references/verified rename, formatting, symbols/completion and grouped project contexts |
+| Editor integration | Incremental/full LSP sync, unsaved diagnostics, semantic navigation/rename, full semantic tokens, inferred-local hints, formatting, symbols/completion and grouped contexts |
+| Project testing | Compiler-resolved test discovery, assertions/scaffolds, isolated interpreter/JIT/native workers, filters/jobs/timeouts, bounded output and JSON/JUnit reports |
 | Packages | Project initialization, local paths and exact Git pins, deterministic content locks, explicit restore, verified offline builds and source confinement |
 | Source debugging | Generated locals/lines plus headless GDB breakpoint, stepping, backtrace and scalar/captured-local watch tests; Windows CodeView inspection |
 
@@ -57,10 +58,12 @@ and test results.
 | Source debugger experience | Automated GDB and CodeView evidence is target-specific; graphical IDE integration and every debugger are unverified |
 | Additional platforms | Windows x64 and Linux x86-64 are the supported targets; other architectures/ABIs are unverified |
 | LLVM main compatibility | One LLVM version/revision is tested at a time; ongoing compatibility requires repeated builds and tests |
-| Optimization | Typed-IR constant/CFG analysis and LLVM pipelines/checked identities; no heap/interprocedural propagation or floating-point folding in the custom pass |
-| Production fuzzing | A bounded Clang ASan/UBSan/libFuzzer frontend campaign passed; long-running campaigns and semantic/runtime fuzzing remain work |
+| Optimization | Bounded scalar constant/CFG/CSE/liveness analyses; no heap/interprocedural propagation, GC-root liveness or custom floating-point folding |
+| LLVM plugin hosts | Dynamic loading verified on Linux LLVM 24; Windows uses the shared source internally and skips the standalone plugin on the current LLVM build |
+| Program exploration | Bounded parser libFuzzer, LLVM-off semantic sanitizers and seeded five-template Python oracles; no coverage-guided semantic/runtime fuzzing or exhaustive proof |
 | Formatter | Normalizes whitespace while preserving compiler tokens; no expression/comment reflow |
-| LSP | Compiler-backed navigation/rename within bounded project/workspace contexts; no claim of all LSP methods, remote documents or every editor integration |
+| LSP | Bounded navigation/rename, full-only semantic tokens and simple inferred-local hints; no token delta/range endpoints, hint resolve, remote documents or universal editor coverage |
+| Project tests | Ordinary project code in bounded processes; process/job cleanup is not a security sandbox or isolation of external files/services |
 | Packages | Local dependencies and exact-commit Git restoration; no registry service, publishing service, version solver or install hooks |
 | Concurrency | Snapshot-isolated real threads and structured joins; no shared managed heap, cancellation, detachment, scheduler or thread pool |
 
@@ -81,6 +84,12 @@ target-specific execution remain necessary.
 No performance claim is established merely by enabling `-O2`; benchmarks must
 record the source, toolchain revision, build flags, machine, output correctness,
 and repeated measurements.
+
+Transparent aliases preserve the target's identity and C boundary restrictions;
+nominal language records remain managed objects, not native C structs. See the
+[language reference](language.md), [optimizer](optimization.md),
+[plugin contract](llvm-pass-plugin.md), [project tests](testing.md) and
+[independent program oracle](program-testing.md).
 
 The source library is documented in [`stdlib/README.md`](../stdlib/README.md).
 It provides a bounded set of numeric, sequence, and byte-string operations; it
