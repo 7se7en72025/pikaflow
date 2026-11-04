@@ -2,12 +2,12 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 02:36 IST.
+**Last updated:** 2026-11-05 03:00 IST.
 
-**Status:** the verified 0.3 delivery is preserved below. Following the request
-for further quality hardening, a corrective 0.3.1 pass is active. New fixes need
-fresh focused checks and final host evidence; prior 0.3 results do not establish
-the correctness of evolving source.
+**Status:** corrective 0.3.1 hardening is complete at pushed source `d77a3b5`.
+Fresh frozen-source suites pass: Windows native 25/25, Windows reference 21/21,
+Linux native 26/26. The installed ZIP and output-checked benchmark are refreshed;
+the final documentation closeout contains documentation/JSON changes only.
 Historical 0.2 completion records remain below, separately identified.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
@@ -34,17 +34,78 @@ unrelated language features.
 
 | Finding / acceptance | Owner | State |
 |---|---|---|
-| Formatter must preserve all five compound assignment operators in scalar/indexed statements and LSP edits | Root | Fixed; 16 developer-tool tests pass on Windows with Python 3.11 |
-| Invalid URI types must produce protocol errors without killing the LSP; wire JSON must be UTF-8 | Root | Fixed; subprocess recovery and encoding regressions pass |
-| Short deeply chained expressions and `elif` ladders must diagnose rather than exhaust the native stack | Frontend agent | Reproduced; bounded AST/conditional parsing fix underway |
-| Printing a finite deep managed graph must preserve formatting without recursive native-stack exhaustion | Runtime agent | 50,000-node crash reproduced; iterative renderer underway |
-| Debug native linking must not delete source or unrelated files through implicit `.ilk`/PDB sidecars | Backend agent | Source deletion reproduced on Windows; fix and tests underway |
-| Buffered output failures must return an error after flushing/closing | Root | Linux `/dev/full` incorrectly returned success; fix and regression added, rebuild pending |
-| Integrate, run full host suites, refresh installed package/evidence and push focused commits | Root / all | Pending integration |
+| Formatter must preserve all five compound assignment operators in scalar/indexed statements and LSP edits | Root | Complete; 16 developer-tool tests per host, plus extracted-package formatting/execution checks |
+| Invalid URI types must produce protocol errors without killing the LSP; wire JSON must be UTF-8 | Root | Complete; subprocess recovery and UTF-16/32 rejection regressions pass |
+| Short deeply chained expressions, `elif` ladders and nested generic bodies must diagnose rather than exhaust the native stack | Frontend agent | Complete; AST depth 128 and combined semantic traversal 512; former Windows crashes diagnose, bounded valid generic case still prints 473 |
+| Printing a finite deep managed graph must preserve formatting without recursive native-stack exhaustion | Runtime agent | Complete; 50,000-deep exact-output/cycle/shared-alias and post-print GC tests, including focused ASan/UBSan |
+| Debug native linking must not delete source or unrelated files through implicit `.ilk`/PDB/export sidecars or appended `.exe` output | Backend agent | Complete; exact output, nonincremental link, private export artifacts, protected explicit `OUTPUT.pdb`, input-library and hard-link checks |
+| Buffered output failures must return an error after flushing/closing | Root | Complete; `/dev/full` now returns diagnostic/exit 1; regression included in Linux's 217 compiler checks |
+| IR verification must reject dynamic parameter indexes and bound malformed nominal types before recursive comparison | Runtime agent | Complete; parameter/reassignment/branch proofs and 50,000-deep malformed type regressions, including focused ASan/UBSan |
+| Integrate, run full host suites, refresh installed package/evidence and push focused commits | Root / all | Complete; fresh 25/21/26 suites, source-identity checks, extracted ZIP and clean output-verified benchmark; implementation pushed |
 
 **02:36 IST estimate:** allow roughly 30–90 minutes for fixes, integration and
 host checks if no additional failure appears. This is an estimate, not a promised
 completion time; independent review runs in parallel. Update from actual results.
+
+### 0.3.1 timestamped outcome (IST, 2026-11-05)
+
+- 02:35:51: formatter and malformed protocol-input fixes committed (`230b152`).
+- 02:36:17: corrective findings and original 30–90 minute estimate recorded
+  (`4c807f3`). Review/fixes had already started before this first plan entry.
+- 02:40:00: parser and combined generic/compiler traversal bounds committed
+  (`e943c77`); focused fresh Windows checks and Linux reference tests pass.
+- 02:41:55: iterative managed printing and deep/cyclic graph regression committed
+  (`80ebe03`). Focused runtime ASan/UBSan completed without a reported finding.
+- 02:43:16–02:43:44: native-output protection (`6a72340`), CLI/build integration
+  (`1c7a63f`) and IR-verifier fixes (`d77a3b5`) committed. Former `.ilk`, implicit
+  `.exe`, `.lib` and `.exp` source-clobber cases now preserve their sources.
+- 02:43:54: final Windows verification starts from clean `d77a3b5`; Linux and
+  parser campaigns capture the identical source archive. All 123 tracked files
+  are included; no earlier candidate's full-suite result is reused.
+- 02:45–02:46: refreshed lexer/parser libFuzzer campaign completes 48,721
+  executions, no reported sanitizer findings or crash artifacts. The 45-second
+  budget used seven committed seeds and five separately recorded generated
+  depth seeds. This is parser coverage, not whole-compiler/runtime fuzzing.
+- 02:47:35: Windows native 25/25 and reference 21/21 complete; CTest reports
+  156.67 s / 38.22 s. Recorded wrapper durations are 156.719 s / 38.265 s.
+  The source hashes and checkout remain unchanged after both runs.
+- 02:47:59: final ZIP extracted and verified with showcase/namespace interpreter
+  and JIT runs, installed package tools and compound-assignment formatting.
+- 02:55:07: Linux 26/26 completes (214.63 s), including real GDB and native-link
+  checks. All 123 archived files still match after testing. One Windows-only
+  developer-tools unittest is skipped internally; no CTest suite is skipped.
+- 02:56: clean-`d77a3b5` benchmark captures four output-verified configurations,
+  three complete-process samples each. Loop O0/O2 medians: 30.401/28.232 ms;
+  Fibonacci(20): 17.231/17.417 ms. No broad speedup claim follows from these
+  small startup-inclusive samples.
+- 02:57: hardening outcomes and evidence closeout prepared. No known finding
+  from this pass remains open; only documentation/JSON closeout commits follow.
+- 03:00: current guides and six evidence records committed as `e7e2c76`;
+  captured JSON fields preserved with normal repository line endings, 153 local
+  Markdown links checked. Code/tests remain identical to frozen `d77a3b5`.
+
+**Final 0.3.1 source:** `d77a3b5cdab180e061d66f0fee18634a913ad001`.
+Identical Windows/Linux/parser source archive SHA-256:
+`5bb56a5d7ad428c7c11478be98dbcfb7a08660b3b0ea0386a885644104936c80`.
+The focused runtime/IR sanitizer checks ran during integration; their original
+`sourceDirty: true` provenance is retained. The four recorded changed-source
+hashes match the committed snapshot; they are not relabelled as a clean full
+LLVM sanitizer run.
+
+**Final local package:** `out/dist/pikaflow-0.3.1-windows-x64-d77a3b5.zip`,
+18,181,114 bytes; SHA-256
+`a96a182ad4b07ae9638e586c12abb2adb85d3e5a2c0fc03346f570870008af9b`.
+The binary matches the tested Windows compiler. Native linking uses the captured
+local MSVC/SDK installation; rebuild for another installation. Earlier packages
+are historical builds. Full host, sanitizer, parser and package provenance is
+linked from [validation](validation.md).
+
+This pass closes in about 24 minutes from its first timestamped plan entry to
+the 03:00 record, with earlier review and parallel agents. It is elapsed time,
+not a person-hour measurement. The original estimate remains above. This is an
+experimental Windows/Linux x64 compiler with the documented C ABI/tooling limits;
+testing cannot prove the absence of every bug. No registry, additional platform,
+full C++ ABI, release publication or remote CI run was added to this contract.
 
 ## 0.3 completion continuation — 2026-11-04 (historical delivery)
 
