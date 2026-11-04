@@ -103,6 +103,8 @@ relative to the project, and a digest of the manifest plus `.pf` source contents
 Line endings are canonicalized to LF before hashing, so LF and CRLF Git checkouts
 produce the same lock; all other content bytes remain significant.
 `build/`, `out/` and dot directories are excluded. Commit the manifest and lock.
+Build/output directory exclusions and source-extension hashing compare ASCII
+case-insensitively, so Windows filename lookup cannot expose an unhashed source.
 Dependency edits require an explicit `deps lock`; project check/run/build commands
 verify the lock before invoking the compiler.
 
@@ -125,7 +127,7 @@ switches to that dependency's boundary, while bundled `std:` imports stay truste
 The language server enforces these boundaries before staging unsaved buffers.
 
 Project creation rejects existing and dangling reserved-file symlinks and a
-symlinked `src` directory. Lock updates reject a symlinked `pika.lock` and replace
+symlinked or Windows-junction `src` directory. Lock updates reject a symlinked `pika.lock` and replace
 regular locks atomically, preserving the old lock if writing fails.
 
 The checked-in [two-package example](../examples/packages/app/pika.json) runs with:

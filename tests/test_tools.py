@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -73,6 +74,12 @@ class ToolsTests(unittest.TestCase):
             first = (app / "pika.lock").read_bytes()
             self.assertEqual(run("deps", "lock", "--project", str(app)).returncode, 0)
             self.assertEqual((app / "pika.lock").read_bytes(), first)
+            protected = subprocess.run([str(COMPILER), "dump-ir", str(app / "src/main.pf"),
+                                        "-o", str(app / "pika.lock")], capture_output=True,
+                                       text=True, encoding="utf-8", timeout=20)
+            self.assertNotEqual(protected.returncode, 0)
+            self.assertIn("metadata", protected.stderr)
+            self.assertEqual((app / "pika.lock").read_bytes(), first)
             result = run("interpret", "--project", str(app))
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout, "42\n")
@@ -139,6 +146,19 @@ class ToolsTests(unittest.TestCase):
             self.assertEqual(packages.content_hash(root), digest)
             (root / "lib.pf").write_bytes(b'export fun value() -> i64:\r\n    return 43\r\n')
             self.assertNotEqual(packages.content_hash(root), digest)
+            digest = packages.content_hash(root)
+            (root / "Out").mkdir()
+            ignored = root / "Out/generated.pf"
+            ignored.write_text("first", encoding="utf-8")
+            self.assertEqual(packages.content_hash(root), digest)
+            ignored.write_text("second", encoding="utf-8")
+            self.assertEqual(packages.content_hash(root), digest)
+            upper = root / "EXTRA.PF"
+            upper.write_text("first", encoding="utf-8")
+            self.assertNotEqual(packages.content_hash(root), digest)
+            digest = packages.content_hash(root)
+            upper.write_text("second", encoding="utf-8")
+            self.assertNotEqual(packages.content_hash(root), digest)
 
     def test_package_writes_do_not_follow_reserved_symlinks(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -192,7 +212,7 @@ class ToolsTests(unittest.TestCase):
                     self.assertIn("escape", result.stderr)
                     with self.assertRaisesRegex(ValueError, "escape"):
                         lsp.Server(COMPILER, io.BytesIO()).diagnostics(source)
-            for module in ("out/value.pf", ".hidden/value.pf", "payload.txt"):
+            for module in ("out/value.pf", "Out/value.pf", ".hidden/value.pf", "payload.txt"):
                 path = library / module
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text('export fun answer() -> i64:\n    return 42\n', encoding="utf-8")
@@ -206,6 +226,29 @@ class ToolsTests(unittest.TestCase):
                         self.assertTrue("excluded" in result.stderr or "locked .pf" in result.stderr, result.stderr)
                         with self.assertRaisesRegex(ValueError, "excluded|locked .pf"):
                             lsp.Server(COMPILER, io.BytesIO()).diagnostics(source)
+
+    @unittest.skipUnless(os.name == "nt", "Windows directory junction boundary")
+    def test_package_init_rejects_directory_junction(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory).resolve()
+            outside, app = root / "outside", root / "app"
+            outside.mkdir()
+            app.mkdir()
+            junction = app / "src"
+            result = subprocess.run(["cmd", "/c", "mklink", "/J", str(junction), str(outside)],
+                                    capture_output=True, text=True, timeout=10)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            try:
+                with self.assertRaises(ValueError):
+                    packages.initialize(app, "app")
+                self.assertFalse((outside / "main.pf").exists())
+                with self.assertRaisesRegex(ValueError, "symlinks"):
+                    packages.content_hash(app)
+            finally:
+                self.assertEqual(junction.parent.resolve(), app.resolve())
+                self.assertEqual(junction.resolve(), outside.resolve())
+                os.rmdir(junction)
+            self.assertTrue(outside.is_dir())
 
     def test_lsp_framing_limits(self):
         stream = io.BytesIO()

@@ -6,10 +6,20 @@ import json
 import pathlib
 import re
 import os
+import stat
 import tempfile
 
 NAME = re.compile(r"[A-Za-z_][A-Za-z_0-9]*\Z")
 LOCK_HEADER = "pikaflow-lock-v1"
+
+
+def linked(path: pathlib.Path) -> bool:
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return False
+    # Windows junctions use the mount-point reparse tag rather than symlink mode.
+    return stat.S_ISLNK(info.st_mode) or getattr(info, "st_reparse_tag", 0) == 0xA0000003
 
 
 def package_source(root: pathlib.Path, path: pathlib.Path) -> pathlib.Path:
@@ -20,7 +30,7 @@ def package_source(root: pathlib.Path, path: pathlib.Path) -> pathlib.Path:
         raise ValueError("package import cannot escape its locked package") from None
     if path.suffix != ".pf":
         raise ValueError("package import must name a locked .pf source")
-    if any(part.startswith(".") or part in ("build", "out") for part in relative.parts):
+    if any(part.startswith(".") or part.lower() in ("build", "out") for part in relative.parts):
         raise ValueError("package import names an excluded, unlocked source")
     return path
 
@@ -65,14 +75,14 @@ def content_hash(root: pathlib.Path) -> str:
     while pending:
         directory = pending.pop()
         for path in directory.iterdir():
-            if path.name.startswith(".") or path.name in ("build", "out"):
+            if path.name.startswith(".") or path.name.lower() in ("build", "out"):
                 continue
-            if path.is_symlink():
+            if linked(path):
                 raise ValueError(f"package symlinks are not supported: {path}")
             if path.is_dir():
                 pending.append(path)
                 entries += 1
-            elif path.suffix == ".pf":
+            elif path.suffix.lower() == ".pf":
                 files.append(path)
                 entries += 1
             if entries > 10000:
@@ -133,7 +143,7 @@ def lock_text(root: pathlib.Path) -> str:
 
 def lock(root: pathlib.Path, *, verify: bool = False) -> None:
     path = root / "pika.lock"
-    if path.is_symlink():
+    if linked(path):
         raise ValueError("package lock cannot be a symbolic link")
     expected = lock_text(root)
     if verify:
@@ -160,10 +170,10 @@ def initialize(directory: pathlib.Path, name: str | None = None) -> None:
     name = name or re.sub(r"[^A-Za-z_0-9]", "_", directory.name)
     if not NAME.fullmatch(name):
         raise ValueError("package name must be an ASCII identifier")
-    if any((directory / path).exists() or (directory / path).is_symlink()
+    if any((directory / path).exists() or linked(directory / path)
            for path in ("pika.json", "pika.lock", "src/main.pf")):
         raise ValueError("init refuses to replace existing project files")
-    if (directory / "src").is_symlink() or ((directory / "src").exists() and not (directory / "src").is_dir()):
+    if linked(directory / "src") or ((directory / "src").exists() and not (directory / "src").is_dir()):
         raise ValueError("init requires src to be a directory")
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "src").mkdir(exist_ok=True)
