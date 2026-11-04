@@ -19,6 +19,7 @@ uint32_t pf_index_tag(void* object, int64_t index);
 void pf_set_index(void* object, int64_t index, uint64_t bits, uint32_t tag);
 void* pf_cell_new(uint64_t bits, uint32_t tag);
 uint64_t pf_cell_get(void* cell);
+void* pf_cell_address(void* cell);
 void pf_cell_set(void* cell, uint64_t bits, uint32_t tag);
 void* pf_closure_new(void* code, int64_t capture_count);
 void pf_closure_set(void* closure, int64_t index, void* cell);

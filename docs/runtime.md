@@ -29,6 +29,10 @@ Unreachable cycles are reclaimed. The tracing worklist is iterative. Strings
 are immutable UTF-8 byte sequences; length and indexing count bytes, and string
 indexing returns an unsigned byte integer.
 
+`pf_cell_address` exposes a mutable cell's value storage for generated debug
+information. Its address remains stable while the cell stays reachable. The
+address itself is not a root and must not outlive the cell.
+
 ## Failure behavior
 
 Invalid bounds, incompatible runtime tags, expired managed references, integer

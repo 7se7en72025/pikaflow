@@ -310,6 +310,8 @@ void* pf_cell_new(uint64_t payload, uint32_t tag) {
 
 uint64_t pf_cell_get(void* reference) { return object(reference, CellTag)->values[0].bits; }
 
+void* pf_cell_address(void* reference) { return &object(reference, CellTag)->values[0].bits; }
+
 void pf_cell_set(void* reference, uint64_t payload, uint32_t tag) {
     auto* result = object(reference, CellTag);
     if (tag != result->values[0].tag) fail("cell assignment has an incompatible type");

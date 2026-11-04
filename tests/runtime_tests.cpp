@@ -47,12 +47,16 @@ void testHeap() {
     auto* retained = reinterpret_cast<void*>(static_cast<uintptr_t>(pf_index(roots[1], 0)));
     require(pf_length(retained) == 5, "traced string remains usable");
     roots[2] = pf_cell_new(42, 1);
+    auto* address = static_cast<uint64_t*>(pf_cell_address(roots[2]));
+    require(*address == 42, "debugger cell address points to its actual value storage");
     roots[3] = pf_closure_new(reinterpret_cast<void*>(uintptr_t(1)), 1);
     pf_closure_set(roots[3], 0, roots[2]);
     roots[2] = nullptr;
     pf_collect();
     pf_cell_set(pf_closure_get(roots[3], 0), 43, 1);
     require(pf_cell_get(pf_closure_get(roots[3], 0)) == 43, "closure keeps mutable capture alive");
+    require(pf_cell_address(pf_closure_get(roots[3], 0)) == address && *address == 43,
+        "debugger cell address remains stable through collection and observes updates");
     require(pf_closure_code(roots[3]) == reinterpret_cast<void*>(uintptr_t(1)), "closure retains implementation address");
     roots[0] = pf_tuple_new(2);
     pf_set_index(roots[0], 0, bits(roots[0]), 6);
