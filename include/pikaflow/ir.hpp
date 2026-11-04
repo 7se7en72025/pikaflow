@@ -52,7 +52,11 @@ enum class Op {
     Pin,
     Unpin,
     Zero,
-    ResultError
+    ResultError,
+    CCallback,
+    Spawn,
+    Join,
+    RawOffset
 };
 struct Instruction {
     Op op;

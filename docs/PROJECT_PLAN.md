@@ -1,7 +1,7 @@
 # PikaFlow completion plan and live engineering log
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).  
-**Last updated:** 2026-11-04 21:25 IST.  
+**Last updated:** 2026-11-04 21:33 IST.  
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -106,6 +106,13 @@ this file and Git history are the durable resume points if the session stops.
 | 21:25 | Runtime work underway: isolated real-thread tasks, snapshot GC ownership and structured joins | Runtime API and interpreter path present; dedicated tests being added |
 | 21:25 | Backend work underway: nested records/callbacks; live GDB found an optimized-out local | Fixing source-variable debug storage before rechecking watches |
 | 21:25 | Root added IR callback/task opcode contracts and initial formatter/package implementation | Tooling, verifier tests, LSP and integration remain underway |
+| 21:26 | Initial timestamped plan committed and pushed | `682f8dc`; baseline and estimates preserved |
+| 21:31 | Windows runtime task checks demonstrate simultaneous workers, isolated cyclic snapshots, managed results and structured cleanup | Ten fatal task cases also pass; full source modes pending |
+| 21:31 | Windows nested-record/callback host C and generated comparisons pass | 76 JIT/native executions at O0/O2; Linux refresh pending |
+| 21:31 | Real GDB breakpoint/step/backtrace and scalar/captured-local watches pass after fixing debug address storage | Transcript retained under `out/debug-validation/`; automated debugger script added |
+| 21:32 | Formatter/package/LSP eight integration tests pass on Windows, including unsaved imports and UTF-16 positions | New manifest boundary case added next; full Linux tools checks pending |
+| 21:32 | Two-package example resolves a deterministic lock and prints 42 | `examples/packages/app`; source imports resolve through `pkg:` |
+| 21:33 | Shared generic/nominal/task type interfaces committed | `07686a8`; twenty language interpreter checks passed before ADT extension |
 
 Update this log after meaningful milestones, failures, estimate changes and pushes.
 Mark delivery only with the corresponding commit and test evidence.

@@ -1,0 +1,77 @@
+# Working on PikaFlow and learning LLVM
+
+Start with the [build instructions](../README.md), then run the full CTest suite
+for the build you changed. An interpreter-only build is useful for fast frontend
+work; it cannot establish native lowering, C ABI or source-debugger correctness.
+
+## Follow one program through the compiler
+
+```powershell
+build/native/pikaflow.exe dump-tokens examples/hello.pf
+build/native/pikaflow.exe dump-ast examples/hello.pf
+build/native/pikaflow.exe dump-ir examples/hello.pf
+build/native/pikaflow.exe emit-ir examples/hello.pf -O0 -o build/hello-O0.ll
+build/native/pikaflow.exe emit-ir examples/hello.pf -O2 -o build/hello-O2.ll
+build/native/pikaflow.exe dump-asm examples/hello.pf -O2
+build/native/pikaflow.exe interpret examples/hello.pf
+build/native/pikaflow.exe run examples/hello.pf -O2
+build/native/pikaflow.exe build examples/hello.pf -O2 -o build/hello.exe
+build/hello.exe
+```
+
+On Linux, omit `.exe` and prefix executable paths with `./`. Compare the output
+of independent execution paths before studying optimization differences.
+
+| Stage / question | Source to read | Relevant checks |
+|---|---|---|
+| How are indentation, literals and source spans recognized? | [lexer.cpp](../src/lexer.cpp) | [frontend tests](../tests/frontend_tests.cpp), [libFuzzer harness](../tests/fuzz_parser.cpp) if present; see [fuzzing](fuzzing.md) |
+| How do precedence, structured code and stack blocks become syntax nodes? | [parser.cpp](../src/parser.cpp), [frontend.hpp](../include/pikaflow/frontend.hpp) | Frontend valid/invalid cases; token-preserving formatter tests |
+| Where do names, modules, types, stack effects and closures get checked? | [compiler.cpp](../src/compiler.cpp) | [CLI tests](../tests/test_cli.py), [language extensions](../tests/test_language_extensions.py) |
+| What does our own IR guarantee before LLVM sees it? | [ir.hpp](../include/pikaflow/ir.hpp), [ir.cpp](../src/ir.cpp) | [Malformed IR tests](../tests/ir_tests.cpp) |
+| How can we execute without relying on LLVM lowering? | [interpreter.cpp](../src/interpreter.cpp) | [Interpreter tests](../tests/interpreter_tests.cpp), [arithmetic differential tests](../tests/fuzz_frontend.py) |
+| How do C++ LLVM APIs build types, instructions and control flow? | [backend.cpp](../src/backend.cpp) | [Backend tests](../tests/backend_tests.cpp); inspect emitted O0 IR |
+| How are object generation, target layout, passes and ORC connected? | [backend.cpp](../src/backend.cpp), [CMakeLists.txt](../CMakeLists.txt) | Native/JIT O0/O2 and object/assembly tests |
+| Who owns managed objects, GC roots and task snapshots? | [runtime.cpp](../src/runtime.cpp), [runtime.h](../include/pikaflow/runtime.h) | [Runtime tests](../tests/runtime_tests.cpp), [task tests](../tests/task_tests.cpp) |
+| Does a foreign aggregate really match the host ABI? | Backend C ABI helpers and [host C fixture](../tests/ffi_fixture.c) | [Generated C comparisons](../tests/test_ffi.py); run separately on both hosts |
+| Do debug records actually let a debugger inspect values? | Backend DIBuilder/variable declarations | [Real GDB checks](../tests/test_debugger.py), not only IR metadata checks |
+| How do tools call the compiler without editing user files? | [tools](../tools/pikaflow.py), [LSP](../tools/lsp.py) | [Tool subprocess tests](../tests/test_tools.py) |
+
+PikaFlow's typed register IR is not LLVM SSA. LLVM lowering initially stores
+virtual registers in local slots; optimization may promote them and introduce
+SSA joins. Inspect an `if`/loop at O0 and O2 to see that transition. A verifier
+success means an IR is structurally valid, not that source semantics are correct.
+
+## Make a change reviewable
+
+1. Specify the observable behavior and the invalid form before modifying a shared
+   type/opcode/runtime interface. Check interpreter and LLVM callers together.
+2. Add a small valid program and a meaningful negative/edge case. For arithmetic,
+   preserve overflow/division behavior at every optimization level.
+3. For managed values, exercise collection while values cross function/closure,
+   task, aggregate-return or foreign boundaries. A passing small example can hide
+   a missing root until allocation pressure rises.
+4. Run the affected focused test first, then the complete suite once integrated.
+   Cross-platform ABI changes require actual host C comparisons on each target.
+5. Document the language/runtime contract and its boundary. Commit the code and
+   its evidence together; never commit generated build trees or credentials.
+
+Use the supplied `.clang-format` style for C++. The language formatter preserves
+PikaFlow tokens; Python tools require no pip packages. A useful commit message
+describes behavior, such as “Preserve managed nested records across C returns”.
+
+## Good LLVM learning investigations
+
+- Trace one captured mutable variable from AST to cell/root to LLVM load/store.
+- Inspect the legality of the project's checked-arithmetic identity transform.
+  Build counterexamples involving overflow before adding a new transform.
+- Compare Windows and SysV parameter/return lowering for one nested C record.
+- Trace how an ORC symbol resolves a runtime function and a generated C callback.
+- Follow an isolated task's snapshot, worker thunk, result import and GC roots.
+- Use a source debugger to inspect both a normal local and a captured cell.
+
+These are investigations on implemented code, not claims that completing them
+automatically qualifies a contribution for LLVM upstream. Upstream changes need
+their own relevant LLVM test, review and project-specific requirements.
+
+The live [project plan](PROJECT_PLAN.md) records timestamps, estimates and the
+completion evidence; [feature status](FEATURES.md) defines supported boundaries.

@@ -3,6 +3,7 @@
 #ifdef PF_HAS_LLVM
 #include "pikaflow/backend.hpp"
 #endif
+#include <algorithm>
 #include <cctype>
 #include <cwchar>
 #include <filesystem>
@@ -92,6 +93,53 @@ class Modules {
     std::set<std::string> active, loaded;
     std::vector<pika::StmtPtr> statements;
     fs::path standard;
+    fs::path packageRoot;
+    fs::path packageImport(const std::string &name, const pika::Location &location) const {
+        auto slash = name.find('/');
+        std::string alias = name.substr(0, slash);
+        if (alias.empty() || (!std::isalpha(static_cast<unsigned char>(alias[0])) && alias[0] != '_') ||
+            !std::all_of(alias.begin(), alias.end(), [](unsigned char c) {
+                return std::isalnum(c) || c == '_';
+            }))
+            throw pika::Error(location, "invalid package dependency name");
+        if (packageRoot.empty())
+            throw pika::Error(location, "pkg: imports require pika.json and pika.lock; run deps lock");
+        std::istringstream lock(read(packageRoot / "pika.lock"));
+        std::string line;
+        std::getline(lock, line);
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line != "pikaflow-lock-v1")
+            throw pika::Error(location, "unsupported package lock format");
+        fs::path dependency;
+        while (std::getline(lock, line)) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            auto first = line.find('\t'), second = line.find('\t', first == std::string::npos ? 0 : first + 1);
+            if (first == std::string::npos || second == std::string::npos || line.size() - second - 1 != 64 ||
+                !std::all_of(line.begin() + second + 1, line.end(), [](char c) {
+                    return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+                }) || line.find('\0') != std::string::npos)
+                throw pika::Error(location, "invalid package lock entry");
+            if (line.substr(0, first) == alias) {
+                if (!dependency.empty()) throw pika::Error(location, "duplicate dependency in package lock");
+                dependency = packageRoot / fs::u8path(line.substr(first + 1, second - first - 1));
+            }
+        }
+        if (dependency.empty())
+            throw pika::Error(location, "package dependency is not locked: " + alias);
+        dependency = fs::weakly_canonical(fs::absolute(dependency));
+        fs::path module = slash == std::string::npos ? fs::path("lib.pf") : fs::u8path(name.substr(slash + 1));
+        if (module.empty() || module.is_absolute() || module.has_root_name())
+            throw pika::Error(location, "package module must be a relative path");
+        for (const auto &part : module)
+            if (part == "..") throw pika::Error(location, "package module cannot escape its package");
+        if (module.extension().empty()) module += ".pf";
+        auto resolved = fs::weakly_canonical(dependency / module);
+        auto a = dependency.begin(), b = resolved.begin();
+        for (; a != dependency.end() && b != resolved.end() && *a == *b; ++a, ++b) {}
+        if (a != dependency.end())
+            throw pika::Error(location, "package module cannot escape its package");
+        return resolved;
+    }
     void load(const fs::path &requested) {
         std::string path = fs::weakly_canonical(fs::absolute(requested)).u8string();
         if (active.count(path))
@@ -119,7 +167,9 @@ class Modules {
                                 statement->location,
                                 "std: module name must contain letters, digits or underscores");
                     imported = standard / fs::u8path(module + ".pf");
-                } else
+                } else if (statement->name.rfind("pkg:", 0) == 0)
+                    imported = packageImport(statement->name.substr(4), statement->location);
+                else
                     imported = fs::u8path(path).parent_path() / fs::u8path(statement->name);
                 imported = fs::weakly_canonical(imported);
                 statement->name = imported.u8string();
@@ -139,6 +189,15 @@ class Modules {
     }
     pika::SyntaxTree program(const fs::path &file) {
         std::string path = fs::weakly_canonical(fs::absolute(file)).u8string();
+        for (auto directory = fs::u8path(path).parent_path(); !directory.empty();) {
+            if (fs::is_regular_file(directory / "pika.json")) {
+                packageRoot = directory;
+                break;
+            }
+            auto parent = directory.parent_path();
+            if (parent == directory) break;
+            directory = parent;
+        }
         load(file);
         return {std::move(statements), path};
     }
@@ -163,6 +222,7 @@ void help() {
     std::cout << "PikaFlow - typed structured and stack programming\n"
               << "usage: pikaflow COMMAND FILE [-O0|-O1|-O2|-O3] [--debug] [-o OUTPUT]\n"
               << "  check         parse, type-check and verify typed IR\n"
+              << "                --library checks modules without a source main\n"
               << "  interpret     execute the reference interpreter\n"
               << "  run           execute through LLVM ORC JIT\n"
               << "  emit-ir       print/write verified LLVM IR\n"
@@ -183,7 +243,7 @@ int runCLI(int argc, char **argv) {
         }
         std::string command = argv[1];
         if (command == "--version") {
-            std::cout << "PikaFlow 0.1.0; "
+            std::cout << "PikaFlow 0.2.0; "
 #ifdef PF_HAS_LLVM
                       << "LLVM enabled; " << pika::targetTriple()
 #else
@@ -198,6 +258,7 @@ int runCLI(int argc, char **argv) {
         std::string output;
         [[maybe_unused]] unsigned optimization = 0;
         [[maybe_unused]] bool debug = false;
+        bool libraryMode = false;
         std::vector<std::string> links, loads;
         for (int i = 3; i < argc; ++i) {
             std::string option = argv[i];
@@ -210,7 +271,9 @@ int runCLI(int argc, char **argv) {
                     throw std::runtime_error(option + " requires a library path");
                 (option == "--link" ? links : loads)
                     .push_back(fs::absolute(fs::u8path(argv[i])).u8string());
-            } else if (option == "--debug" || option == "-g")
+            } else if (option == "--library")
+                libraryMode = true;
+            else if (option == "--debug" || option == "-g")
                 debug = true;
             else if (option.size() == 3 && option[0] == '-' && option[1] == 'O' &&
                      option[2] >= '0' && option[2] <= '3')
@@ -222,6 +285,8 @@ int runCLI(int argc, char **argv) {
             throw std::runtime_error("--link is supported by build only");
         if (!loads.empty() && command != "run")
             throw std::runtime_error("--load is supported by JIT run only");
+        if (libraryMode && command != "check")
+            throw std::runtime_error("--library is supported by check only");
         if (!output.empty() && sameFile(fs::u8path(output), source))
             throw std::runtime_error("output path would overwrite the source file");
         std::string text;
@@ -231,6 +296,18 @@ int runCLI(int argc, char **argv) {
         } else {
             Modules modules(standardLibrary(argv[0]));
             auto tree = modules.program(source);
+            if (libraryMode && std::none_of(tree.statements.begin(), tree.statements.end(),
+                    [&](const pika::StmtPtr &statement) {
+                        return statement->name == "main" && statement->location.file == tree.filename;
+                    })) {
+                auto entry = std::make_shared<pika::Stmt>(pika::Stmt::Kind::Function,
+                                                          pika::Location{tree.filename, 1, 1});
+                entry->name = "main";
+                entry->returnType = pika::Unit;
+                entry->body.push_back(std::make_shared<pika::Stmt>(pika::Stmt::Kind::Return,
+                                                                  entry->location));
+                tree.statements.push_back(std::move(entry));
+            }
             if (!output.empty())
                 modules.protect(fs::u8path(output));
             if (command == "dump-ast")

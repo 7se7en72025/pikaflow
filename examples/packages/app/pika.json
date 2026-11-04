@@ -1,0 +1,8 @@
+{
+  "name": "package_showcase",
+  "version": "0.1.0",
+  "entry": "src/main.pf",
+  "dependencies": {
+    "mathkit": {"path": "../mathkit"}
+  }
+}

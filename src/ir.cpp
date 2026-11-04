@@ -1,6 +1,7 @@
 #include "pikaflow/ir.hpp"
 #include <algorithm>
 #include <deque>
+#include <functional>
 #include <iomanip>
 #include <map>
 #include <set>
@@ -24,7 +25,8 @@ const char *name(Op op) {
                                   "extern.call", "panic",    "unwrap",
                                   "raw.alloc",   "raw.free", "raw.load",
                                   "raw.store",   "cstr",     "pin",
-                                  "unpin",       "zero",     "result.error"};
+                                  "unpin",       "zero",     "result.error",
+                                  "c.callback",  "spawn",    "join", "raw.offset"};
     return names[static_cast<unsigned>(op)];
 }
 } // namespace
@@ -36,6 +38,8 @@ void verify(const Program &program) {
             work.pop_back();
             const auto &t = *item.first;
             if (item.second > 64)
+                return false;
+            if (!t.name.empty() && t.kind != TypeKind::Tuple)
                 return false;
             switch (t.kind) {
             case TypeKind::Unit:
@@ -52,6 +56,10 @@ void verify(const Program &program) {
                     return false;
                 break;
             case TypeKind::Pointer:
+                if (t.args.size() != 1)
+                    return false;
+                break;
+            case TypeKind::Task:
                 if (t.args.size() != 1)
                     return false;
                 break;
@@ -98,17 +106,22 @@ void verify(const Program &program) {
     auto cScalar = [](const Type &t) {
         return t == I64 || t == F64 || t == Bool || t.kind == TypeKind::Pointer;
     };
-    auto cType = [&](const Type &t) {
+    std::function<bool(const Type &)> cType = [&](const Type &t) {
         if (!validType(t))
             return false;
         if (cScalar(t))
             return true;
-        if (t.kind != TypeKind::Tuple || t.args.empty())
+        if (t.kind != TypeKind::Tuple || t.args.empty() || !t.name.empty())
             return false;
         for (const auto &field : t.args)
-            if (!cScalar(field))
+            if (!cType(field))
                 return false;
         return true;
+    };
+    std::function<bool(const Type &)> transferable = [&](const Type &t) {
+        if (t.kind == TypeKind::Pointer || t.kind == TypeKind::Task)
+            return false;
+        return std::all_of(t.args.begin(), t.args.end(), transferable);
     };
     for (const auto &external : program.externals) {
         if (external.name.empty() || external.name.find('\0') != std::string::npos ||
@@ -151,7 +164,7 @@ void verify(const Program &program) {
                     constants[ins.dst] = ins.integer;
             }
         for (const auto &ins : f.code) {
-            check(static_cast<unsigned>(ins.op) <= static_cast<unsigned>(Op::ResultError), ins,
+            check(static_cast<unsigned>(ins.op) <= static_cast<unsigned>(Op::RawOffset), ins,
                   "unknown opcode");
             check(ins.dst >= -1 &&
                       (ins.dst < 0 || static_cast<size_t>(ins.dst) < f.registers.size()),
@@ -410,6 +423,14 @@ void verify(const Program &program) {
                 check(arg(0).kind == TypeKind::Pointer && arg(1) == I64 && dst() == arg(0).args[0],
                       ins, "raw load type");
                 break;
+            case Op::RawOffset:
+                arity(2);
+                check(arg(0).kind == TypeKind::Pointer && arg(1) == I64 && dst() == arg(0),
+                      ins, "raw offset type");
+                check(arg(0).args[0] == Unit || arg(0).args[0] == I64 ||
+                          arg(0).args[0] == F64 || arg(0).args[0] == Bool,
+                      ins, "raw offset requires a scalar or byte pointer");
+                break;
             case Op::RawStore:
                 arity(3);
                 check(ins.dst < 0, ins, "raw store cannot define a register");
@@ -426,6 +447,34 @@ void verify(const Program &program) {
                 check(arg(0).managed() && dst() == Type{TypeKind::Pointer, {Unit}}, ins,
                       "pin type");
                 break;
+            case Op::Spawn:
+                arity(1);
+                check(arg(0).kind == TypeKind::Function && arg(0).args.size() == 1 &&
+                          dst().kind == TypeKind::Task && dst().args[0] == arg(0).args.back(),
+                      ins, "spawn requires a zero-argument function with matching task result");
+                check(transferable(dst().args[0]), ins, "task result is not transferable");
+                break;
+            case Op::Join:
+                arity(1);
+                check(arg(0).kind == TypeKind::Task, ins, "join requires a task");
+                check((arg(0).args[0] == Unit && ins.dst < 0) ||
+                          (ins.dst >= 0 && dst() == arg(0).args[0]),
+                      ins, "join result type");
+                break;
+            case Op::CCallback: {
+                arity(0);
+                check(dst() == Type{TypeKind::Pointer, {Unit}}, ins, "C callback pointer type");
+                auto found = functions.find(ins.text);
+                check(found != functions.end(), ins, "unknown C callback target");
+                const auto &target = *found->second;
+                check(target.result == Unit || cScalar(target.result), ins,
+                      "unsupported C callback result type");
+                for (const auto &parameter : target.parameters)
+                    check(cScalar(parameter), ins, "unsupported C callback parameter type");
+                for (const auto &operation : target.code)
+                    check(operation.op != Op::Capture, ins, "C callback target captures values");
+                break;
+            }
             case Op::ExternalCall: {
                 auto ext = std::find_if(program.externals.begin(), program.externals.end(),
                                         [&](const External &e) { return e.name == ins.text; });

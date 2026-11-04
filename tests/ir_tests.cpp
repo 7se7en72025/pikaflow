@@ -140,6 +140,36 @@ int main() {
                              instruction(Op::Return, -1, {1})};
             p.functions.push_back(std::move(captured));
         });
+        rejects("unresolved generic IR type", [](Program &p) {
+            p.functions[0].registers[0] = Type{TypeKind::Named};
+        });
+        rejects("malformed task IR type", [](Program &p) {
+            p.functions[0].registers[0] = Type{TypeKind::Task};
+        });
+        rejects("spawn scalar operand", [](Program &p) {
+            auto &f = p.functions[0];
+            f.code.insert(f.code.begin() + 1, instruction(Op::Spawn, 1, {0}));
+        });
+        rejects("join scalar operand", [](Program &p) {
+            auto &f = p.functions[0];
+            f.code.insert(f.code.begin() + 1, instruction(Op::Join, 1, {0}));
+        });
+        rejects("callback unknown function", [](Program &p) {
+            auto &f = p.functions[0];
+            f.registers[1] = Type{TypeKind::Pointer, {Unit}};
+            auto callback = instruction(Op::CCallback, 1);
+            callback.text = "missing";
+            f.code.insert(f.code.begin() + 1, callback);
+        });
+        rejects("nominal ADT C record", [](Program &p) {
+            Type nominal{TypeKind::Tuple, {I64}};
+            nominal.name = "Option[i64]";
+            p.externals.push_back({"bad", {nominal}, Unit, false});
+        });
+        rejects("raw offset scalar operand", [](Program &p) {
+            auto &f = p.functions[0];
+            f.code.insert(f.code.begin() + 1, instruction(Op::RawOffset, 1, {0, 0}));
+        });
         std::cout << "Typed IR verification tests passed\n";
         return 0;
     } catch (const std::exception &error) {

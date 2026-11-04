@@ -1,0 +1,4 @@
+import "pkg:mathkit"
+
+fun main() -> unit:
+    [10, 12, 20] |> sum |> print
