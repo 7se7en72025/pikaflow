@@ -1,4 +1,4 @@
-# Frontend fuzzing
+# Fuzzing
 
 `tests/fuzz_parser.cpp` is a coverage-guided libFuzzer entry point for arbitrary
 source bytes. It calls the real lexer and parser, accepts source diagnostics
@@ -288,3 +288,90 @@ manifest and empty artifacts directory are retained under ignored
 Earlier campaign records above remain historical results for their respective
 snapshots. This refresh exercises lexer/parser behavior only; it does not
 validate semantic binding roles, rename safety, or editor execution.
+
+## Bounded semantic compiler and optimizer target
+
+`tests/fuzz_semantic.cpp` complements the arbitrary-byte parser target. Its bytes
+select small, valid programs and an independent C++ outcome model. It exercises
+lexing, parsing, compilation, IR verification, optimization and interpretation.
+The optional target directly compiles **every tested implementation unit** with
+libFuzzer coverage, ASan and UBSan; it does not link an uninstrumented
+`pikaflow_core`. The LLVM backend is outside this target.
+
+```sh
+cmake -S . -B out/semantic-fuzz-build -G Ninja \
+  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DPIKAFLOW_ENABLE_LLVM=OFF -DPIKAFLOW_BUILD_SEMANTIC_FUZZER=ON
+cmake --build out/semantic-fuzz-build --target pikaflow_semantic_fuzzer --parallel 1
+ctest --test-dir out/semantic-fuzz-build -R '^semantic_fuzzer_seeds$' --output-on-failure
+mkdir -p out/semantic-fuzz-run/corpus out/semantic-fuzz-run/artifacts
+cp tests/fuzz_semantic_corpus/*.bin out/semantic-fuzz-run/corpus/
+ASAN_OPTIONS=detect_leaks=1:abort_on_error=1 \
+UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 \
+  out/semantic-fuzz-build/pikaflow_semantic_fuzzer out/semantic-fuzz-run/corpus \
+  -seed=20261105 -max_total_time=120 -max_len=8 -timeout=5 \
+  -rss_limit_mb=1024 -print_final_stats=1 \
+  -artifact_prefix=out/semantic-fuzz-run/artifacts/
+```
+
+Use Clang with its sanitizer and libFuzzer runtimes. The option is off by default;
+GCC and MSVC-style drivers are rejected. The seed-only CTest exists only when the
+option and `BUILD_TESTING` are enabled. It supplies individual seed files to the
+fuzzer, so it does not write mutations into the committed corpus. Keep evolving
+corpora, reports and crash artifacts under ignored `out/` directories.
+
+### Input model and checks
+
+At most eight input bytes affect a program; missing bytes are zero and larger
+inputs are skipped. The bytes select a family, a large integer base, two signed
+adjustments, a loop count, a branch, an array index and a small multiplier.
+Source is limited to 4,096 bytes, loops to eight iterations, and arrays to three
+elements. Arithmetic stays below `2^35`; Remainder uses the fixed nonzero
+divisor two. There are no foreign calls, raw pointers, task threads, recursion or
+input-controlled source identifiers.
+
+The four families cover:
+
+- Safe scalar arithmetic, duplicate structured loads separated by mutation,
+  deliberately dead pure arithmetic, and a typed word with the same register
+  values that exercises common-expression elimination.
+- Branch joins, mutable cells, a bounded `while`, and a bounded `for` loop.
+- Aliased array reads/writes, mutation across collection and full array output.
+- Nominal generic records, transparent aliases, field mutation and collection.
+
+Each input compiles once. The original, optimized and twice-optimized programs
+are verified and interpreted. Every run must return unit status zero **and**
+match the model's complete output, including integers larger than `2^32`.
+Results are never compared through process exit-code truncation. Stdout capture
+restores the C++ stream buffer during exception unwinding. Collection after each
+execution must return the managed heap to its pre-execution baseline.
+
+Initialization checks nine independently specified golden outcomes. It also
+changes a verified IR constant from `4294967296` to zero: both programs return
+unit status zero, but the full-output oracle must reject the mutation. A separate
+fixture requires nonzero constant-folding, common-expression and dead-result
+statistics, preventing a smoke run that never exercises these optimizer paths.
+
+Generated programs are expected to compile and run. Unexpected exceptions and
+output/heap mismatches abort with the generated source and expected/actual result
+on stderr. Runtime fatal paths can terminate the process directly; a nonzero
+campaign status is a failure even when no artifact is produced. Artifact saving
+for such termination depends on the installed libFuzzer runtime and is checked
+separately rather than promised for every exit mode. Preserve the log, input
+corpus, random seed, command and binary identity for a failed campaign.
+
+Replay a saved input without mutating its directory:
+
+```sh
+out/semantic-fuzz-build/pikaflow_semantic_fuzzer out/semantic-fuzz-run/artifacts/crash-HASH -runs=1
+```
+
+This is bounded semantic exploration, not arbitrary-language generation, an
+LLVM sanitizer run or a proof of optimizer correctness for all programs.
+
+For the installed Ubuntu Clang 18.1.3 libFuzzer runtime, a separate callback that
+called `std::exit(7)` on byte `a5` produced exit status 77, reported "fuzz target
+exited", and saved that exact byte as a crash reproducer. The probe source,
+command, log and artifact hashes are retained under ignored
+`out/semantic-fuzzer-exit-probe/`. This observation does not cover termination
+that bypasses normal exit handlers or every libFuzzer version.

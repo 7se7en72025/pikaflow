@@ -2,7 +2,7 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 05:08 IST.
+**Last updated:** 2026-11-05 05:15 IST.
 
 **Status:** verified 0.4.0 is preserved below. The user requested continued
 overnight work; a new compiler-engineering milestone is active. It adds bounded
@@ -51,13 +51,33 @@ No production behavior is considered verified by the earlier 0.4.0 suite alone.
   confirms a concrete design and runs meaningful checks before integration.
 
 
-- 05:08: `opt-report` and its seven CLI tests pass on fresh Windows reference
-  and an isolated Linux reference build. Native Windows report/optimizer suites
+- 05:08: the `opt-report` CLI suite passes on fresh Windows reference
+  (six tests plus one Linux-only skip) and an isolated Linux reference build
+  (all seven tests). Native Windows report/optimizer suites
   pass (135 execution comparisons), and LLVM backend unit tests pass. Reports
   use full compilation/source protection and do not execute panic/overflow inputs.
   The optimization lab prints `84,48,0`, reports 50 to 48 instructions, one CSE
   reuse and two dead scalar results. These are focused candidate checks, not
   frozen final whole-host results.
+
+
+- 05:10: shared LLVM v2 constant folding is committed/pushed as `f3c4dcf`.
+  Linux focused proof passes seven FileCheck pipelines, 85 execution checks
+  and backend units. Checks include legacy v1 side effects, poison/undef,
+  signed boundary constants, fourteen located fatal inputs and actual PikaFlow
+  v2 IR transformed and linked to the runtime. Windows compilation/backend
+  checks passed before this commit. Semantic fuzzer implementation continues.
+
+
+- 05:15: semantic target is implemented and passes its instrumented build
+  (73.175 s) and fixed-seed/self-check CTest (0.419 s). All nine implementation
+  units are instrumented. GCC is rejected as intended; an installed-Clang-18
+  normal-exit probe saves the exact failing input, with toolchain-specific scope
+  documented. Root review added real stack-word CSE coverage and an assertion
+  that CSE, constant folding and DCE all execute. All three milestone features
+  are now implemented; this commit freezes code for clean whole-host suites,
+  a 120-second semantic campaign, packaging and measured closeout. No further
+  features are planned during final validation.
 
 ## 0.4 expansion — 2026-11-05
 
