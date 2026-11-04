@@ -273,6 +273,7 @@ NEGATIVE = {
     "generic_body_type": ("fun add[T](x:T)->T:\n    return x+1\nfun main():\n    add(true)\n", "requires bool"),
     "generic_depth": ("fun grow[T](x:T)->i64:\n    return grow([x])\nfun main():\n    grow(1)\n", "limit"),
     "generic_exponential_growth": ("fun grow[T](x:T)->i64:\n    return grow((x,x))\nfun main():\n    grow(1)\n", "type complexity limit"),
+    "generic_nominal_name_growth": ("enum Pair[A,B]:\n    PairValue(first:A, second:B)\nfun grow[T](x:T)->i64:\n    return grow(PairValue(x,x))\nfun main():\n    grow(1)\n", "nominal type name size limit"),
     "enum_exponential_growth": ("enum Grow[T]:\n    More(value:Grow[(T,T)])\n    Empty\nfun main():\n    let x:Grow[i64]=Empty()\n", "type complexity limit"),
     "guard_type": ("fun main():\n    match 42:\n        case x if x:\n            print(x)\n", "match guard requires bool"),
     "guard_exhaustiveness": ("fun f(x:bool)->i64:\n    match x:\n        case true if false:\n            return 1\n        case false:\n            return 2\nfun main():\n    pass\n", "does not return"),

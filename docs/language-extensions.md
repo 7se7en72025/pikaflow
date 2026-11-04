@@ -75,6 +75,8 @@ Expansion is bounded to 64 active instantiations and 256 distinct specialization
 per compilation. Types are limited to 4096 nodes; substitution has a shared
 one-million-node expansion budget. These checks also bound exponentially growing
 type shapes, rather than relying only on a recursion-depth limit.
+Generated nominal names are capped at 16 KiB and specialization keys at 64 KiB,
+including growth hidden behind opaque recursive type references.
 Uninferred/conflicting arguments, unbounded type growth and
 invalid operations diagnose instead of generating unchecked IR.
 

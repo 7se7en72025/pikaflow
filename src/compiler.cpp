@@ -55,6 +55,7 @@ class Compiler {
         std::vector<const Type *> pending{&type};
         while (!pending.empty()) {
             const Type *next = pending.back(); pending.pop_back();
+            if (next->name.size() > 16384) fail(loc, "nominal type name size limit exceeded");
             if (++count > 4096) fail(loc, "type complexity limit (4096 nodes) exceeded");
             for (const auto &argument : next->args) pending.push_back(&argument);
         }
@@ -109,6 +110,7 @@ class Compiler {
             validateType(arguments[i], loc);
             if (i) key += ",";
             key += arguments[i].str(); bindings[definition->typeParameters[i]] = arguments[i];
+            if (key.size() > 16384) fail(loc, "nominal type name size limit exceeded");
         }
         key += "]";
         auto cached = enumInstances.find(key);
@@ -232,6 +234,7 @@ class Compiler {
             if (!bindings.count(variable)) fail(loc, "cannot infer type parameter '" + variable + "'; use explicit ::[types]");
             validateType(bindings.at(variable), loc);
             key += "[" + bindings.at(variable).str() + "]";
+            if (key.size() > 65536) fail(loc, "generic specialization key size limit exceeded");
         }
         auto cached = specializations.find(key);
         if (cached != specializations.end()) return cached->second;
