@@ -11,6 +11,7 @@ class Parser {
     const std::vector<Token>& tokens;
     std::string filename;
     size_t position = 0;
+    std::vector<unsigned> indentation;
     unsigned nesting = 0;
     struct NestingGuard {
         unsigned& depth;
@@ -397,6 +398,17 @@ class Parser {
     static ExprPtr nameExpression(const Token& token) {
         auto result = std::make_shared<Expr>(Expr::Kind::Name, token.location); result->text = token.text; return result;
     }
+    void recover(size_t before) {
+        if (position <= before && position + 1 < tokens.size()) ++position;
+        while (position + 1 < tokens.size()) {
+            const auto& token = peek();
+            if (indentation[position] == 0 && token.location.column == 1 && token.kind == TokenKind::Name
+                && (token.text == "fun" || token.text == "fn" || token.text == "word"
+                    || token.text == "extern" || token.text == "import" || token.text == "export"
+                    || token.text == "let" || token.text == "var")) return;
+            ++position;
+        }
+    }
     void stackStatement(std::vector<StmtPtr>& body) {
         if (is("if") || is("while") || is("for") || is("match") || is("let") || is("var")
             || is("return") || is("break") || is("continue") || is("fun") || is("word") || is("unsafe")) {
@@ -424,16 +436,42 @@ class Parser {
         stmt->expression = postfix(primary()); body.push_back(std::move(stmt));
     }
 public:
-    Parser(const std::vector<Token>& input, std::string file) : tokens(input), filename(std::move(file)) {}
+    Parser(const std::vector<Token>& input, std::string file) : tokens(input), filename(std::move(file)) {
+        unsigned level = 0;
+        for (const auto& token : input) {
+            indentation.push_back(level);
+            if (token.kind == TokenKind::Indent) ++level;
+            else if (token.kind == TokenKind::Dedent && level) --level;
+        }
+    }
     SyntaxTree run() {
         if (tokens.empty()) throw Error({filename, 1, 1}, "empty token stream");
         SyntaxTree result; result.filename = filename;
+        std::vector<std::pair<Location, std::string>> errors;
         separators();
         while (!is(TokenKind::End)) {
-            if (is(TokenKind::Indent)) throw Error(peek().location, "unexpected indentation at top level");
-            if (is(TokenKind::Dedent)) throw Error(peek().location, "unexpected end of block");
-            result.statements.push_back(statement());
+            const size_t before = position;
+            try {
+                if (is(TokenKind::Indent)) throw Error(peek().location, "unexpected indentation at top level");
+                if (is(TokenKind::Dedent)) throw Error(peek().location, "unexpected end of block");
+                result.statements.push_back(statement());
+            } catch (const Error& error) {
+                errors.emplace_back(error.location, error.what());
+                nesting = 0;
+                if (errors.size() == 20) break;
+                recover(before);
+            }
             separators();
+        }
+        if (!errors.empty()) {
+            std::string message = errors.front().second;
+            for (size_t index = 1; index < errors.size(); ++index) {
+                const auto& entry = errors[index];
+                message += "\n" + entry.first.file + ":" + std::to_string(entry.first.line) + ":"
+                    + std::to_string(entry.first.column) + ": error: " + entry.second;
+            }
+            if (errors.size() == 20) message += "\nstopped after 20 parser errors";
+            throw Error(errors.front().first, message);
         }
         return result;
     }

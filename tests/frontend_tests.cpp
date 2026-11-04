@@ -30,6 +30,7 @@ int main() {
         require(stringToken != tokens.end() && stringToken->text == "hello\nworld" && stringToken->location.line == 4, "string decoding/location failed");
         require(lex("    ", "test.pf").size() == 1, "trailing whitespace should produce only END");
         require(tree("").statements.empty(), "empty module should parse");
+        require(tree("\xEF\xBB\xBF" "fun main():\n    return\n").statements.size() == 1, "UTF-8 BOM was not accepted");
 
         const auto basic = tree(
             "fun add(a: i64, b: i64) -> i64:\n"
@@ -126,6 +127,16 @@ int main() {
         reject("let x = " + std::string(1000, '!') + "true\n", "nesting depth");
         reject("let x: " + std::string(1000, '[') + "i64" + std::string(1000, ']') + " = []\n", "nesting depth");
         reject("export export fun main():\n    return\n", "duplicate export");
+        try {
+            tree("fun first():\n    let x =\nfun second():\n    let y =\n");
+            throw std::runtime_error("two malformed functions were accepted");
+        } catch (const Error& error) {
+            require(error.location.line == 2, "recovery lost first error location");
+            require(std::string(error.what()).find("test.pf:4:") != std::string::npos, "recovery did not report second independent error");
+        }
+        std::string manyErrors;
+        for (unsigned i = 0; i < 30; ++i) manyErrors += "fun broken" + std::to_string(i) + "():\n    let x =\n";
+        reject(manyErrors, "stopped after 20 parser errors");
         reject("fun main():\n    match 1:\n        case _:\n            return\n        case 2:\n            return\n", "wildcard case");
 
         // Deterministic malformed-input smoke test: every input must terminate or diagnose.

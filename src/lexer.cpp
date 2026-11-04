@@ -31,7 +31,7 @@ std::vector<Token> lex(const std::string& source, const std::string& filename) {
     std::vector<Token> result;
     std::vector<unsigned> indents{0};
     std::vector<std::pair<char, Location>> brackets;
-    size_t offset = 0;
+    size_t offset = source.size() >= 3 && source.compare(0, 3, "\xEF\xBB\xBF") == 0 ? 3 : 0;
     unsigned line = 1, column = 1;
     bool lineStart = true, logicalLine = false;
     auto location = [&] { return Location{filename, line, column}; };
