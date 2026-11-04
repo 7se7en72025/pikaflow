@@ -8,7 +8,8 @@ enum class Op {
     Add, Sub, Mul, Div, Mod, Neg, Not, Eq, Ne, Lt, Le, Gt, Ge,
     Print, Call, CallIndirect, MakeClosure, Capture, MakeCell, LoadCell, StoreCell,
     MakeArray, MakeTuple, Index, SetIndex, Length, Convert,
-    Jump, JumpFalse, Return, Collect, ExternalCall, Panic, Unwrap
+    Jump, JumpFalse, Return, Collect, ExternalCall, Panic, Unwrap,
+    RawAlloc, RawFree, RawLoad, RawStore, CString, Pin, Unpin, Zero, ResultError
 };
 struct Instruction {
     Op op;
@@ -19,6 +20,7 @@ struct Instruction {
     double real = 0;
     int target = -1;
     Location location;
+    explicit Instruction(Op opcode) : op(opcode) {}
 };
 struct Function {
     std::string name;

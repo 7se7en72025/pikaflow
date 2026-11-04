@@ -9,7 +9,7 @@
 namespace pika {
 namespace {
 const char* name(Op op) {
-    static const char* names[]={"i64","f64","bool","string","move","add","sub","mul","div","mod","neg","not","eq","ne","lt","le","gt","ge","print","call","call.indirect","closure","capture","cell","cell.get","cell.set","array","tuple","index","index.set","length","convert","jump","jump.false","return","gc","extern.call","panic","unwrap"};
+    static const char* names[]={"i64","f64","bool","string","move","add","sub","mul","div","mod","neg","not","eq","ne","lt","le","gt","ge","print","call","call.indirect","closure","capture","cell","cell.get","cell.set","array","tuple","index","index.set","length","convert","jump","jump.false","return","gc","extern.call","panic","unwrap","raw.alloc","raw.free","raw.load","raw.store","cstr","pin","unpin","zero","result.error"};
     return names[static_cast<unsigned>(op)];
 }
 }
@@ -46,7 +46,7 @@ void verify(const Program& program) {
         std::map<int,int64_t> constants;std::set<int> nonconstant;
         for(const auto& ins:f.code)if(ins.dst>=0){if(ins.op!=Op::ConstI64)nonconstant.insert(ins.dst);else if(constants.count(ins.dst) && constants[ins.dst]!=ins.integer)nonconstant.insert(ins.dst);else constants[ins.dst]=ins.integer;}
         for(const auto& ins:f.code) {
-            check(static_cast<unsigned>(ins.op)<=static_cast<unsigned>(Op::Unwrap),ins,"unknown opcode");
+            check(static_cast<unsigned>(ins.op)<=static_cast<unsigned>(Op::ResultError),ins,"unknown opcode");
             check(ins.dst>=-1 && (ins.dst<0 || static_cast<size_t>(ins.dst)<f.registers.size()),ins,"destination out of range");
             for(int arg:ins.args)check(arg>=0 && static_cast<size_t>(arg)<f.registers.size(),ins,"operand out of range");
             auto arity=[&](size_t count){check(ins.args.size()==count,ins,"wrong operand count for "+std::string(name(ins.op)));};
@@ -77,7 +77,7 @@ void verify(const Program& program) {
             }
             case Op::Return:
                 check(ins.dst<0,ins,"return destination");check((f.result==Unit && ins.args.empty()) || (ins.args.size()==1 && arg(0)==f.result),ins,"return type");break;
-            case Op::MakeCell:arity(1);check(dst()==Type::cell(arg(0)),ins,"cell type");break;
+            case Op::MakeCell:if(ins.args.empty())check(dst().kind==TypeKind::Cell && dst().args[0].kind==TypeKind::Function,ins,"empty cell requires function type");else{arity(1);check(dst()==Type::cell(arg(0)),ins,"cell type");}break;
             case Op::LoadCell:arity(1);check(arg(0).kind==TypeKind::Cell && arg(0).args[0]==dst(),ins,"cell load type");break;
             case Op::StoreCell:arity(2);check(arg(0)==Type::cell(arg(1)),ins,"cell store type");break;
             case Op::Capture:arity(0);check(dst().kind==TypeKind::Cell && ins.integer>=0,ins,"capture type");break;
@@ -111,6 +111,14 @@ void verify(const Program& program) {
             case Op::Collect:arity(0);check(ins.dst<0,ins,"collect destination");break;
             case Op::Panic:arity(1);check(arg(0)==String && ins.dst<0,ins,"panic type");break;
             case Op::Unwrap:arity(1);check(arg(0).kind==TypeKind::Result && dst()==arg(0).args[0],ins,"unwrap type");break;
+            case Op::ResultError:arity(1);check(arg(0).kind==TypeKind::Result && dst()==arg(0).args[1],ins,"Result error type");break;
+            case Op::Zero:arity(0);check(dst()!=Unit,ins,"zero placeholder cannot be unit");break;
+            case Op::RawAlloc:arity(1);check(arg(0)==I64 && dst().kind==TypeKind::Pointer && (dst().args[0]==I64 || dst().args[0]==F64 || dst().args[0]==Bool),ins,"raw allocation type");break;
+            case Op::RawFree:case Op::Unpin:arity(1);check(arg(0).kind==TypeKind::Pointer && ins.dst<0,ins,"pointer release type");break;
+            case Op::RawLoad:arity(2);check(arg(0).kind==TypeKind::Pointer && arg(1)==I64 && dst()==arg(0).args[0],ins,"raw load type");break;
+            case Op::RawStore:arity(3);check(arg(0).kind==TypeKind::Pointer && arg(1)==I64 && arg(2)==arg(0).args[0],ins,"raw store type");break;
+            case Op::CString:arity(1);check(arg(0)==String && dst()==Type{TypeKind::Pointer,{Unit}},ins,"C string type");break;
+            case Op::Pin:arity(1);check(arg(0).managed() && dst()==Type{TypeKind::Pointer,{Unit}},ins,"pin type");break;
             case Op::ExternalCall: {
                 auto ext=std::find_if(program.externals.begin(),program.externals.end(),[&](const External& e){return e.name==ins.text;});check(ext!=program.externals.end(),ins,"unknown external");
                 check(ins.args.size()>=ext->parameters.size() && (ext->variadic || ins.args.size()==ext->parameters.size()),ins,"extern arity");

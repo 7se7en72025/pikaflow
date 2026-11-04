@@ -15,6 +15,7 @@ struct Context {
     std::vector<int> stack;
     std::vector<Loop> loops;
     bool stackMode = false;
+    bool unsafeMode = false;
 };
 class Compiler {
     Program program;
@@ -78,10 +79,26 @@ class Compiler {
     bool returns(const std::vector<StmtPtr>& body) {
         for (auto& statement : body) {
             if (statement->kind == Stmt::Kind::Return) return true;
+            if(statement->kind==Stmt::Kind::Unsafe && returns(statement->body))return true;
             if (statement->kind == Stmt::Kind::If && !statement->elseBody.empty() && returns(statement->body) && returns(statement->elseBody)) return true;
-            if(statement->kind==Stmt::Kind::Match){bool wildcard=false,all=true;for(auto& arm:statement->body){wildcard=wildcard || arm->name=="_";all=all && returns(arm->body);}if(wildcard && all)return true;}
+            if(statement->kind==Stmt::Kind::Match){
+                bool wildcard=false,all=true,yes=false,no=false,ok=false,err=false;
+                for(auto& arm:statement->body){
+                    wildcard=wildcard || arm->name=="_" || irrefutable(arm->expression);all=all && returns(arm->body);
+                    if(arm->expression && arm->expression->kind==Expr::Kind::Boolean){yes=yes || arm->expression->integer!=0;no=no || arm->expression->integer==0;}
+                    if(arm->expression && arm->expression->kind==Expr::Kind::Call && arm->expression->items.size()==2 && arm->expression->items[0]->kind==Expr::Kind::Name && irrefutable(arm->expression->items[1])){ok=ok || arm->expression->items[0]->text=="ok";err=err || arm->expression->items[0]->text=="err";}
+                }
+                if((wildcard || (yes && no) || (ok && err)) && all)return true;
+            }
         }
         return false;
+    }
+    bool irrefutable(const ExprPtr& patternValue) {
+        if(!patternValue)return false;
+        if(patternValue->kind==Expr::Kind::Name)return true;
+        if(patternValue->kind!=Expr::Kind::Tuple)return false;
+        for(auto& item:patternValue->items)if(!irrefutable(item))return false;
+        return true;
     }
     std::vector<Type> outputs(const Type& result) {
         if (result == Unit) return {};
@@ -134,6 +151,29 @@ class Compiler {
         return emit(found->second, compare ? Bool : t, {left,right}, loc);
     }
     int invoke(const std::string& name, std::vector<int> arguments, Location loc, const Type* expected = nullptr) {
+        if(name=="alloc_i64" || name=="alloc_f64" || name=="alloc_bool" || name=="free" || name=="load" || name=="store" || name=="cstr" || name=="pin" || name=="unpin") {
+            if(!context->unsafeMode)fail(loc,"'"+name+"' requires an explicit unsafe: block");
+            if(name=="alloc_i64" || name=="alloc_f64" || name=="alloc_bool") {
+                if(arguments.size()!=1)fail(loc,name+" expects an element count");require(type(arguments[0]),I64,loc,"allocation size");
+                Type element=name=="alloc_i64"?I64:(name=="alloc_f64"?F64:Bool);
+                return emit(Op::RawAlloc,Type{TypeKind::Pointer,{element}},arguments,loc);
+            }
+            if(name=="cstr") {
+                if(arguments.size()!=1)fail(loc,"cstr expects one string");require(type(arguments[0]),String,loc,"cstr");return emit(Op::CString,Type{TypeKind::Pointer,{Unit}},arguments,loc);
+            }
+            if(name=="pin") {
+                if(arguments.size()!=1 || !type(arguments[0]).managed())fail(loc,"pin requires one managed value");return emit(Op::Pin,Type{TypeKind::Pointer,{Unit}},arguments,loc);
+            }
+            if(arguments.empty() || type(arguments[0]).kind!=TypeKind::Pointer || type(arguments[0]).args.size()!=1)fail(loc,name+" requires a pointer");
+            if(name=="free" || name=="unpin") {
+                if(arguments.size()!=1)fail(loc,name+" expects one pointer");emit(name=="free"?Op::RawFree:Op::Unpin,Unit,arguments,loc);return -1;
+            }
+            Type element=type(arguments[0]).args[0];
+            if(element!=I64 && element!=F64 && element!=Bool && element.kind!=TypeKind::Pointer)fail(loc,"pointer load/store requires a concrete scalar element type");
+            if(arguments.size()!=(name=="load"?2:3))fail(loc,name+" has wrong argument count");require(type(arguments[1]),I64,loc,"pointer index");
+            if(name=="load")return emit(Op::RawLoad,element,arguments,loc);
+            require(type(arguments[2]),element,loc,"pointer store");emit(Op::RawStore,Unit,arguments,loc);return -1;
+        }
         if (name == "print" || name == "dump") {
             for (int value : arguments) { if (value < 0) fail(loc, "cannot print unit"); emit(Op::Print, Unit, {value}, loc); }
             return -1;
@@ -165,7 +205,8 @@ class Compiler {
                 if (target == Bool) return boolean(false,loc);
                 if (target == F64) return emit(Op::ConstF64,F64,{},loc);
                 if (target == String) return string("",loc);
-                fail(loc,"Result placeholder currently requires scalar or string alternatives"); return -1;
+                if(target==Unit)fail(loc,"Result alternatives cannot be unit; use bool to represent an empty success/error");
+                return emit(Op::Zero,target,{},loc);
             };
             if (name == "ok") { require(type(arguments[0]),result.args[0],loc,"ok value"); good=arguments[0]; bad=zeroValue(result.args[1]); }
             else { require(type(arguments[0]),result.args[1],loc,"err value"); good=zeroValue(result.args[0]); bad=arguments[0]; }
@@ -175,7 +216,8 @@ class Compiler {
             if (arguments.size()!=1 || type(arguments[0]).kind!=TypeKind::Result) fail(loc,name+" requires Result[T,E]");
             Type t=type(arguments[0]);
             if(name=="unwrap") return emit(Op::Unwrap,t.args[0],arguments,loc);
-            return emit(Op::Index,name=="is_ok"?Bool:t.args[1],{arguments[0],integer(name=="is_ok"?0:2,loc)},loc);
+            if(name=="error")return emit(Op::ResultError,t.args[1],arguments,loc);
+            return emit(Op::Index,Bool,{arguments[0],integer(0,loc)},loc);
         }
         Binding* local = binding(name);
         if (local) {
@@ -192,6 +234,7 @@ class Compiler {
         }
         auto external=externals.find(name);
         if(external!=externals.end()) {
+            if(!context->unsafeMode)fail(loc,"extern call '"+name+"' requires an explicit unsafe: block");
             auto& target=external->second;
             if(arguments.size()<target.parameters.size() || (!target.variadic && arguments.size()!=target.parameters.size())) fail(loc,"wrong argument count for extern '"+name+"'");
             for(size_t i=0;i<target.parameters.size();++i) require(type(arguments[i]),target.parameters[i],loc,"extern argument "+std::to_string(i+1));
@@ -397,6 +440,48 @@ class Compiler {
         size_t back=jump(Op::Jump,-1,s.location);patch(back,head);
         int done=position();patch(finish,done);for(auto index:loop.breaks)patch(index,done);context->stack=carry;
     }
+    bool pattern(const ExprPtr& value,int subject,std::vector<size_t>& failures) {
+        if(!value)fail(fn().location,"missing match pattern");
+        const auto& p=*value;Type subjectType=type(subject);
+        auto guard=[&](int condition){failures.push_back(jump(Op::JumpFalse,condition,p.location));};
+        if(p.kind==Expr::Kind::Name) {
+            if(p.text!="_")define(p.text,subject,false,p.location);
+            return true;
+        }
+        if(p.kind==Expr::Kind::Tuple || p.kind==Expr::Kind::Array) {
+            bool tuple=p.kind==Expr::Kind::Tuple;
+            if((tuple && subjectType.kind!=TypeKind::Tuple) || (!tuple && subjectType.kind!=TypeKind::Array))fail(p.location,"pattern kind does not match subject type");
+            if(tuple && p.items.size()!=subjectType.args.size())fail(p.location,"tuple pattern has the wrong number of fields");
+            if(!tuple)guard(binary("==",emit(Op::Length,I64,{subject},p.location),integer(static_cast<int64_t>(p.items.size()),p.location),p.location));
+            bool irrefutable=tuple;
+            for(size_t i=0;i<p.items.size();++i) {
+                Type element=tuple?subjectType.args[i]:subjectType.args[0];
+                int part=emit(Op::Index,element,{subject,integer(static_cast<int64_t>(i),p.location)},p.location);
+                irrefutable=pattern(p.items[i],part,failures) && irrefutable;
+            }
+            return irrefutable;
+        }
+        if(p.kind==Expr::Kind::Call && !p.items.empty() && p.items[0]->kind==Expr::Kind::Name) {
+            auto name=p.items[0]->text;
+            if(name=="ok" || name=="err") {
+                if(subjectType.kind!=TypeKind::Result || p.items.size()!=2)fail(p.location,"Result pattern needs one payload and a Result subject");
+                int flag=emit(Op::Index,Bool,{subject,integer(0,p.location)},p.location);
+                if(name=="err")flag=emit(Op::Not,Bool,{flag},p.location);guard(flag);
+                size_t field=name=="ok"?0:1;
+                int part=emit(Op::Index,subjectType.args[field],{subject,integer(static_cast<int64_t>(field+1),p.location)},p.location);
+                pattern(p.items[1],part,failures);return false;
+            }
+            if(name=="range") {
+                if(subjectType!=I64 || p.items.size()!=3)fail(p.location,"range pattern requires an i64 subject and two bounds");
+                for(size_t i=1;i<3;++i)if(p.items[i]->kind!=Expr::Kind::Integer)fail(p.items[i]->location,"range pattern bounds must be integer literals");
+                if(p.items[1]->integer>=p.items[2]->integer)fail(p.location,"range pattern must have increasing bounds");
+                guard(binary(">=",subject,integer(p.items[1]->integer,p.location),p.location));guard(binary("<",subject,integer(p.items[2]->integer,p.location),p.location));return false;
+            }
+            fail(p.location,"unsupported constructor in match pattern");
+        }
+        if(p.kind!=Expr::Kind::Integer && p.kind!=Expr::Kind::Float && p.kind!=Expr::Kind::Boolean && p.kind!=Expr::Kind::String)fail(p.location,"pattern must be a literal, binding, tuple, array, Result, or range");
+        guard(binary("==",subject,expr(value),p.location));return false;
+    }
     void statement(const StmtPtr& statementValue) {
         const auto& s=*statementValue;
         switch(s.kind) {
@@ -449,22 +534,28 @@ class Compiler {
             break;
         }
         case Stmt::Kind::Function: {
+            if(context->scopes.back().count(s.name))fail(s.location,"duplicate local name '"+s.name+"'");
             Expr lambda(Expr::Kind::Lambda,s.location);lambda.parameters=s.parameters;lambda.returnType=s.returnType;lambda.body=s.body;
-            int value=closure(lambda);define(s.name,value,false,s.location);break;
+            std::vector<Type> parameters;for(const auto& parameter:s.parameters)parameters.push_back(parameter.type);
+            Type callable=Type::function(parameters,s.returnType);int cell=emit(Op::MakeCell,Type::cell(callable),{},s.location);
+            context->scopes.back()[s.name]={cell,callable,false};
+            int value=closure(lambda);emit(Op::StoreCell,Unit,{cell,value},s.location);break;
         }
         case Stmt::Kind::Word:fail(s.location,"word declarations must be at module scope");
+        case Stmt::Kind::Unsafe:{bool previous=context->unsafeMode;context->unsafeMode=true;block(s.body,true);context->unsafeMode=previous;break;}
         case Stmt::Kind::Extern:case Stmt::Kind::Import:fail(s.location,"imports and extern declarations must be at module scope");
         case Stmt::Kind::Match: {
             int subject=expr(s.expression);auto initial=context->stack;std::vector<size_t> exits;std::vector<int> joined;bool haveJoin=false,wildcard=false;
             for(auto& arm:s.body) {
-                context->stack=initial;size_t next=0;bool isWildcard=arm->name=="_";
+                context->stack=initial;std::vector<size_t> next;context->scopes.emplace_back();
                 if(wildcard)fail(arm->location,"unreachable case after wildcard");
-                if(!isWildcard){int value=expr(arm->expression);next=jump(Op::JumpFalse,binary("==",subject,value,arm->location),arm->location);}else wildcard=true;
-                block(arm->body,true);
+                if(arm->name=="_")wildcard=true;else wildcard=pattern(arm->expression,subject,next);
+                block(arm->body,false);
                 if(!returns(arm->body)){if(!haveJoin){joined=freshStack(context->stack,arm->location);haveJoin=true;}else copyStack(context->stack,joined,arm->location);exits.push_back(jump(Op::Jump,-1,arm->location));}
-                if(!isWildcard)patch(next,position());
+                context->scopes.pop_back();for(size_t branch:next)patch(branch,position());
             }
-            if(!wildcard) {if(haveJoin)copyStack(initial,joined,s.location);else joined=initial;}
+            if(!wildcard && returns(std::vector<StmtPtr>{statementValue}))emit(Op::Panic,Unit,{string("exhaustive match invariant failed",s.location)},s.location);
+            else if(!wildcard) {if(haveJoin)copyStack(initial,joined,s.location);else joined=initial;}
             int done=position();for(auto exit:exits)patch(exit,done);context->stack=joined;break;
         }
         }
@@ -499,7 +590,13 @@ public:
         for(auto& statement:tree.statements) {
             auto& s=*statement;
             if(s.kind==Stmt::Kind::Import){imports[s.location.file].insert(s.name);continue;}
-            if(s.kind==Stmt::Kind::Extern){External ext;ext.name=s.name;ext.result=s.returnType;ext.variadic=s.variadic;for(auto& p:s.parameters)ext.parameters.push_back(p.type);if(externals.count(ext.name))fail(s.location,"duplicate extern declaration");externals[ext.name]=ext;program.externals.push_back(ext);continue;}
+            if(s.kind==Stmt::Kind::Extern){
+                auto scalar=[](const Type& t){return t==I64 || t==F64 || t==Bool || t.kind==TypeKind::Pointer;};
+                if(s.returnType!=Unit && !scalar(s.returnType))fail(s.location,"extern aggregate/managed return ABI is not implemented; use scalar or pointer types");
+                External ext;ext.name=s.name;ext.result=s.returnType;ext.variadic=s.variadic;
+                for(auto& p:s.parameters){if(!scalar(p.type))fail(p.location,"extern aggregate/managed argument ABI is not implemented; use scalar or pointer types");ext.parameters.push_back(p.type);}
+                if(externals.count(ext.name))fail(s.location,"duplicate extern declaration");externals[ext.name]=ext;program.externals.push_back(ext);continue;
+            }
             if(s.kind!=Stmt::Kind::Function && s.kind!=Stmt::Kind::Word)fail(s.location,"module scope accepts functions, words, imports and extern declarations");
             std::string key=s.location.file+"::"+s.name;if(byModule.count(key))fail(s.location,"duplicate function or word '"+s.name+"'");
             std::vector<Type> params;for(auto& parameter:s.parameters)params.push_back(parameter.type);
