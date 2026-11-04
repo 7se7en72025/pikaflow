@@ -1,0 +1,2 @@
+#pragma once
+#define PF_MSVC_LIBRARY_DIRS "@PF_MSVC_LIBRARY_DIRS@"

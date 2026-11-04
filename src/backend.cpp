@@ -1,7 +1,15 @@
 #include "pikaflow/backend.hpp"
 #include "pikaflow/runtime.h"
+#include "pikaflow/backend_config.hpp"
 
 #include "llvm/ADT/SmallVector.h"
+#ifndef _WIN32
+#include "llvm/ABI/FunctionInfo.h"
+#include "llvm/ABI/IRTypeMapper.h"
+#include "llvm/ABI/TargetInfo.h"
+#include "llvm/ABI/Types.h"
+#include "llvm/Support/Allocator.h"
+#endif
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
@@ -14,7 +22,9 @@
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/FileUtilities.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/TargetSelect.h"
@@ -26,9 +36,13 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <map>
 #include <mutex>
+#include <sstream>
 #include <stdexcept>
 
 namespace pika {
@@ -111,6 +125,8 @@ class Emitter {
     std::unique_ptr<llvm::DIBuilder> debugBuilder;
     llvm::DIFile* debugFile = nullptr;
     llvm::DISubprogram* debugScope = nullptr;
+    std::map<std::string,llvm::Constant*> sourceFiles;
+    std::map<std::string,llvm::DILocalVariable*> debugParameters;
     const Function* current = nullptr;
     llvm::Value* environment = nullptr;
     llvm::Value* rootFrame = nullptr;
@@ -181,8 +197,8 @@ class Emitter {
     void setupDebug(llvm::Function* fn, const Function& source) {
         if (!debugBuilder) return;
         if(!source.location.file.empty()) {
-            std::filesystem::path path(source.location.file);
-            debugFile=debugBuilder->createFile(path.filename().string(),path.parent_path().string());
+            auto path=std::filesystem::u8path(source.location.file);
+            debugFile=debugBuilder->createFile(path.filename().u8string(),path.parent_path().u8string());
         }
         llvm::SmallVector<llvm::Metadata*, 8> parameters;
         parameters.push_back(debugType(source.result));
@@ -192,6 +208,245 @@ class Emitter {
             source.location.line, functionType, source.location.line,
             llvm::DINode::FlagPrototyped, llvm::DISubprogram::SPFlagDefinition);
         fn->setSubprogram(debugScope);
+    }
+    void sourceLocation(const Location& location) {
+        const auto& file=location.file.empty()?program.sourceFile:location.file;
+        auto found=sourceFiles.find(file);
+        if(found==sourceFiles.end())found=sourceFiles.emplace(file,builder.CreateGlobalString(file,"source_file")).first;
+        runtime("pf_source_location",llvm::Type::getVoidTy(context),{ptr(),i32(),i32()},
+            {found->second,llvm::ConstantInt::get(i32(),location.line),llvm::ConstantInt::get(i32(),location.column)});
+    }
+    void debugLocal(const Instruction& ins) {
+        if(!debugBuilder || ins.dst<0 || (ins.op!=Op::MakeCell && ins.op!=Op::Capture))return;
+        auto found=current->localNames.find(ins.dst);
+        if(found==current->localNames.end())return;
+        auto* address=runtime("pf_cell_address",ptr(),{ptr()},{load(ins.dst)});
+        llvm::DILocalVariable* variable=nullptr;
+        auto parameter=debugParameters.find(found->second);
+        if(ins.op==Op::MakeCell && parameter!=debugParameters.end() && ins.location.line==current->location.line)
+            variable=parameter->second;
+        else variable=debugBuilder->createAutoVariable(debugScope,found->second,debugFile,
+            ins.location.line,debugType(current->registers.at(ins.dst).args.at(0)),true);
+        debugBuilder->insertDeclare(address,variable,debugBuilder->createExpression(),
+            llvm::DILocation::get(context,ins.location.line,ins.location.column,debugScope),builder.GetInsertBlock());
+    }
+    llvm::Type* cMemoryType(const Type& source) {
+        if(source.kind==TypeKind::Bool) return llvm::Type::getInt8Ty(context);
+        if(source.kind!=TypeKind::Tuple) {
+            if(source.managed()) throw std::runtime_error("C records cannot contain managed references");
+            return type(source);
+        }
+        if(source.args.empty()) throw std::runtime_error("empty C records are unsupported");
+        std::vector<llvm::Type*> fields;
+        for(const auto& field:source.args) {
+            if(field.kind!=TypeKind::I64 && field.kind!=TypeKind::F64 &&
+                field.kind!=TypeKind::Bool && field.kind!=TypeKind::Pointer)
+                throw std::runtime_error("C records require flat i64/f64/bool/raw-pointer fields");
+            fields.push_back(cMemoryType(field));
+        }
+        return llvm::StructType::get(context,fields,false);
+    }
+    llvm::AllocaInst* cTemporary(llvm::Type* memoryType) {
+        auto& entry=builder.GetInsertBlock()->getParent()->getEntryBlock();
+        llvm::IRBuilder<> prologue(&entry,entry.begin());
+        auto* slot=prologue.CreateAlloca(memoryType,nullptr,"c_record");
+        auto alignment=module.getDataLayout().getABITypeAlign(memoryType);
+        if(module.getTargetTriple().isOSWindows()) alignment=std::max(alignment,llvm::Align(16));
+        slot->setAlignment(alignment);
+        builder.CreateMemSet(slot,llvm::ConstantInt::get(llvm::Type::getInt8Ty(context),0),
+            module.getDataLayout().getTypeAllocSize(memoryType).getFixedValue(),alignment);
+        return slot;
+    }
+    llvm::Value* packCRecord(int reg) {
+        const auto& source=current->registers.at(reg);
+        auto* memoryType=llvm::cast<llvm::StructType>(cMemoryType(source));
+        auto* slot=cTemporary(memoryType);
+        auto* object=load(reg);
+        for(size_t n=0;n<source.args.size();++n) {
+            auto* field=fromBits(runtime("pf_index",i64(),{ptr(),i64()},{object,n64(int64_t(n))}),source.args[n]);
+            if(source.args[n].kind==TypeKind::Bool) field=builder.CreateZExt(field,llvm::Type::getInt8Ty(context));
+            builder.CreateStore(field,builder.CreateStructGEP(memoryType,slot,unsigned(n)));
+        }
+        return slot;
+    }
+    struct CArg {
+        llvm::Type* wire=nullptr;
+        bool indirect=false,byval=false,flatten=false,ignore=false;
+        unsigned offset=0;
+        llvm::Align alignment{1};
+    };
+#ifndef _WIN32
+    const llvm::abi::Type* abiType(const Type& source,llvm::abi::TypeBuilder& types) {
+        auto& layout=module.getDataLayout();
+        switch(source.kind) {
+        case TypeKind::Unit:return types.getVoidType();
+        case TypeKind::I64:return types.getIntegerType(64,llvm::Align(8),true);
+        case TypeKind::F64:return types.getFloatType(llvm::APFloat::IEEEdouble(),llvm::Align(8));
+        case TypeKind::Bool:return types.getIntegerType(8,llvm::Align(1),false);
+        case TypeKind::Pointer:return types.getPointerType(64,llvm::Align(8));
+        case TypeKind::Tuple: {
+            auto* memory=llvm::cast<llvm::StructType>(cMemoryType(source));
+            auto* recordLayout=layout.getStructLayout(memory);
+            std::vector<llvm::abi::FieldInfo> fields;
+            for(size_t n=0;n<source.args.size();++n)
+                fields.emplace_back(abiType(source.args[n],types),recordLayout->getElementOffsetInBits(unsigned(n)));
+            auto alignment=layout.getABITypeAlign(memory);
+            // Flat C records are PODs. Without this flag the classifier models
+            // a C++ record that must travel through an invisible reference.
+            return types.getRecordType(fields,layout.getTypeAllocSize(memory)*8,alignment,alignment,
+                llvm::abi::StructPacking::Default,{}, {},llvm::abi::RecordFlags::CanPassInRegisters);
+        }
+        default:throw std::runtime_error("unsupported C ABI type");
+        }
+    }
+    CArg sysvArgument(const llvm::abi::ArgInfo& argument,const Type& source,llvm::abi::IRTypeMapper& mapper) {
+        CArg result;
+        if(argument.isIgnore()) { result.ignore=true; return result; }
+        result.alignment=module.getDataLayout().getABITypeAlign(cMemoryType(source));
+        if(source.kind!=TypeKind::Tuple) { result.wire=type(source); return result; }
+        if(argument.isIndirect()) {
+            result.indirect=true;result.byval=argument.getIndirectByVal();
+            result.alignment=argument.getIndirectAlign(); result.wire=ptr(); return result;
+        }
+        if(!argument.isDirect()) throw std::runtime_error("unsupported C aggregate ABI classification");
+        result.wire=argument.getCoerceToType()?mapper.convertType(argument.getCoerceToType()):cMemoryType(source);
+        result.offset=argument.getDirectOffset();
+        result.flatten=argument.getCanBeFlattened() && result.wire->isStructTy();
+        return result;
+    }
+    void classifySysv(const External& declaration,const std::vector<Type>& sourceTypes,
+        CArg& returnPlan,std::vector<CArg>& plans) {
+        if(module.getTargetTriple().getArch()!=llvm::Triple::x86_64 || !module.getTargetTriple().isOSLinux())
+            throw std::runtime_error("this C ABI classifier requires Linux x86-64 SysV");
+        llvm::BumpPtrAllocator allocator;
+        llvm::abi::TypeBuilder types(allocator);
+        llvm::abi::IRTypeMapper mapper(context,module.getDataLayout());
+        std::vector<const llvm::abi::Type*> arguments;
+        for(size_t n=0;n<sourceTypes.size();++n) {
+            if(n>=declaration.parameters.size() && sourceTypes[n].kind==TypeKind::Bool)
+                arguments.push_back(types.getIntegerType(32,llvm::Align(4),true));
+            else arguments.push_back(abiType(sourceTypes[n],types));
+        }
+        auto information=llvm::abi::FunctionInfo::create(llvm::CallingConv::C,abiType(declaration.result,types),arguments,
+            declaration.variadic?llvm::abi::RequiredArgs(unsigned(declaration.parameters.size())):
+                llvm::abi::RequiredArgs(llvm::abi::RequiredArgs::All));
+        auto target=llvm::abi::createX86_64TargetInfo(types,llvm::abi::X86AVXABILevel::None,true,{});
+        target->computeInfo(*information);
+        returnPlan=sysvArgument(information->getReturnInfo(),declaration.result,mapper);
+        for(size_t n=0;n<sourceTypes.size();++n)
+            plans.push_back(sysvArgument(information->getArgInfo(unsigned(n)).Info,sourceTypes[n],mapper));
+    }
+#endif
+    llvm::Value* external(const Instruction& ins) {
+        auto declaration=std::find_if(program.externals.begin(),program.externals.end(),
+            [&](const External& e){return e.name==ins.text;});
+        if(declaration==program.externals.end()) throw std::runtime_error("unknown external: "+ins.text);
+        std::vector<Type> sourceTypes;
+        for(int reg:ins.args) sourceTypes.push_back(current->registers.at(reg));
+        std::vector<CArg> plans;
+        CArg returnPlan;
+        const auto& returnType=declaration->result;
+        bool aggregate=returnType.kind==TypeKind::Tuple;
+        for(const auto& t:sourceTypes) aggregate|=t.kind==TypeKind::Tuple;
+        if(aggregate && module.getTargetTriple().getArch()!=llvm::Triple::x86_64)
+            throw std::runtime_error("C aggregate ABI is implemented only for x86-64");
+#ifdef _WIN32
+        auto classify=[&](const Type& source) {
+            CArg result;
+            if(source.kind==TypeKind::Unit) {result.ignore=true;return result;}
+            if(source.kind!=TypeKind::Tuple) {
+                if(source.managed()) throw std::runtime_error("managed references require explicit C handles");
+                result.wire=type(source); return result;
+            }
+            auto* record=cMemoryType(source);
+            auto bytes=module.getDataLayout().getTypeAllocSize(record).getFixedValue();
+            result.alignment=module.getDataLayout().getABITypeAlign(record);
+            // Clang's WinX86_64ABIInfo uses integer coercion only at these sizes.
+            if(bytes==1 || bytes==2 || bytes==4 || bytes==8)
+                result.wire=llvm::IntegerType::get(context,unsigned(bytes*8));
+            else {result.indirect=true;result.wire=ptr();}
+            return result;
+        };
+        returnPlan=classify(returnType);
+        for(const auto& t:sourceTypes) plans.push_back(classify(t));
+#else
+        classifySysv(*declaration,sourceTypes,returnPlan,plans);
+#endif
+        std::vector<llvm::Value*> values;
+        std::vector<llvm::Type*> parameters;
+        std::vector<std::pair<unsigned,llvm::Attribute>> attributes;
+        llvm::Value* returnSlot=nullptr;
+        if(returnPlan.indirect) {
+            auto* memory=cMemoryType(returnType);returnSlot=cTemporary(memory);
+            values.push_back(returnSlot);parameters.push_back(ptr());
+            attributes.emplace_back(0,llvm::Attribute::getWithStructRetType(context,memory));
+            attributes.emplace_back(0,llvm::Attribute::get(context,llvm::Attribute::NoAlias));
+            attributes.emplace_back(0,llvm::Attribute::getWithAlignment(context,returnPlan.alignment));
+        }
+        for(size_t n=0;n<sourceTypes.size();++n) {
+            const auto& plan=plans[n];const auto& source=sourceTypes[n];
+            bool fixed=n<declaration->parameters.size();
+            if(plan.ignore)continue;
+            if(source.kind!=TypeKind::Tuple) {
+                auto* value=load(ins.args[n]);
+                if(!fixed && source.kind==TypeKind::Bool) value=builder.CreateZExt(value,i32());
+                if(fixed && source.kind==TypeKind::Bool)
+                    attributes.emplace_back(unsigned(values.size()),llvm::Attribute::get(context,llvm::Attribute::ZExt));
+                values.push_back(value);if(fixed)parameters.push_back(value->getType());
+                continue;
+            }
+            auto* slot=packCRecord(ins.args[n]);
+            if(plan.indirect) {
+                unsigned index=unsigned(values.size());
+                values.push_back(slot);if(fixed)parameters.push_back(ptr());
+                if(plan.byval)attributes.emplace_back(index,llvm::Attribute::getWithByValType(context,cMemoryType(source)));
+                attributes.emplace_back(index,llvm::Attribute::getWithAlignment(context,plan.alignment));
+            } else {
+                auto* address=builder.CreateGEP(llvm::Type::getInt8Ty(context),slot,n64(plan.offset));
+                auto* value=builder.CreateAlignedLoad(plan.wire,address,llvm::Align(1));
+                if(plan.flatten) {
+                    auto* record=llvm::cast<llvm::StructType>(plan.wire);
+                    for(unsigned field=0;field<record->getNumElements();++field) {
+                        auto* part=builder.CreateExtractValue(value,field);
+                        values.push_back(part);if(fixed)parameters.push_back(part->getType());
+                    }
+                } else {values.push_back(value);if(fixed)parameters.push_back(value->getType());}
+            }
+        }
+        auto* resultWire=returnPlan.indirect || returnPlan.ignore?llvm::Type::getVoidTy(context):returnPlan.wire;
+        const std::string& symbol=declaration->symbol.empty()?declaration->name:declaration->symbol;
+        auto* functionType=llvm::FunctionType::get(resultWire,parameters,declaration->variadic);
+        if(auto* previous=module.getFunction(symbol))
+            if(previous->getFunctionType()!=functionType)
+                throw std::runtime_error("conflicting C ABI declarations for symbol: "+symbol);
+        auto callee=module.getOrInsertFunction(symbol,functionType);
+        auto* call=builder.CreateCall(callee,values);
+        auto* declared=llvm::dyn_cast<llvm::Function>(callee.getCallee());
+        for(const auto& attribute:attributes) {
+            call->addParamAttr(attribute.first,attribute.second);
+            if(declared && attribute.first<declared->arg_size())declared->addParamAttr(attribute.first,attribute.second);
+        }
+        if(returnType.kind==TypeKind::Bool) {
+            call->addRetAttr(llvm::Attribute::ZExt);
+            if(declared)declared->addRetAttr(llvm::Attribute::ZExt);
+        }
+        if(returnType.kind!=TypeKind::Tuple)return returnType.kind==TypeKind::Unit?nullptr:call;
+        auto* memory=llvm::cast<llvm::StructType>(cMemoryType(returnType));
+        if(!returnSlot) {
+            returnSlot=cTemporary(memory);
+            auto* address=builder.CreateGEP(llvm::Type::getInt8Ty(context),returnSlot,n64(returnPlan.offset));
+            builder.CreateAlignedStore(call,address,llvm::Align(1));
+        }
+        auto* tuple=runtime("pf_tuple_new",ptr(),{i64()},{n64(int64_t(returnType.args.size()))});
+        store(ins.dst,tuple);
+        for(size_t n=0;n<returnType.args.size();++n) {
+            const auto& source=returnType.args[n];
+            llvm::Value* value=builder.CreateLoad(cMemoryType(source),builder.CreateStructGEP(memory,returnSlot,unsigned(n)));
+            if(source.kind==TypeKind::Bool)value=builder.CreateTrunc(value,type(source));
+            runtime("pf_set_index",llvm::Type::getVoidTy(context),{ptr(),i64(),i64(),i32()},
+                {tuple,n64(int64_t(n)),bits(value,source),tag(source)});
+        }
+        return tuple;
     }
     void lower(const Instruction& ins) {
         auto arg = [&](size_t n) { return load(ins.args.at(n)); };
@@ -353,28 +608,7 @@ class Emitter {
         case Op::ResultError:
             result=fromBits(runtime("pf_result_error",i64(),{ptr()},{arg(0)}),current->registers.at(ins.dst)); break;
         case Op::ExternalCall: {
-            auto it = std::find_if(program.externals.begin(),program.externals.end(),
-                [&](const External& e){return e.name==ins.text;});
-            if (it==program.externals.end()) throw std::runtime_error("unknown external: " + ins.text);
-            std::vector<llvm::Type*> parameters;
-            for (const auto& t : it->parameters) {
-                if (t.managed()) throw std::runtime_error("managed objects require an explicit C handle; direct extern arguments are unsupported");
-                parameters.push_back(type(t));
-            }
-            std::vector<llvm::Value*> args;
-            for (size_t n=0;n<ins.args.size();++n) {
-                auto* value=arg(n);
-                if (n>=it->parameters.size() && argType(n).kind==TypeKind::Bool)
-                    value=builder.CreateZExt(value,i32());
-                args.push_back(value);
-            }
-            auto callee=module.getOrInsertFunction(ins.text,
-                llvm::FunctionType::get(type(it->result),parameters,it->variadic));
-            auto* call=builder.CreateCall(callee,args);
-            for(size_t n=0;n<it->parameters.size();++n)
-                if(it->parameters[n].kind==TypeKind::Bool) call->addParamAttr(unsigned(n),llvm::Attribute::ZExt);
-            if(it->result.kind==TypeKind::Bool) call->addRetAttr(llvm::Attribute::ZExt);
-            result=call; break;
+            result=external(ins);break;
         }
         }
         store(ins.dst,result);
@@ -387,6 +621,7 @@ class Emitter {
         builder.SetCurrentDebugLocation({});
         setupDebug(fn,source);
         registers.clear(); roots.assign(source.registers.size(),nullptr); blocks.clear();
+        debugParameters.clear();
         size_t count=0;
         for (const auto& t:source.registers) if(t.managed()) ++count;
         auto* rootArray=builder.CreateAlloca(ptr(),n64(int64_t(std::max<size_t>(1,count))),"gc_roots");
@@ -408,10 +643,12 @@ class Emitter {
             if(debugBuilder) {
                 auto* variable=debugBuilder->createParameterVariable(debugScope,name,unsigned(n+1),debugFile,
                     source.location.line,debugType(source.parameters[n]),true);
+                debugParameters.emplace(name,variable);
                 debugBuilder->insertDeclare(registers[n],variable,debugBuilder->createExpression(),
                     llvm::DILocation::get(context,source.location.line,1,debugScope),entry);
             }
         }
+        sourceLocation(source.location);
         rootFrame=runtime("pf_roots_push",ptr(),{ptr(),i64()},{rootArray,n64(int64_t(count))});
         for(size_t n=0;n<source.code.size();++n)
             blocks.push_back(llvm::BasicBlock::Create(context,"op"+std::to_string(n),fn));
@@ -421,8 +658,10 @@ class Emitter {
             builder.SetInsertPoint(blocks[n]);
             if(debugBuilder) builder.SetCurrentDebugLocation(llvm::DILocation::get(context,
                 source.code[n].location.line,source.code[n].location.column,debugScope));
+            sourceLocation(source.code[n].location);
             lower(source.code[n]);
-            if(!blocks[n]->getTerminator()) {
+            debugLocal(source.code[n]);
+            if(!blocks[n]->hasTerminator()) {
                 if(n+1<blocks.size()) builder.CreateBr(blocks[n+1]);
                 else {
                     runtime("pf_roots_pop",llvm::Type::getVoidTy(context),{ptr()},{rootFrame});
@@ -439,8 +678,8 @@ public:
         : program(p),context(c),module(m),builder(c) {
         if(debug) {
             debugBuilder=std::make_unique<llvm::DIBuilder>(module);
-            std::filesystem::path path(program.sourceFile);
-            debugFile=debugBuilder->createFile(path.filename().string(),path.parent_path().string());
+            auto path=std::filesystem::u8path(program.sourceFile);
+            debugFile=debugBuilder->createFile(path.filename().u8string(),path.parent_path().u8string());
             debugBuilder->createCompileUnit(llvm::dwarf::DW_LANG_C,debugFile,"PikaFlow",false,"",0);
             module.addModuleFlag(llvm::Module::Warning,"Debug Info Version",llvm::DEBUG_METADATA_VERSION);
             if(module.getTargetTriple().isOSWindows()) module.addModuleFlag(llvm::Module::Warning,"CodeView",1);
@@ -512,6 +751,11 @@ Generated generate(const Program& program,unsigned optimization,bool debug) {
 }
 
 std::string targetTriple() { initializeLLVM(); return llvm::sys::getDefaultTargetTriple(); }
+void loadLibrary(const std::string& path) {
+    std::string error;
+    if(llvm::sys::DynamicLibrary::LoadLibraryPermanently(path.c_str(),&error))
+        throw std::runtime_error("cannot load library '"+path+"': "+error);
+}
 std::string emitLLVM(const Program& program,unsigned optimization,bool debug) {
     auto g=generate(program,optimization,debug);
     std::string text; llvm::raw_string_ostream output(text); g.module->print(output,nullptr); return output.str();
@@ -559,6 +803,23 @@ int runJIT(const Program& program,unsigned optimization) {
     PF_JIT_SYMBOL(pf_raw_alloc); PF_JIT_SYMBOL(pf_raw_free); PF_JIT_SYMBOL(pf_raw_load);
     PF_JIT_SYMBOL(pf_raw_store); PF_JIT_SYMBOL(pf_cstr); PF_JIT_SYMBOL(pf_pin); PF_JIT_SYMBOL(pf_unpin);
     PF_JIT_SYMBOL(pf_result_error);
+    PF_JIT_SYMBOL(pf_cell_address); PF_JIT_SYMBOL(pf_source_location);
+#define PF_C_SYMBOL(name, address) symbols[mangle(name)] = llvm::orc::ExecutorSymbolDef(llvm::orc::ExecutorAddr::fromPtr(address),llvm::JITSymbolFlags::Exported)
+    PF_C_SYMBOL("strlen",&std::strlen); PF_C_SYMBOL("malloc",&std::malloc); PF_C_SYMBOL("free",&std::free);
+    PF_C_SYMBOL("memcpy",&std::memcpy); PF_C_SYMBOL("memmove",&std::memmove); PF_C_SYMBOL("memset",&std::memset);
+    PF_C_SYMBOL("llabs",&std::llabs);
+    PF_C_SYMBOL("sqrt",static_cast<double(*)(double)>(&std::sqrt));
+    PF_C_SYMBOL("sin",static_cast<double(*)(double)>(&std::sin));
+    PF_C_SYMBOL("cos",static_cast<double(*)(double)>(&std::cos));
+    PF_C_SYMBOL("tan",static_cast<double(*)(double)>(&std::tan));
+    PF_C_SYMBOL("exp",static_cast<double(*)(double)>(&std::exp));
+    PF_C_SYMBOL("log",static_cast<double(*)(double)>(&std::log));
+    PF_C_SYMBOL("floor",static_cast<double(*)(double)>(&std::floor));
+    PF_C_SYMBOL("ceil",static_cast<double(*)(double)>(&std::ceil));
+    PF_C_SYMBOL("fabs",static_cast<double(*)(double)>(&std::fabs));
+    PF_C_SYMBOL("pow",static_cast<double(*)(double,double)>(&std::pow));
+    PF_C_SYMBOL("fmod",static_cast<double(*)(double,double)>(&std::fmod));
+#undef PF_C_SYMBOL
 #undef PF_JIT_SYMBOL
     if(auto error=jit->getMainJITDylib().define(llvm::orc::absoluteSymbols(std::move(symbols))))
         throw std::runtime_error(llvm::toString(std::move(error)));
@@ -572,17 +833,28 @@ int runJIT(const Program& program,unsigned optimization) {
     return entry->toPtr<int(*)()>()();
 }
 void buildExecutable(const Program& program,const std::string& output,const std::string& runtimeLibrary,
-    const std::string& compilerDriver,unsigned optimization,bool debug) {
-    std::filesystem::path final(output);
+    const std::string& compilerDriver,unsigned optimization,bool debug,const std::vector<std::string>& extraLibraries) {
+    auto final=std::filesystem::u8path(output);
     if(!final.parent_path().empty()) std::filesystem::create_directories(final.parent_path());
-    std::string object=output+".obj";
+    llvm::SmallString<128> temporary;
+    if(auto error=llvm::sys::fs::createTemporaryFile("pikaflow","obj",temporary))
+        throw std::runtime_error("cannot create temporary object: "+error.message());
+    llvm::FileRemover cleanup(temporary);
+    std::string object=temporary.str().str();
     emitObject(program,object,optimization,debug);
     std::vector<std::string> arguments;
-    std::string driverName=std::filesystem::path(compilerDriver).filename().string();
+    std::string driverName=std::filesystem::u8path(compilerDriver).filename().u8string();
     std::transform(driverName.begin(),driverName.end(),driverName.begin(),[](unsigned char c){return char(std::tolower(c));});
     if(driverName=="cl.exe" || driverName=="cl") {
         arguments={compilerDriver,"/nologo",object,runtimeLibrary,"/Fe:"+output};
-        if(debug) { arguments.push_back("/link"); arguments.push_back("/DEBUG"); }
+        arguments.push_back("/link");
+        if(debug)arguments.push_back("/DEBUG");
+        std::istringstream directories(PF_MSVC_LIBRARY_DIRS);
+        for(std::string directory;std::getline(directories,directory,';');) {
+            if(directory.size()>1 && directory.front()=='\"' && directory.back()=='\"')
+                directory=directory.substr(1,directory.size()-2);
+            if(!directory.empty())arguments.push_back("/LIBPATH:"+directory);
+        }
     } else {
         arguments={compilerDriver,object,runtimeLibrary,"-o",output};
         if(debug) arguments.push_back("-g");
@@ -590,6 +862,7 @@ void buildExecutable(const Program& program,const std::string& output,const std:
         arguments.push_back("-lm"); arguments.push_back("-ldl"); arguments.push_back("-pthread");
 #endif
     }
+    arguments.insert(arguments.end(),extraLibraries.begin(),extraLibraries.end());
     std::vector<llvm::StringRef> refs;
     for(const auto& argument:arguments) refs.emplace_back(argument);
     auto driver=llvm::sys::findProgramByName(compilerDriver);
@@ -597,7 +870,5 @@ void buildExecutable(const Program& program,const std::string& output,const std:
     std::string message;
     int result=llvm::sys::ExecuteAndWait(*driver,refs,std::nullopt,{},0,0,&message);
     if(result!=0) throw std::runtime_error("native link failed ("+std::to_string(result)+"): "+message);
-    std::error_code ignored;
-    std::filesystem::remove(object,ignored);
 }
 }
