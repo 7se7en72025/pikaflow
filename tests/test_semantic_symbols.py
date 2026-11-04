@@ -97,6 +97,8 @@ def main():
         assert len(find("value", "variable", "for value in")["uses"]) == 1
         assert find("current", "variable")["type"] == "i64"
         assert find("function", "variable")["type"] == "fn(i64)->i64"
+        assert find("unused", "function")["generic"] is True
+        assert find("outer", "function")["generic"] is False
         # Uninstantiated templates still have lexical binding/type references.
         assert len(find("value", "parameter", "fun unused")["uses"]) == 1
         assert find("copy", "variable")["detail"] == "generic declaration"

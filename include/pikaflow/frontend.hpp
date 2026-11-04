@@ -12,7 +12,7 @@ using StmtPtr = std::shared_ptr<Stmt>;
 struct Parameter { std::string name; Type type; Location location; bool synthetic = false; };
 struct Expr {
     enum class Kind { Integer, Float, Boolean, String, Name, Unary, Binary, Call,
-        Index, Array, Tuple, Lambda, Stack, TypeApply, Propagate };
+        Index, Array, Tuple, Lambda, Stack, TypeApply, Propagate, Member, NamedArgument };
     Kind kind;
     Location location;
     Location nameLocation;
@@ -37,7 +37,7 @@ struct Stmt {
     std::string operation;
     Type type;
     bool annotated = false, exported = false, variadic = false;
-    bool exhaustive = false;
+    bool exhaustive = false, isRecord = false;
     std::vector<Parameter> parameters;
     std::vector<std::string> typeParameters;
     std::vector<Location> typeParameterLocations;

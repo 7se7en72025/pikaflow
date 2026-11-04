@@ -1,0 +1,18 @@
+record Point[T]:
+    x: T
+    y: T
+
+fun replace_x[T](point: Point[T], value: T) -> T:
+    let previous = point.x
+    point.x = value
+    return previous
+
+fun main() -> unit:
+    let point = Point(y: 22, x: 20)
+    print(point.x + point.y)
+    point.x += 1
+    match point:
+        case Point(y: right, x: left):
+            print(left + right)
+    print(replace_x(point, 42))
+    print(point.x)

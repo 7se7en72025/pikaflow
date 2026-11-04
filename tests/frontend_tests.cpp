@@ -122,15 +122,21 @@ int main() {
         require(guarded.statements[0]->body[0]->body[0]->other != nullptr, "match guard missing");
         const auto qualified = tree("import \"math.pf\" as math\nfun main():\n    let value:math.Box[i64]=math.Boxed::[i64](42)\n");
         require(qualified.statements[1]->body[0]->type.name == "math.Box", "qualified type missing");
-        require(qualified.statements[1]->body[0]->expression->items[0]->items[0]->text == "math.Boxed", "qualified constructor missing");
+        require(qualified.statements[1]->body[0]->expression->items[0]->items[0]->kind == Expr::Kind::Member
+            && qualified.statements[1]->body[0]->expression->items[0]->items[0]->text == "Boxed", "qualified constructor missing");
         require(qualified.statements[0]->nameLocation.column == 21, "alias identifier location lost");
         const auto compound = tree("fun main():\n    values[index()] += right()\n");
         require(compound.statements[0]->body[0]->operation == "+" && compound.statements[0]->body[0]->expression->kind == Expr::Kind::Call,
             "compound assignment must preserve one lvalue and one RHS");
         const auto underscorePatterns = tree("fun main():\n    match value:\n        case _.Boxed(x):\n            pass\n        case _(x):\n            pass\n        case _:\n            pass\n");
         const auto &underscoreArms = underscorePatterns.statements[0]->body[0]->body;
-        require(underscoreArms[0]->expression->items[0]->text == "_.Boxed" && underscoreArms[1]->expression->items[0]->text == "_"
+        require(underscoreArms[0]->expression->items[0]->kind == Expr::Kind::Member && underscoreArms[0]->expression->items[0]->text == "Boxed" && underscoreArms[1]->expression->items[0]->text == "_"
             && underscoreArms[2]->name == "_", "qualified underscore and constructor patterns must remain distinct from a wildcard");
+        const auto record = tree("export record Point[T]:\n    x:T\n    y:T\nfun main():\n    let p = Point(y:22,x:20)\n    p.x += 1\n    print(p.y)\n");
+        require(record.statements[0]->isRecord && record.statements[0]->body[0]->parameters.size() == 2, "record declaration missing");
+        require(record.statements[1]->body[0]->expression->items[1]->kind == Expr::Kind::NamedArgument, "record labels missing");
+        require(record.statements[1]->body[1]->target->kind == Expr::Kind::Member, "record field assignment missing");
+        reject("record Point:\n    x:i64\n    x:i64\n", "duplicate record field");
         const auto unsafe = tree("fun main():\n    unsafe:\n        let memory: ptr[i64] = alloc_i64(2)\n        store(memory, 0, 42)\n        free(memory)\n");
         require(unsafe.statements[0]->body[0]->kind == Stmt::Kind::Unsafe && unsafe.statements[0]->body[0]->body.size() == 3, "unsafe suite failed");
         require(tree("let n = -9223372036854775808\n").statements[0]->expression->integer == std::numeric_limits<int64_t>::min(), "minimum i64 literal failed");
@@ -159,8 +165,9 @@ int main() {
         }
         for (const auto& expression : {binaryChain, callChain, indexChain, typeChain, std::string("value") + std::string(1000, '?')})
             reject("fun main():\n    let value = " + expression + "\n", "expression syntax depth");
-        // Qualification changes one name, rather than adding recursive AST nodes.
-        require(tree("let value = " + qualifiedName + "\n").statements.size() == 1, "flat qualified name rejected");
+        reject("let value = " + qualifiedName + "\n", "expression syntax depth");
+        require(tree("let value = module.member\n").statements[0]->expression->kind == Expr::Kind::Member,
+            "module/field member syntax missing");
         std::string elifChain = "fun main():\n    if false:\n        pass\n";
         for (unsigned i = 0; i < 1000; ++i) elifChain += "    elif false:\n        pass\n";
         reject(elifChain, "nesting depth");

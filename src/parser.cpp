@@ -232,14 +232,15 @@ class Parser {
         left = checkedExpression(std::move(left));
         for (;;) {
             if (accept(".")) {
-                if (left->kind != Expr::Kind::Name) throw Error(left->location, "qualified access requires a module alias");
-                auto member = expect(TokenKind::Name, "a module member name");
-                left->text += "." + member.text; left->nameLocation = member.location;
+                auto member = expect(TokenKind::Name, "a field or module member name");
+                auto access = std::make_shared<Expr>(Expr::Kind::Member, left->location);
+                access->text = member.text; access->nameLocation = member.location;
+                access->items.push_back(std::move(left)); left = std::move(access);
             } else if (is("(")) {
                 Token open = take();
                 auto call = std::make_shared<Expr>(Expr::Kind::Call, open.location);
                 call->items.push_back(std::move(left));
-                if (!is(")")) { do { call->items.push_back(expression()); } while (accept(",") && !is(")")); }
+                if (!is(")")) { do { call->items.push_back(callArgument()); } while (accept(",") && !is(")")); }
                 expect(")"); left = std::move(call);
             } else if (accept("::")) {
                 auto application = std::make_shared<Expr>(Expr::Kind::TypeApply, left->location);
@@ -259,6 +260,16 @@ class Parser {
             left = checkedExpression(std::move(left));
         }
         return left;
+    }
+    ExprPtr callArgument() {
+        if (is(TokenKind::Name) && peek(1).text == ":") {
+            Token label = take(); expect(":");
+            auto argument = std::make_shared<Expr>(Expr::Kind::NamedArgument, label.location);
+            argument->text = label.text; argument->nameLocation = label.location;
+            argument->items.push_back(expression());
+            return checkedExpression(std::move(argument));
+        }
+        return expression();
     }
     ExprPtr primary() {
         Token token = take();
@@ -371,14 +382,30 @@ class Parser {
             result->exported = true;
             return result;
         }
-        if (accept("enum")) {
+        if (is("enum") || is("record")) {
+            bool record = take().text == "record";
             auto result = std::make_shared<Stmt>(Stmt::Kind::Enum, start.location);
             auto name = expect(TokenKind::Name, "an enum name");
-            result->name = name.text; result->nameLocation = name.location;
+            result->name = name.text; result->nameLocation = name.location; result->isRecord = record;
             result->typeParameters = typeParameters(&result->typeParameterLocations);
             expect(":"); expect(TokenKind::Newline, "a newline after ':'");
             expect(TokenKind::Indent, "enum variants");
             separators();
+            if (record) {
+                auto variant = std::make_shared<Stmt>(Stmt::Kind::Function, name.location);
+                variant->name = name.text; variant->nameLocation = name.location;
+                while (!is(TokenKind::Dedent) && !is(TokenKind::End)) {
+                    if (accept("pass")) { finishSimple(); separators(); continue; }
+                    Token field = expect(TokenKind::Name, "a record field name"); expect(":");
+                    for (const auto& previous : variant->parameters)
+                        if (previous.name == field.text) throw Error(field.location, "duplicate record field '" + field.text + "'");
+                    variant->parameters.push_back({field.text, type(), field.location, false});
+                    finishSimple(); separators();
+                }
+                result->body.push_back(std::move(variant));
+                expect(TokenKind::Dedent, "end of record fields");
+                return result;
+            }
             while (!is(TokenKind::Dedent) && !is(TokenKind::End)) {
                 auto variant = std::make_shared<Stmt>(Stmt::Kind::Function, peek().location);
                 auto variantName = expect(TokenKind::Name, "a variant name");
@@ -477,7 +504,7 @@ class Parser {
         ExprPtr left = expression();
         if (is("=") || is("+=") || is("-=") || is("*=") || is("/=") || is("%=")) {
             Token assignment = take();
-            if (left->kind != Expr::Kind::Name && left->kind != Expr::Kind::Index)
+            if (left->kind != Expr::Kind::Name && left->kind != Expr::Kind::Index && left->kind != Expr::Kind::Member)
                 throw Error(left->location, "assignment target must be a variable or array element");
             auto result = std::make_shared<Stmt>(Stmt::Kind::Assign, start.location);
             result->target = left;
@@ -501,7 +528,7 @@ class Parser {
             if (indentation[position] == 0 && token.location.column == 1 && token.kind == TokenKind::Name
                 && (token.text == "fun" || token.text == "fn" || token.text == "word"
                     || token.text == "extern" || token.text == "import" || token.text == "export"
-                    || token.text == "let" || token.text == "var")) return;
+                    || token.text == "let" || token.text == "var" || token.text == "enum" || token.text == "record")) return;
             ++position;
         }
     }
@@ -590,6 +617,8 @@ const char* expressionName(Expr::Kind kind) {
     case Expr::Kind::Stack: return "Stack";
     case Expr::Kind::TypeApply: return "TypeApply";
     case Expr::Kind::Propagate: return "Propagate";
+    case Expr::Kind::Member: return "Member";
+    case Expr::Kind::NamedArgument: return "NamedArgument";
     }
     return "Unknown";
 }
@@ -633,7 +662,7 @@ void dumpExpression(std::ostream& out, const ExprPtr& expr, unsigned depth) {
 }
 void dumpStatements(std::ostream& out, const std::vector<StmtPtr>& stmts, unsigned depth) {
     for (const auto& stmt : stmts) {
-        out << std::string(depth * 2, ' ') << statementName(stmt->kind);
+        out << std::string(depth * 2, ' ') << (stmt->isRecord ? "Record" : statementName(stmt->kind));
         if (!stmt->name.empty()) out << ' ' << stmt->name;
         if (!stmt->operation.empty()) out << " " << stmt->operation << "=";
         for (const auto& parameter : stmt->typeParameters) out << " [" << parameter << "]";

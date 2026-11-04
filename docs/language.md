@@ -24,9 +24,11 @@ fun main() -> unit:
     print(42)
 ```
 
-The entry function must be named `main`, take no arguments, and return either
-`unit` or `i64`. Returning `i64` supplies the program exit status; output is
-separate and is produced by `print`.
+The default entry is a non-generic structured function named `main`, taking no
+arguments and returning `unit` or `i64`. Source execution/check/emission commands
+can select another root-module function with `--entry NAME`; it must satisfy the
+same signature. An imported function cannot become the entry. Returning `i64`
+supplies the program exit status; output is separate and is produced by `print`.
 
 ## Types and values
 
@@ -74,6 +76,70 @@ rules do not apply to floats.
 Strings support `\n`, `\r`, `\t`, `\0`, `\\`, `\"`, and `\'` escapes. `len(text)`
 counts bytes, and indexing a string returns an unsigned byte represented as
 `i64`. Unicode character indexing is not implemented.
+
+## Nominal records and named fields
+
+```text
+record Point[T]:
+    x: T
+    y: T
+
+fun main():
+    let point: Point[i64] = Point(y: 22, x: 20)
+    point.x += 1
+    print(point.x + point.y)
+```
+
+A record declares a nominal type and a constructor with the same source name.
+All constructor arguments use `field: expression` labels and every field must
+appear exactly once. Labels may occur in any order; values evaluate left to right
+in their written order. Generic arguments can be inferred from values or the
+expected type, or supplied explicitly: `Point::[i64](x: 20, y: 22)`.
+Different record declarations remain different types even when their fields match.
+An empty record uses an indented `pass` body and constructs with `Empty()`.
+
+Fields have fixed declared types. `value.field` reads a field; `value.field = rhs`
+and arithmetic compound updates mutate the record object. The receiver evaluates
+once before the right-hand side, including a call, array index or nested field
+chain. A `let` binding prevents rebinding, while the record's contents remain
+mutable, as with arrays. Copying a record value copies its managed reference;
+aliases observe field updates. Task spawning still snapshots the reachable graph.
+
+Records may contain managed values, callable fields and recursive or mutually
+recursive records. They use the existing traced heap and nominal specialization
+limits. A record can be matched positionally in declaration order, or with all
+field labels, in any written order:
+
+```text
+match point:
+    case Point(y: right, x: left):
+        print(left + right)
+```
+
+Named patterns require every field exactly once and cannot mix with positional
+patterns. Guards and exhaustiveness checking apply as for the single constructor
+of an enum. Field names are checked against the nominal receiver; integer indexing
+does not expose the record's internal tag or field layout.
+
+`export record` makes its constructor, type and fields visible to direct
+importers. Private records remain opaque outside their declaring module, even
+when an exported function returns a value of that private type. Module aliases
+and fields share dot syntax: the compiler resolves a known `alias.member` as a
+module name and other receiver expressions as record field accesses. Local
+bindings cannot reuse a module alias name.
+
+Within generic templates, field access needs a source receiver whose nominal
+record identity can be resolved, such as `point: Point[T]`. Unconstrained
+`fun read[T](value: T): value.field` is rejected consistently by checking,
+execution and symbol indexing; annotate the receiver with the record type.
+There are no structural field constraints, methods, field defaults or inheritance.
+The source index includes resolvable unreachable field references. If a receiver's
+field identity cannot be resolved in ordinary unreachable source, field symbols
+with that name are conservatively marked `renameable: false`; navigation remains
+available for known uses, while field rename is refused rather than guessing.
+Records are managed language values and cannot cross the C ABI directly; the
+explicit C-compatible tuple subset remains separate.
+See [the executable example](../examples/records.pf).
 
 ## Expressions and evaluation
 

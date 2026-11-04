@@ -39,6 +39,11 @@ class Compiler {
         Type type;
     };
     Program program;
+    std::string entryFunction;
+    std::map<std::string, std::pair<StmtPtr, size_t>> fieldProofs;
+    std::map<std::string, Type> fieldTypes;
+    std::set<std::string> unresolvedFields;
+    bool bestEffortFields = false;
     std::vector<Declaration> declarations;
     std::map<std::string, size_t> byModule;
     std::map<std::string, std::vector<size_t>> exported;
@@ -95,8 +100,10 @@ class Compiler {
     size_t declarationSymbol(const StmtPtr &statement, const std::string &kind) {
         auto source = sourceDeclarations.find(locationKey(statement->nameLocation));
         const auto &definition = source == sourceDeclarations.end() ? statement : source->second;
-        return addSymbol(definition->name, kind, definition->nameLocation,
-                         kind == "enum" ? Type{TypeKind::Named, {}, definition->name} : sourceFunctionType(*definition));
+        auto symbol = addSymbol(definition->name, kind, definition->nameLocation,
+                                (kind == "enum" || kind == "record") ? Type{TypeKind::Named, {}, definition->name} : sourceFunctionType(*definition));
+        if (symbol != size_t(-1)) program.symbols[symbol].generic = !definition->typeParameters.empty();
+        return symbol;
     }
     void aliasUse(const std::string &name, const Location &prefix) {
         auto dot = name.find('.');
@@ -130,19 +137,26 @@ class Compiler {
                 if (!cWidth) {
                     aliasUse(type.name, type.qualifierLocation);
                     if (auto definition = enumDeclaration(type.name, type.sourceLocation))
-                        symbolUse(declarationSymbol(definition, "enum"), type.sourceLocation);
+                        symbolUse(declarationSymbol(definition, definition->isRecord ? "record" : "enum"), type.sourceLocation);
                 }
             }
         }
         for (const auto &argument : type.args) indexType(argument, external);
     }
     size_t constructorSymbol(const std::pair<StmtPtr, size_t> &variant) {
+        if (variant.first->isRecord) return declarationSymbol(variant.first, "record");
         auto definition = variant.first->body.at(variant.second);
         auto type = sourceFunctionType(*definition);
         std::vector<Type> arguments;
         for (const auto &parameter : variant.first->typeParameters) arguments.emplace_back(TypeKind::Named, std::vector<Type>{}, parameter);
         type.args.back() = Type{TypeKind::Named, arguments, variant.first->name};
         return addSymbol(definition->name, "constructor", definition->nameLocation, type);
+    }
+    void fieldUse(const Location &location) {
+        auto found = fieldProofs.find(locationKey(location));
+        if (found == fieldProofs.end()) return;
+        const auto &field = found->second.first->body[0]->parameters.at(found->second.second);
+        symbolUse(addSymbol(field.name, "field", field.location, field.type), location);
     }
     enum class IndexNameRole { Value, Call, Invoke, Function, Callback, Local };
     void indexValue(const Expr &expression, IndexNameRole role = IndexNameRole::Value) {
@@ -188,6 +202,9 @@ class Compiler {
     void indexPattern(const ExprPtr &pattern, bool wildcards = true) {
         if (!pattern) return;
         indexStep(pattern->location);
+        if (pattern->kind == Expr::Kind::NamedArgument) {
+            fieldUse(pattern->nameLocation); indexPattern(pattern->items.at(0), wildcards); return;
+        }
         if (pattern->kind == Expr::Kind::Name) {
             if (!wildcards || pattern->text != "_") indexBinding(pattern->text, pattern->location);
             return;
@@ -207,6 +224,9 @@ class Compiler {
         indexStep(expression->location);
         const auto &value = *expression;
         if (value.kind == Expr::Kind::Name) { indexValue(value); return; }
+        if (value.kind == Expr::Kind::Member || value.kind == Expr::Kind::NamedArgument) {
+            indexExpression(value.items.at(0)); fieldUse(value.nameLocation); return;
+        }
         for (const auto &argument : value.typeArguments) indexType(argument);
         indexType(value.returnType);
         if (value.kind == Expr::Kind::TypeApply) {
@@ -267,7 +287,7 @@ class Compiler {
         indexStep(statement->location);
         const auto &s = *statement;
         if (s.kind == Stmt::Kind::Function || s.kind == Stmt::Kind::Word || s.kind == Stmt::Kind::Extern || s.kind == Stmt::Kind::Enum) {
-            std::string kind = s.kind == Stmt::Kind::Enum ? "enum" : s.kind == Stmt::Kind::Extern ? "extern" : s.kind == Stmt::Kind::Word ? "word" : "function";
+            std::string kind = s.kind == Stmt::Kind::Enum ? (s.isRecord ? "record" : "enum") : s.kind == Stmt::Kind::Extern ? "extern" : s.kind == Stmt::Kind::Word ? "word" : "function";
             size_t symbol = declarationSymbol(statement, kind);
             if (!indexScopes.empty() && s.kind == Stmt::Kind::Function) {
                 if (indexScopes.back().values.count(s.name)) fail(s.nameLocation, "duplicate local name '" + s.name + "'");
@@ -285,7 +305,7 @@ class Compiler {
                     std::vector<Type> arguments;
                     for (const auto &parameter : s.typeParameters) arguments.emplace_back(TypeKind::Named, std::vector<Type>{}, parameter);
                     type.args.back() = Type{TypeKind::Named, arguments, s.name};
-                    addSymbol(variant->name, "constructor", variant->nameLocation, type);
+                    if (!s.isRecord) addSymbol(variant->name, "constructor", variant->nameLocation, type);
                     for (const auto &field : variant->parameters) {
                         indexType(field.type);
                         addSymbol(field.name, "field", field.location, field.type);
@@ -348,6 +368,31 @@ class Compiler {
         ~TraversalGuard() { --depth; }
     };
     size_t typeExpansionBudget = 1000000;
+    ExprPtr moduleExpression(const ExprPtr &source) {
+        if (!source) return {};
+        TraversalGuard guard(traversalDepth, source->location);
+        auto result = std::make_shared<Expr>(*source);
+        result->items.clear(); result->body.clear();
+        for (const auto &item : source->items) result->items.push_back(moduleExpression(item));
+        for (const auto &statement : source->body) result->body.push_back(moduleStatement(statement));
+        if (result->kind == Expr::Kind::Member && result->items[0]->kind == Expr::Kind::Name &&
+            moduleAliases[result->location.file].count(result->items[0]->text)) {
+            result->kind = Expr::Kind::Name;
+            result->text = result->items[0]->text + "." + result->text;
+            result->items.clear();
+        }
+        return result;
+    }
+    StmtPtr moduleStatement(const StmtPtr &source) {
+        TraversalGuard guard(traversalDepth, source->location);
+        auto result = std::make_shared<Stmt>(*source);
+        result->expression = moduleExpression(source->expression);
+        result->target = moduleExpression(source->target); result->other = moduleExpression(source->other);
+        result->body.clear(); result->elseBody.clear();
+        for (const auto &item : source->body) result->body.push_back(moduleStatement(item));
+        for (const auto &item : source->elseBody) result->elseBody.push_back(moduleStatement(item));
+        return result;
+    }
     size_t typeNodes(const Type &type, Location loc) {
         size_t count = 0;
         std::vector<const Type *> pending{&type};
@@ -457,6 +502,7 @@ class Compiler {
             }
         }
         program.nominalLayouts[key] = std::move(layout);
+        if (definition->isRecord) program.nominalRecords.insert(key);
         return reference;
     }
 
@@ -615,7 +661,7 @@ class Compiler {
             "true",   "false",    "and",    "or",        "not",       "dup",        "swap",
             "drop",   "over",     "rot",    "neg",       "ok",        "err",        "is_ok",
             "unwrap", "error",    "range",  "alloc_i64", "alloc_f64", "alloc_bool", "free",
-            "load",   "store",    "cstr",   "pin",       "unpin", "enum", "task", "spawn", "join", "c_callback", "offset"};
+            "load",   "store",    "cstr",   "pin",       "unpin", "enum", "record", "task", "spawn", "join", "c_callback", "offset"};
         return names.count(name) != 0;
     }
     bool cScalar(const Type &t) {
@@ -937,7 +983,10 @@ class Compiler {
                         auto target = constructor(name, pattern->location);
                         matches = target.first == instance->declaration && target.second == variant;
                     }
-                    if (matches) payload.assign(pattern->items.begin() + 1, pattern->items.end());
+                    if (matches) {
+                        auto items = patternItems(*pattern);
+                        payload.assign(items.begin() + 1, items.end());
+                    }
                 }
                 if (matches) {
                     payload.insert(payload.end(), row.begin() + 1, row.end());
@@ -1298,6 +1347,256 @@ class Compiler {
             return native->parameters;
         return {};
     }
+    size_t recordFieldIndex(const StmtPtr &definition, const std::string &name, Location location) {
+        if (definition->location.file != location.file && !definition->exported)
+            fail(location, "record fields are private outside their declaring module");
+        const auto &fields = definition->body.at(0)->parameters;
+        for (size_t i = 0; i < fields.size(); ++i) if (fields[i].name == name) return i;
+        fail(location, "record '" + definition->name + "' has no field '" + name + "'");
+    }
+    void proveField(const StmtPtr &definition, size_t index, const Location &location) {
+        auto key = locationKey(location);
+        auto found = fieldProofs.find(key);
+        if (found != fieldProofs.end() && (found->second.first != definition || found->second.second != index))
+            fail(location, "field access must have one nominal record identity; annotate its receiver");
+        fieldProofs[key] = {definition, index};
+    }
+    std::pair<Type, size_t> fieldLocation(const Type &base, const Expr &member) {
+        auto found = enumInstances.find(base.name);
+        if (found == enumInstances.end() || !found->second.declaration->isRecord)
+            fail(member.nameLocation, "field access requires a nominal record value");
+        auto definition = found->second.declaration;
+        size_t index = recordFieldIndex(definition, member.text, member.nameLocation);
+        proveField(definition, index, member.nameLocation);
+        Type result = program.nominalLayouts.at(base.name).args.at(index + 1);
+        fieldTypes[locationKey(member.nameLocation)] = result;
+        return {result, index + 1};
+    }
+    std::vector<ExprPtr> patternItems(const Expr &patternValue) {
+        auto items = patternValue.items;
+        if (items.empty() || items[0]->kind != Expr::Kind::Name) return items;
+        auto target = constructor(items[0]->text, patternValue.location);
+        bool named = false;
+        for (size_t i = 1; i < items.size(); ++i) named = named || items[i]->kind == Expr::Kind::NamedArgument;
+        if (!named) return items;
+        if (!target.first || !target.first->isRecord) fail(patternValue.location, "named patterns require a record constructor");
+        const auto &fields = target.first->body.at(0)->parameters;
+        if (items.size() != fields.size() + 1) fail(patternValue.location, "record pattern must name every field exactly once");
+        std::vector<ExprPtr> ordered(items.size()); ordered[0] = items[0];
+        for (size_t i = 1; i < items.size(); ++i) {
+            const auto &item = items[i];
+            if (item->kind != Expr::Kind::NamedArgument) fail(item->location, "cannot mix positional and named record patterns");
+            size_t index = recordFieldIndex(target.first, item->text, item->nameLocation);
+            if (ordered[index + 1]) fail(item->nameLocation, "duplicate record pattern field '" + item->text + "'");
+            proveField(target.first, index, item->nameLocation); ordered[index + 1] = item->items.at(0);
+        }
+        return ordered;
+    }
+    std::vector<std::map<std::string, Type>> sourceScopes;
+    Type sourceSubstitute(Type type, const std::map<std::string, Type> &bindings) {
+        if (type.kind == TypeKind::Named && type.args.empty() && bindings.count(type.name)) return bindings.at(type.name);
+        for (auto &argument : type.args) argument = sourceSubstitute(argument, bindings);
+        return type;
+    }
+    void sourceInfer(const Type &pattern, const Type &actual, const std::set<std::string> &variables,
+                     std::map<std::string, Type> &bindings) {
+        if (pattern.kind == TypeKind::Named && pattern.args.empty() && variables.count(pattern.name)) {
+            if (!bindings.count(pattern.name)) bindings[pattern.name] = actual;
+            return;
+        }
+        if (pattern.kind == actual.kind && pattern.name == actual.name && pattern.args.size() == actual.args.size())
+            for (size_t i = 0; i < pattern.args.size(); ++i) sourceInfer(pattern.args[i], actual.args[i], variables, bindings);
+    }
+    std::pair<StmtPtr, std::map<std::string, Type>> sourceRecord(const Type &type, Location location) {
+        auto instance = enumInstances.find(type.name);
+        StmtPtr definition;
+        std::vector<Type> arguments = type.args;
+        if (instance != enumInstances.end()) { definition = instance->second.declaration; arguments = instance->second.arguments; }
+        else if (type.kind == TypeKind::Named)
+            definition = enumDeclaration(type.name, type.sourceLocation.file.empty() ? location : type.sourceLocation);
+        if (!definition || !definition->isRecord)
+            fail(location, "generic field receivers need a resolvable nominal record type; annotate the receiver");
+        if (arguments.size() != definition->typeParameters.size()) fail(location, "wrong number of record type arguments");
+        std::map<std::string, Type> bindings;
+        for (size_t i = 0; i < arguments.size(); ++i) bindings[definition->typeParameters[i]] = arguments[i];
+        return {definition, bindings};
+    }
+    void unresolvedFieldUses(const ExprPtr &root) {
+        std::vector<ExprPtr> expressions{root};
+        std::vector<StmtPtr> statements;
+        while (!expressions.empty() || !statements.empty()) {
+            if (!expressions.empty()) {
+                auto value = expressions.back(); expressions.pop_back();
+                if (!value) continue;
+                if (value->kind == Expr::Kind::Member || value->kind == Expr::Kind::NamedArgument) unresolvedFields.insert(value->text);
+                expressions.insert(expressions.end(), value->items.begin(), value->items.end());
+                statements.insert(statements.end(), value->body.begin(), value->body.end());
+            } else {
+                auto statement = statements.back(); statements.pop_back();
+                expressions.push_back(statement->expression); expressions.push_back(statement->target); expressions.push_back(statement->other);
+                statements.insert(statements.end(), statement->body.begin(), statement->body.end());
+                statements.insert(statements.end(), statement->elseBody.begin(), statement->elseBody.end());
+            }
+        }
+    }
+    Type sourceExpression(const ExprPtr &value) {
+        const size_t scopes = sourceScopes.size();
+        try { return sourceExpressionImpl(value); }
+        catch (const Error &) {
+            if (!bestEffortFields) throw;
+            sourceScopes.resize(scopes);
+            if (value && value->kind == Expr::Kind::Member) {
+                auto proof = fieldTypes.find(locationKey(value->nameLocation));
+                if (proof != fieldTypes.end()) return proof->second;
+            }
+            unresolvedFieldUses(value); return Unit;
+        }
+    }
+    Type sourceExpressionImpl(const ExprPtr &value) {
+        if (!value) return Unit;
+        TraversalGuard guard(traversalDepth, value->location);
+        const auto &e = *value;
+        if (e.kind == Expr::Kind::Name) {
+            for (auto scope = sourceScopes.rbegin(); scope != sourceScopes.rend(); ++scope) {
+                auto found = scope->find(e.text); if (found != scope->end()) return found->second;
+            }
+            if (auto target = declaration(e.text, e.location)) return sourceFunctionType(*target->ast);
+            return Unit;
+        }
+        if (e.kind == Expr::Kind::Member) {
+            auto record = sourceRecord(sourceExpression(e.items.at(0)), e.nameLocation);
+            size_t index = recordFieldIndex(record.first, e.text, e.nameLocation);
+            proveField(record.first, index, e.nameLocation);
+            return sourceSubstitute(record.first->body[0]->parameters[index].type, record.second);
+        }
+        if (e.kind == Expr::Kind::Lambda) {
+            sourceScopes.emplace_back();
+            for (const auto &parameter : e.parameters) sourceScopes.back()[parameter.name] = parameter.type;
+            sourceBody(e.body, false); sourceScopes.pop_back();
+            std::vector<Type> parameters;
+            for (const auto &parameter : e.parameters) parameters.push_back(parameter.type);
+            return Type::function(parameters, e.returnType);
+        }
+        if (e.kind == Expr::Kind::Call) {
+            auto callee = e.items.at(0);
+            std::vector<Type> explicitTypes;
+            if (callee->kind == Expr::Kind::TypeApply) { explicitTypes = callee->typeArguments; callee = callee->items.at(0); }
+            std::vector<Type> arguments;
+            for (size_t i = 1; i < e.items.size(); ++i) arguments.push_back(sourceExpression(e.items[i]));
+            if (callee->kind == Expr::Kind::Name) {
+                for (auto scope = sourceScopes.rbegin(); scope != sourceScopes.rend(); ++scope) {
+                    auto found = scope->find(callee->text);
+                    if (found != scope->end()) return found->second.kind == TypeKind::Function && !found->second.args.empty()
+                        ? found->second.args.back() : Unit;
+                }
+                auto target = constructor(callee->text, callee->location);
+                if (target.first && target.first->isRecord) {
+                    const auto &definition = target.first;
+                    std::map<std::string, Type> bindings;
+                    const auto variables = std::set<std::string>(definition->typeParameters.begin(), definition->typeParameters.end());
+                    for (size_t i = 0; i < explicitTypes.size() && i < definition->typeParameters.size(); ++i) bindings[definition->typeParameters[i]] = explicitTypes[i];
+                    for (size_t i = 1; i < e.items.size(); ++i) {
+                        auto argument = e.items[i];
+                        if (argument->kind != Expr::Kind::NamedArgument) continue;
+                        size_t field = recordFieldIndex(definition, argument->text, argument->nameLocation);
+                        proveField(definition, field, argument->nameLocation);
+                        sourceInfer(definition->body[0]->parameters[field].type, arguments[i - 1], variables, bindings);
+                    }
+                    Type result{TypeKind::Named, {}, callee->text}; result.sourceLocation = callee->location;
+                    for (const auto &parameter : definition->typeParameters)
+                        result.args.push_back(bindings.count(parameter) ? bindings[parameter] : Type{TypeKind::Named, {}, parameter});
+                    return result;
+                }
+                if (auto function = declaration(callee->text, callee->location)) {
+                    auto definition = function->ast;
+                    std::map<std::string, Type> bindings;
+                    const auto variables = std::set<std::string>(definition->typeParameters.begin(), definition->typeParameters.end());
+                    for (size_t i = 0; i < explicitTypes.size() && i < definition->typeParameters.size(); ++i) bindings[definition->typeParameters[i]] = explicitTypes[i];
+                    for (size_t i = 0; i < arguments.size() && i < definition->parameters.size(); ++i)
+                        sourceInfer(definition->parameters[i].type, arguments[i], variables, bindings);
+                    return sourceSubstitute(definition->returnType, bindings);
+                }
+            }
+            auto function = sourceExpression(callee);
+            return function.kind == TypeKind::Function && !function.args.empty() ? function.args.back() : Unit;
+        }
+        std::vector<Type> items;
+        for (const auto &item : e.items) items.push_back(sourceExpression(item));
+        if (e.kind == Expr::Kind::NamedArgument || e.kind == Expr::Kind::Unary) return items.at(0);
+        if (e.kind == Expr::Kind::Array) return Type::array(items.empty() ? Unit : items[0]);
+        if (e.kind == Expr::Kind::Tuple) return Type{TypeKind::Tuple, items};
+        if (e.kind == Expr::Kind::Index) {
+            if (items[0].kind == TypeKind::Array) return items[0].args.at(0);
+            if (items[0].kind == TypeKind::Tuple && e.items[1]->kind == Expr::Kind::Integer && e.items[1]->integer >= 0 &&
+                static_cast<size_t>(e.items[1]->integer) < items[0].args.size()) return items[0].args[static_cast<size_t>(e.items[1]->integer)];
+        }
+        if (e.kind == Expr::Kind::Stack) { sourceBody(e.body, true); return e.returnType; }
+        if (e.kind == Expr::Kind::Integer) return I64;
+        if (e.kind == Expr::Kind::Float) return F64;
+        if (e.kind == Expr::Kind::Boolean) return Bool;
+        if (e.kind == Expr::Kind::String) return String;
+        if (e.kind == Expr::Kind::Propagate && items[0].kind == TypeKind::Result) return items[0].args.at(0);
+        return Unit;
+    }
+    void sourcePattern(const ExprPtr &patternValue, const Type &subject, bool wildcards = true) {
+        try { sourcePatternImpl(patternValue, subject, wildcards); }
+        catch (const Error &) {
+            if (!bestEffortFields) throw;
+            unresolvedFieldUses(patternValue);
+        }
+    }
+    void sourcePatternImpl(const ExprPtr &patternValue, const Type &subject, bool wildcards) {
+        if (!patternValue) return;
+        TraversalGuard guard(traversalDepth, patternValue->location);
+        const auto &pattern = *patternValue;
+        if (pattern.kind == Expr::Kind::Name) {
+            if (!wildcards || pattern.text != "_") sourceScopes.back()[pattern.text] = subject;
+        } else if (pattern.kind == Expr::Kind::Call && !pattern.items.empty() && pattern.items[0]->kind == Expr::Kind::Name) {
+            auto target = constructor(pattern.items[0]->text, pattern.location);
+            auto items = patternItems(pattern);
+            if (target.first && target.first->isRecord) {
+                auto record = sourceRecord(subject, pattern.location);
+                const auto &fields = target.first->body[0]->parameters;
+                for (size_t i = 1; i < items.size() && i <= fields.size(); ++i)
+                    sourcePattern(items[i], sourceSubstitute(fields[i - 1].type, record.second));
+            } else for (size_t i = 1; i < items.size(); ++i) sourcePattern(items[i], Unit);
+        } else {
+            for (size_t i = 0; i < pattern.items.size(); ++i) {
+                Type element = subject.kind == TypeKind::Array ? subject.args.at(0) :
+                    subject.kind == TypeKind::Tuple && i < subject.args.size() ? subject.args[i] : Unit;
+                sourcePattern(pattern.items[i], element, wildcards);
+            }
+        }
+    }
+    void sourceBody(const std::vector<StmtPtr> &body, bool scoped) {
+        if (scoped) sourceScopes.emplace_back();
+        for (const auto &statement : body) {
+            TraversalGuard guard(traversalDepth, statement->location);
+            const auto &s = *statement;
+            if (s.kind == Stmt::Kind::Function) {
+                sourceScopes.back()[s.name] = sourceFunctionType(s);
+                sourceScopes.emplace_back();
+                for (const auto &parameter : s.parameters) sourceScopes.back()[parameter.name] = parameter.type;
+                sourceBody(s.body, false); sourceScopes.pop_back(); continue;
+            }
+            auto type = sourceExpression(s.expression);
+            sourceExpression(s.target); sourceExpression(s.other);
+            if (s.kind == Stmt::Kind::Let || s.kind == Stmt::Kind::Var) {
+                if (s.annotated) type = s.type;
+                if (s.target) sourcePattern(s.target, type, false); else sourceScopes.back()[s.name] = type;
+            } else if (s.kind == Stmt::Kind::For) {
+                sourceScopes.emplace_back(); sourceScopes.back()[s.name] = type.kind == TypeKind::Array ? type.args.at(0) : I64;
+                sourceBody(s.body, true); sourceScopes.pop_back();
+            } else if (s.kind == Stmt::Kind::Match) {
+                for (const auto &arm : s.body) {
+                    sourceScopes.emplace_back(); sourcePattern(arm->expression, type);
+                    sourceExpression(arm->other); sourceBody(arm->body, false); sourceScopes.pop_back();
+                }
+            } else sourceBody(s.body, true);
+            sourceBody(s.elseBody, true);
+        }
+        if (scoped) sourceScopes.pop_back();
+    }
     int construct(const std::pair<StmtPtr, size_t> &target, const std::vector<Type> &explicitTypes,
                   const std::vector<ExprPtr> &arguments, const Type *expected, Location loc) {
         const auto &definition = target.first;
@@ -1318,12 +1617,21 @@ class Compiler {
                 bindings[name] = explicitTypes[i];
             }
         }
-        std::vector<int> values;
+        std::vector<int> values(arguments.size(), -1);
         for (size_t i = 0; i < arguments.size(); ++i) {
-            const auto &parameter = variant->parameters[i];
+            auto argument = arguments[i];
+            size_t field = i;
+            if (definition->isRecord) {
+                if (argument->kind != Expr::Kind::NamedArgument)
+                    fail(argument->location, "record constructors require named fields: name: value");
+                field = recordFieldIndex(definition, argument->text, argument->nameLocation);
+                if (values[field] >= 0) fail(argument->nameLocation, "duplicate record constructor field '" + argument->text + "'");
+                proveField(definition, field, argument->nameLocation); argument = argument->items.at(0);
+            }
+            const auto &parameter = variant->parameters[field];
             Type hint = partialType(parameter.type, bindings, parameter.location);
-            values.push_back(expr(arguments[i], unresolved(hint) ? nullptr : &hint));
-            infer(parameter.type, type(values.back()), variables, bindings, parameter.location);
+            values[field] = expr(argument, unresolved(hint) ? nullptr : &hint);
+            infer(parameter.type, type(values[field]), variables, bindings, parameter.location);
         }
         std::vector<Type> types;
         for (const auto &name : definition->typeParameters) {
@@ -1566,6 +1874,15 @@ class Compiler {
                 types.push_back(type(value));
             }
             return emit(Op::MakeTuple, Type{TypeKind::Tuple, types}, values, loc);
+        }
+        case Expr::Kind::NamedArgument:
+            fail(loc, "named arguments are only supported by record constructors");
+        case Expr::Kind::Member: {
+            if (e.items.at(0)->kind == Expr::Kind::Name && !binding(e.items[0]->text) && !declaration(e.items[0]->text, e.items[0]->location))
+                fail(e.items[0]->location, "unknown module alias or record value '" + e.items[0]->text + "'");
+            int base = expr(e.items.at(0));
+            auto field = fieldLocation(type(base), e);
+            return emit(Op::Index, field.first, {base, integer(static_cast<int64_t>(field.second), e.nameLocation)}, e.nameLocation);
         }
         case Expr::Kind::Index: {
             int base = expr(e.items[0]);
@@ -1827,7 +2144,9 @@ class Compiler {
     bool pattern(const ExprPtr &value, int subject, std::vector<size_t> &failures) {
         if (!value)
             fail(fn().location, "missing match pattern");
-        const auto &p = *value;
+        auto normalized = std::make_shared<Expr>(*value);
+        if (normalized->kind == Expr::Kind::Call) normalized->items = patternItems(*normalized);
+        const auto &p = *normalized;
         Type subjectType = type(subject);
         auto guard = [&](int condition) {
             failures.push_back(jump(Op::JumpFalse, condition, p.location));
@@ -1961,6 +2280,15 @@ class Compiler {
                 if (!s.operation.empty()) value = binary(s.operation, previous, value, s.location);
                 require(type(value), b.type, s.location, "assignment");
                 emit(Op::StoreCell, Unit, {b.cell, value}, s.location);
+            } else if (target->kind == Expr::Kind::Member) {
+                int base = expr(target->items.at(0));
+                auto field = fieldLocation(type(base), *target);
+                int index = integer(static_cast<int64_t>(field.second), target->nameLocation);
+                int previous = s.operation.empty() ? -1 : emit(Op::Index, field.first, {base, index}, target->nameLocation);
+                int value = expr(s.expression, &field.first);
+                if (!s.operation.empty()) value = binary(s.operation, previous, value, s.location);
+                require(type(value), field.first, s.location, "record field assignment");
+                emit(Op::SetIndex, Unit, {base, index, value}, s.location);
             } else if (target->kind == Expr::Kind::Index) {
                 int base = expr(target->items[0]), index = expr(target->items[1]);
                 require(type(index), I64, s.location, "index");
@@ -2206,10 +2534,10 @@ class Compiler {
     }
 
   public:
-    explicit Compiler(bool symbols = false) : indexSymbols(symbols) {}
-    Program run(const SyntaxTree &tree) {
-        program.sourceFile = tree.filename;
-        for (const auto &statement : tree.statements)
+    explicit Compiler(bool symbols, std::string entry) : entryFunction(std::move(entry)), indexSymbols(symbols) {}
+    Program run(const SyntaxTree &source) {
+        program.sourceFile = source.filename;
+        for (const auto &statement : source.statements)
             if (statement->kind == Stmt::Kind::Import) {
                 if (statement->other) {
                     const auto &alias = statement->other->text;
@@ -2218,6 +2546,8 @@ class Compiler {
                     if (indexSymbols) aliasDefinitions[statement->location.file + "::" + alias] = statement;
                 } else imports[statement->location.file].insert(statement->name);
             }
+        SyntaxTree tree; tree.filename = source.filename;
+        for (const auto &statement : source.statements) tree.statements.push_back(moduleStatement(statement));
         for (const auto &statement : tree.statements) {
             if (statement->kind != Stmt::Kind::Enum) continue;
             const auto &s = *statement;
@@ -2313,10 +2643,12 @@ class Compiler {
             for (auto &parameter : definition->parameters)
                 params.push_back(parameter.type);
             std::string irName = "m" + std::to_string(declarations.size()) + "_" + s.name;
-            if (s.name == "main" && s.location.file == tree.filename) {
+            if (s.name == entryFunction && s.location.file == tree.filename) {
                 irName = "main";
-                if (!params.empty() || (s.returnType != Unit && s.returnType != I64))
-                    fail(s.location, "main must take no parameters and return unit or i64");
+                if (s.kind != Stmt::Kind::Function || !s.typeParameters.empty() || !params.empty() ||
+                    (s.returnType != Unit && s.returnType != I64))
+                    fail(s.location, entryFunction == "main" ? "main must take no parameters and return unit or i64; entry must be a non-generic structured function"
+                         : "selected entry '" + entryFunction + "' must be a non-generic function taking no parameters and returning unit or i64");
             }
             size_t index = declarations.size();
             byModule[key] = index;
@@ -2325,8 +2657,14 @@ class Compiler {
             declarations.push_back(
                 {definition, irName, s.location.file, Type::function(params, definition->returnType)});
         }
-        if (!byModule.count(tree.filename + "::main"))
-            fail({tree.filename, 1, 1}, "program requires fun main() -> unit or i64");
+        if (!byModule.count(tree.filename + "::" + entryFunction))
+            fail({tree.filename, 1, 1}, entryFunction == "main" ? "program requires fun main() -> unit or i64"
+                 : "program requires selected entry function '" + entryFunction + "'");
+        for (const auto &declaration : declarations) if (!declaration.ast->typeParameters.empty()) {
+            sourceScopes.emplace_back();
+            for (const auto &parameter : declaration.ast->parameters) sourceScopes.back()[parameter.name] = parameter.type;
+            sourceBody(declaration.ast->body, false); sourceScopes.pop_back();
+        }
         std::vector<std::pair<Location, std::string>> errors;
         auto keys = [](const auto &map) {
             std::set<std::string> result;
@@ -2344,6 +2682,7 @@ class Compiler {
             const auto specializedBefore = keys(specializations);
             const auto enumBefore = keys(enumInstances);
             const auto layoutsBefore = keys(program.nominalLayouts);
+            const auto recordsBefore = program.nominalRecords;
             const auto serialBefore = serial;
             const auto depthBefore = instantiationDepth;
             const auto budgetBefore = typeExpansionBudget;
@@ -2356,7 +2695,7 @@ class Compiler {
                 program.functions.resize(functionCount);
                 restoreKeys(specializations, specializedBefore);
                 restoreKeys(enumInstances, enumBefore);
-                restoreKeys(program.nominalLayouts, layoutsBefore);
+                restoreKeys(program.nominalLayouts, layoutsBefore); program.nominalRecords = recordsBefore;
                 context.reset(); serial = serialBefore; instantiationDepth = depthBefore; typeExpansionBudget = budgetBefore;
                 if (errors.size() == 20) break;
             }
@@ -2371,15 +2710,26 @@ class Compiler {
         }
         verify(program);
         if (indexSymbols) {
+            bestEffortFields = true;
+            for (const auto &declaration : declarations) if (declaration.ast->typeParameters.empty()) {
+                sourceScopes.emplace_back();
+                for (const auto &parameter : declaration.ast->parameters) sourceScopes.back()[parameter.name] = parameter.type;
+                sourceBody(declaration.ast->body, false); sourceScopes.pop_back();
+            }
+            bestEffortFields = false;
             for (const auto &statement : tree.statements)
                 if (!statement->nameLocation.file.empty()) sourceDeclarations[locationKey(statement->nameLocation)] = statement;
             for (const auto &statement : tree.statements) indexStatement(statement);
+            for (auto &symbol : program.symbols) if (symbol.kind == "field" && unresolvedFields.count(symbol.name)) {
+                symbol.renameable = false;
+                symbol.detail = "rename unavailable: unresolved field references";
+            }
         }
         return std::move(program);
     }
 };
 } // namespace
-Program compile(const SyntaxTree &tree, bool indexSymbols) {
-    return Compiler(indexSymbols).run(tree);
+Program compile(const SyntaxTree &tree, bool indexSymbols, const std::string &entryFunction) {
+    return Compiler(indexSymbols, entryFunction).run(tree);
 }
 } // namespace pika
