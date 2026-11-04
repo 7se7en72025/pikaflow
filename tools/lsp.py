@@ -11,11 +11,12 @@ import urllib.request
 
 from formatter import checked_format, split_comment
 from editor import Editor, apply_changes, point
+from editor_features import TOKEN_TYPES, TOKEN_MODIFIERS, semantic_tokens, inlay_hints
 import packages
 
 LIMIT = 4 * 1024 * 1024
-DECLARATION = re.compile(r"^(\s*)(?:export\s+)?(?:(?:extern\s+)?(fun|word|enum|record)|(let|var))\s+([A-Za-z_]\w*)")
-KEYWORDS = "fun word enum record let var if elif else while for in return match case break continue unsafe import export true false Result i64 f64 bool str unit spawn join".split()
+DECLARATION = re.compile(r"^(\s*)(?:export\s+)?(?:(?:extern\s+)?(fun|word|enum|record|type)|(let|var))\s+([A-Za-z_]\w*)")
+KEYWORDS = "fun word enum record type let var if elif else while for in return match case break continue unsafe import export true false Result i64 f64 bool str unit spawn join".split()
 
 
 def path_from_uri(uri: str) -> pathlib.Path:
@@ -99,7 +100,7 @@ def symbols(source: str) -> list[dict]:
         start = utf16_length(line[:match.start(4)])
         selection = {"start": {"line": number, "character": start},
                      "end": {"line": number, "character": start + len(name)}}
-        found.append({"name": name, "kind": {"fun": 12, "word": 12, "enum": 10, "record": 23}.get(match[2], 13),
+        found.append({"name": name, "kind": {"fun": 12, "word": 12, "enum": 10, "record": 23, "type": 26}.get(match[2], 13),
                       "range": {"start": {"line": number, "character": 0},
                                 "end": {"line": number, "character": utf16_length(line)}},
                       "selectionRange": selection, "detail": line.strip()})
@@ -202,6 +203,9 @@ class Server:
                 "documentFormattingProvider": True, "documentSymbolProvider": True,
                 "hoverProvider": True, "definitionProvider": True, "referencesProvider": True,
                 "renameProvider": {"prepareProvider": True},
+                "semanticTokensProvider": {"legend": {"tokenTypes": TOKEN_TYPES,
+                    "tokenModifiers": TOKEN_MODIFIERS}, "full": True, "range": False},
+                "inlayHintProvider": True,
                 "completionProvider": {"resolveProvider": False}},
                 "serverInfo": {"name": "PikaFlow", "version": "0.4.0"}}
         if not self.initialized:
@@ -240,6 +244,9 @@ class Server:
         if method in ("textDocument/hover", "textDocument/definition", "textDocument/references",
                       "textDocument/prepareRename", "textDocument/rename"):
             return self.editor.request(method, params, path_from_uri(params["textDocument"]["uri"]))
+        if method in ("textDocument/semanticTokens/full", "textDocument/inlayHint"):
+            path = path_from_uri(params["textDocument"]["uri"])
+            return semantic_tokens(self, path) if method.endswith("/full") else inlay_hints(self, path, params)
         if method in ("textDocument/formatting", "textDocument/documentSymbol", "textDocument/completion"):
             path = path_from_uri(params["textDocument"]["uri"])
             source = self.source(path)
@@ -254,7 +261,7 @@ class Server:
             if method.endswith("documentSymbol"):
                 return declarations
             items = [{"label": name, "kind": 14} for name in KEYWORDS]
-            items.extend({"label": item["name"], "kind": {12: 3, 10: 13, 23: 22}.get(item["kind"], 6),
+            items.extend({"label": item["name"], "kind": {12: 3, 10: 13, 23: 22, 26: 25}.get(item["kind"], 6),
                           "detail": item["detail"]} for item in declarations)
             return {"isIncomplete": False, "items": items}
         return {"__error__": -32601, "message": f"method not found: {method}"}

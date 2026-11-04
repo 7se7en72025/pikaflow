@@ -179,6 +179,20 @@ if(BUILD_TESTING)
         add_test(NAME records COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_records.py" "$<TARGET_FILE:pikaflow>")
     endif()
+    if(Python3_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_type_aliases.py")
+        set(PIKAFLOW_ALIAS_ARGS "$<TARGET_FILE:pikaflow>")
+        if(PIKAFLOW_ENABLE_LLVM)
+            list(APPEND PIKAFLOW_ALIAS_ARGS "$<TARGET_FILE:pikaflow_ffi_fixture>"
+                "$<TARGET_LINKER_FILE:pikaflow_ffi_fixture>")
+        endif()
+        add_test(NAME type_aliases COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_type_aliases.py" ${PIKAFLOW_ALIAS_ARGS})
+    endif()
+    if(Python3_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzz_programs.py")
+        add_test(NAME semantic_programs COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzz_programs.py" "$<TARGET_FILE:pikaflow>"
+            --cases 10 --seed 20261105 --artifacts "${CMAKE_CURRENT_BINARY_DIR}/semantic-program-failures")
+    endif()
     if(Python3_FOUND AND Python3_VERSION VERSION_GREATER_EQUAL 3.10 AND
        EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_project_tests.py")
         add_test(NAME project_tests COMMAND "${Python3_EXECUTABLE}"
@@ -195,6 +209,11 @@ if(BUILD_TESTING)
     if(Python3_FOUND AND Python3_VERSION VERSION_GREATER_EQUAL 3.10 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_editor.py")
         add_test(NAME editor_workflows COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_editor.py" "$<TARGET_FILE:pikaflow>")
+    endif()
+    if(Python3_FOUND AND Python3_VERSION VERSION_GREATER_EQUAL 3.10 AND
+       EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_editor_features.py")
+        add_test(NAME editor_features COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_editor_features.py" "$<TARGET_FILE:pikaflow>")
     endif()
     if(Python3_FOUND AND Python3_VERSION VERSION_GREATER_EQUAL 3.10 AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_semantic_symbols.py")
         add_test(NAME semantic_symbols COMMAND "${Python3_EXECUTABLE}"

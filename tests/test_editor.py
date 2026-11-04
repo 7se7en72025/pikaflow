@@ -103,6 +103,20 @@ class EditorWorkflows(unittest.TestCase):
                 "textDocument": {"uri": path.as_uri()}, "position": {"line": 1, "character": 5}}})
         self.assertEqual(path.read_bytes(), source.encode())
 
+    def test_type_alias_and_its_parameter_rename_preserve_record_execution(self):
+        source = ('record Cell[T]:\n    value:T\ntype Items[T] = [Cell[T]]\n'
+            'fun first(items:Items[i64])->i64:\n    return items[0].value\n'
+            'fun main()->unit:\n    let items:Items[i64]=[Cell(value:42)]\n    print(first(items))\n')
+        path = write(self.root / "main.pf", source)
+        _, changed = self.renamed(path, "Items", "Rows", kind="typeAlias")
+        self.assertEqual(self.interpreted(changed[path]), "42\n")
+        self.assertNotIn("Items", changed[path])
+        _, changed = self.renamed(path, "T", "Element", line=3, kind="typeParameter")
+        self.assertIn("record Cell[T]", changed[path])
+        self.assertIn("type Items[Element] = [Cell[Element]]", changed[path])
+        self.assertEqual(self.interpreted(changed[path]), "42\n")
+        self.assertEqual(path.read_bytes(), source.encode())
+
     def test_utf16_crlf_changes_and_atomic_failures(self):
         text = "a\U0001f600b\r\nnext\r\n"
         self.assertEqual(editor.offset(text, {"line": 0, "character": 3}), 2)

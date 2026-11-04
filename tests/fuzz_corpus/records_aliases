@@ -1,0 +1,9 @@
+record Box[T]:
+    value: T
+type Boxes[T] = [Box[T]]
+fun main() -> unit:
+    let boxes: Boxes[i64] = [Box(value: 42)]
+    boxes[0].value += 1
+    match boxes[0]:
+        case Box(value: answer):
+            print(answer)
