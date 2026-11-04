@@ -97,14 +97,21 @@ struct External {
     std::vector<CABIType> abiParameters{};
     CABIType abiResult{};
 };
+struct Symbol {
+    std::string id, name, kind, detail;
+    Location definition;
+    std::vector<Location> uses;
+    Type type;
+};
 struct Program {
     std::vector<Function> functions;
     std::vector<External> externals;
     std::string entry = "main";
     std::string sourceFile;
     std::map<std::string, Type> nominalLayouts{};
+    std::vector<Symbol> symbols{};
 };
-Program compile(const SyntaxTree &tree);
+Program compile(const SyntaxTree &tree, bool indexSymbols = false);
 void verify(const Program &program);
 std::string dumpIR(const Program &program);
 int interpret(const Program &program);
