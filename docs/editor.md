@@ -10,7 +10,8 @@ python tools/pikaflow.py --compiler build/native/pikaflow.exe lsp
 Use your editor's standard LSP configuration with language ID `pikaflow` and
 `*.pf` files. The server supports incremental UTF-16 document synchronization,
 unsaved diagnostics, formatting, declaration/keyword completion, document
-symbols, semantic hover, go-to-definition, references, prepare-rename and rename.
+symbols, semantic hover, go-to-definition, references, prepare-rename and rename,
+full semantic tokens and inferred-local type hints.
 No editor extension or network service is required.
 
 ## Source bindings and workspace scope
@@ -95,6 +96,32 @@ parameters for nonstring document URIs; a valid request after an invalid URI
 still works. These checks bound the advertised protocol flow,
 not every possible client implementation.
 
+## Semantic tokens and inferred types
+
+`textDocument/semanticTokens/full` classifies compiler-resolved names as module
+namespaces, aliases/types, records, enums/constructors, type parameters,
+functions/words/externs, parameters, variables and fields. Declaration tokens
+carry a declaration modifier. The response is sorted, deduplicated LSP delta
+data using UTF-16 positions. Keywords, comments and string contents are not
+semantic-name tokens. Unresolved names, changed source slices and ambiguous
+classifications are omitted. Incremental semantic-token delta and semantic-token
+range endpoints are not supported.
+
+`textDocument/inlayHint` returns type labels after inferred simple `let`/`var`
+names in the requested half-open range. Explicit annotations, parameters,
+destructuring/pattern bindings, unit/unknown types and generic placeholders are
+skipped. Compiler file qualifiers are removed from displayed nominal type names;
+the labels are informational, not insertable annotations. Hints contain no text
+edits, and there is no hint-resolution endpoint.
+
+Both features use the same unsaved overlays and project-scoped compiler index
+as navigation. They also work when inspecting reachable read-only dependencies.
+They do not write source files. If the source changes while indexing, the
+request returns no decorations. Limits are 50,000 tokens, 4,096 hints, 300,000
+source locations and 160 displayed type characters; exceeding a result-count
+limit produces an error rather than an unbounded response. Existing document,
+workspace and compiler limits still apply.
+
 ## Checks
 
 `tests/test_editor.py` runs real compiler-backed workflows and an actual stdio
@@ -105,3 +132,6 @@ rejection, cached dependency inspection, read-only edit rejection, malformed
 overlays and capability-aware workspace edits. Fixtures verify that user source
 files stay unchanged throughout. Compiler symbol metadata also has dedicated
 regressions in `tests/test_semantic_symbols.py`.
+`tests/test_editor_features.py` separately checks real record/field/generic and
+module classifications, overlays, read-only dependencies, inferred types,
+UTF-16/BOM/CRLF positions, ranges, deduplication and decoration budgets.
