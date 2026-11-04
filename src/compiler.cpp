@@ -136,25 +136,37 @@ class Compiler {
         }
         for (const auto &argument : type.args) indexType(argument, external);
     }
-    void indexValue(const Expr &expression) {
+    size_t constructorSymbol(const std::pair<StmtPtr, size_t> &variant) {
+        auto definition = variant.first->body.at(variant.second);
+        auto type = sourceFunctionType(*definition);
+        std::vector<Type> arguments;
+        for (const auto &parameter : variant.first->typeParameters) arguments.emplace_back(TypeKind::Named, std::vector<Type>{}, parameter);
+        type.args.back() = Type{TypeKind::Named, arguments, variant.first->name};
+        return addSymbol(definition->name, "constructor", definition->nameLocation, type);
+    }
+    enum class IndexNameRole { Value, Call, Invoke, Function, Callback, Local };
+    void indexValue(const Expr &expression, IndexNameRole role = IndexNameRole::Value) {
         const auto &name = expression.text;
         const auto use = expression.nameLocation.file.empty() ? expression.location : expression.nameLocation;
         size_t local = scopedSymbol(name);
-        if (scopedBindingExists(name)) { symbolUse(local, use); return; }
+        if (scopedBindingExists(name)) {
+            if (role != IndexNameRole::Function && role != IndexNameRole::Callback) symbolUse(local, use);
+            return;
+        }
+        if (role == IndexNameRole::Local) return;
         aliasUse(name, expression.location);
-        auto variant = constructor(name, expression.location);
-        if (variant.first) {
-            auto definition = variant.first->body.at(variant.second);
-            auto type = sourceFunctionType(*definition);
-            std::vector<Type> arguments;
-            for (const auto &parameter : variant.first->typeParameters) arguments.emplace_back(TypeKind::Named, std::vector<Type>{}, parameter);
-            type.args.back() = Type{TypeKind::Named, arguments, variant.first->name};
-            symbolUse(addSymbol(definition->name, "constructor", definition->nameLocation, type), use);
-        } else if (auto declarationValue = declaration(name, expression.location)) {
-            symbolUse(declarationSymbol(declarationValue->ast, declarationValue->ast->kind == Stmt::Kind::Word ? "word" : "function"), use);
-        } else if (auto native = external(name, expression.location)) {
-            auto definition = externalDefinitions.find(native->name);
-            if (definition != externalDefinitions.end()) symbolUse(declarationSymbol(definition->second, "extern"), use);
+        if (role == IndexNameRole::Call) {
+            auto variant = constructor(name, expression.location);
+            if (variant.first) { symbolUse(constructorSymbol(variant), use); return; }
+        }
+        if (auto declarationValue = declaration(name, expression.location)) {
+            if (role != IndexNameRole::Callback || declarationValue->ast->kind == Stmt::Kind::Function)
+                symbolUse(declarationSymbol(declarationValue->ast, declarationValue->ast->kind == Stmt::Kind::Word ? "word" : "function"), use);
+        } else if (role == IndexNameRole::Call || role == IndexNameRole::Invoke) {
+            if (auto native = external(name, expression.location)) {
+                auto definition = externalDefinitions.find(native->name);
+                if (definition != externalDefinitions.end()) symbolUse(declarationSymbol(definition->second, "extern"), use);
+            }
         }
     }
     void indexBinding(const std::string &name, const Location &location, const Type &annotation = Unit, const std::string &kind = "variable") {
@@ -175,12 +187,18 @@ class Compiler {
     }
     void indexPattern(const ExprPtr &pattern, bool wildcards = true) {
         if (!pattern) return;
+        indexStep(pattern->location);
         if (pattern->kind == Expr::Kind::Name) {
             if (!wildcards || pattern->text != "_") indexBinding(pattern->text, pattern->location);
             return;
         }
         if (pattern->kind == Expr::Kind::Call && !pattern->items.empty()) {
-            if (pattern->items[0]->kind == Expr::Kind::Name) indexValue(*pattern->items[0]);
+            if (pattern->items[0]->kind == Expr::Kind::Name) {
+                const auto &callee = *pattern->items[0];
+                aliasUse(callee.text, callee.location);
+                auto variant = constructor(callee.text, callee.location);
+                if (variant.first) symbolUse(constructorSymbol(variant), callee.nameLocation.file.empty() ? callee.location : callee.nameLocation);
+            }
             for (size_t i = 1; i < pattern->items.size(); ++i) indexPattern(pattern->items[i], wildcards);
         } else for (const auto &item : pattern->items) indexPattern(item, wildcards);
     }
@@ -191,6 +209,44 @@ class Compiler {
         if (value.kind == Expr::Kind::Name) { indexValue(value); return; }
         for (const auto &argument : value.typeArguments) indexType(argument);
         indexType(value.returnType);
+        if (value.kind == Expr::Kind::TypeApply) {
+            if (!value.items.empty() && value.items[0]->kind == Expr::Kind::Name) indexValue(*value.items[0], IndexNameRole::Function);
+            return;
+        }
+        if (value.kind == Expr::Kind::Call) {
+            auto callee = value.items.at(0);
+            if (callee->kind == Expr::Kind::Name && callee->text == "c_callback") {
+                for (size_t i = 1; i < value.items.size(); ++i) {
+                    auto source = value.items[i];
+                    if (source->kind == Expr::Kind::TypeApply) {
+                        for (const auto &argument : source->typeArguments) indexType(argument);
+                        source = source->items.at(0);
+                    }
+                    if (source->kind == Expr::Kind::Name) indexValue(*source, IndexNameRole::Callback);
+                    else indexExpression(source);
+                }
+                return;
+            }
+            if (callee->kind == Expr::Kind::Name) indexValue(*callee, IndexNameRole::Call);
+            else if (callee->kind == Expr::Kind::TypeApply && !callee->items.empty() && callee->items[0]->kind == Expr::Kind::Name) {
+                for (const auto &argument : callee->typeArguments) indexType(argument);
+                auto source = callee->items[0];
+                if (!scopedBindingExists(source->text) && constructor(source->text, source->location).first) indexValue(*source, IndexNameRole::Call);
+                else indexValue(*source, IndexNameRole::Function);
+            } else indexExpression(callee);
+            for (size_t i = 1; i < value.items.size(); ++i) indexExpression(value.items[i]);
+            return;
+        }
+        if (value.kind == Expr::Kind::Binary && value.text == "|>") {
+            indexExpression(value.items.at(0));
+            auto right = value.items.at(1);
+            auto callee = right->kind == Expr::Kind::Call ? right->items.at(0) : right;
+            if (callee->kind == Expr::Kind::Name) indexValue(*callee, IndexNameRole::Invoke);
+            else indexExpression(callee);
+            if (right->kind == Expr::Kind::Call)
+                for (size_t i = 1; i < right->items.size(); ++i) indexExpression(right->items[i]);
+            return;
+        }
         if (value.kind == Expr::Kind::Lambda) {
             indexScopes.emplace_back();
             for (const auto &parameter : value.parameters) {
@@ -273,7 +329,9 @@ class Compiler {
         if (s.kind == Stmt::Kind::StackOp) {
             Expr operation(Expr::Kind::Name, s.location); operation.text = s.name; indexValue(operation); return;
         }
-        indexExpression(s.target); indexExpression(s.expression); indexExpression(s.other);
+        if (s.kind == Stmt::Kind::Assign && s.target && s.target->kind == Expr::Kind::Name) indexValue(*s.target, IndexNameRole::Local);
+        else indexExpression(s.target);
+        indexExpression(s.expression); indexExpression(s.other);
         indexBody(s.body, true); indexBody(s.elseBody, true);
     }
     std::unique_ptr<Context> context;

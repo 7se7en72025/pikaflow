@@ -146,6 +146,35 @@ def main():
         assert len(alias_underscore) == 1 and len(alias_underscore[0]["uses"]) == 3
         assert len(ctor_underscore) == 1 and len(ctor_underscore[0]["uses"]) == 2
         assert alias_underscore[0]["id"] != ctor_underscore[0]["id"]
+        constructor_shadow = root / "constructor_shadow.pf"
+        constructor_shadow.write_text("enum E:\n    Some(value:i64)\n    Other(value:i64)\nfun main():\n    let object=Some(1)\n    let Some=42\n    match object:\n        case Some(value):\n            print(Some)\n        case _:\n            print(0)\n", encoding="utf-8")
+        constructor_records = symbols(constructor_shadow)["symbols"]
+        constructor_some = [record for record in constructor_records if record["name"] == "Some" and record["kind"] == "constructor"]
+        variable_some = [record for record in constructor_records if record["name"] == "Some" and record["kind"] == "variable"]
+        assert len(constructor_some) == len(variable_some) == 1
+        assert [use["line"] for use in constructor_some[0]["uses"]] == [5, 8], "pattern callee must ignore same-named value bindings"
+        assert [use["line"] for use in variable_some[0]["uses"]] == [9], "local binding must not own constructor pattern uses"
+        roles_library = root / "roles_library.pf"
+        roles_library.write_text("export fun Pick[T](value:T)->T:\n    return value\nexport fun NewPick[T](value:T)->T:\n    return value+value\nexport fun Plain(value:i64)->i64:\n    return value\nexport fun NewPlain(value:i64)->i64:\n    return value+value\nexport word WordPick(i64)->i64:\n    1 +\nexport word NewWordPick(i64)->i64:\n    2 +\n", encoding="utf-8")
+        roles_source = root / "roles.pf"
+        roles_source.write_text("import \"roles_library.pf\"\nimport \"roles_library.pf\" as lib\nenum Choice:\n    Pick(value:i64)\n    Plain(value:i64)\nfun callback_sources():\n    unsafe:\n        c_callback(Pick::[i64])\n        c_callback(Plain)\nfun main():\n    let object=Pick(21)\n    let other=Plain(21)\n    let specialized=Pick::[i64]\n    let value=Plain\n    print(specialized(21))\n    print(value(21))\n    print(21 |> Pick)\n    print(21 |> Pick())\n    print(lib.Pick(21))\n    match object:\n        case Pick(payload):\n            print(payload)\n        case _:\n            pass\n", encoding="utf-8")
+        role_records = symbols(roles_source)["symbols"]
+        def role(name, kind):
+            matches = [record for record in role_records if record["name"] == name and record["kind"] == kind]
+            assert len(matches) == 1, (name, kind, matches)
+            return [use["line"] for use in matches[0]["uses"]]
+        assert role("Pick", "constructor") == [11, 21], "direct calls and pattern callees must use constructor resolution"
+        assert role("Plain", "constructor") == [12]
+        assert role("Pick", "function") == [8, 13, 17, 18, 19], "TypeApply, callbacks and pipeline invocation must use source functions"
+        assert role("Plain", "function") == [9, 14], "bare function values/callbacks must not resolve as constructors"
+        word_roles = root / "word_roles.pf"
+        word_roles.write_text('import "roles_library.pf"\nenum E:\n    WordPick(value:i64)\n    Other(value:i64)\nfun main():\n    let result=stack(41)->i64:\n        WordPick\n    print(result)\n', encoding="utf-8")
+        word_records = symbols(word_roles)["symbols"]
+        word_pick = [record for record in word_records if record["name"] == "WordPick" and record["kind"] == "word"]
+        ctor_word_pick = [record for record in word_records if record["name"] == "WordPick" and record["kind"] == "constructor"]
+        assert len(word_pick) == len(ctor_word_pick) == 1
+        assert [use["line"] for use in word_pick[0]["uses"]] == [7]
+        assert not ctor_word_pick[0]["uses"], "bare stack words use function/word resolution rather than constructors"
 
         # Changing an identifier spelling leaves unrelated same-text bindings alone.
         shadow = find("value", "parameter", "fun inner")

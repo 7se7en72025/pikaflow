@@ -183,6 +183,8 @@ Only a bare `_` in a match pattern is a wildcard. An ordinary local, parameter,
 type parameter or `let (a, _)` declaration named `_` remains a real binding.
 `_(payload)` is a constructor pattern and `_.Constructor(payload)` uses a module
 alias named `_`; neither is mistaken for the wildcard.
+Constructor callees in patterns use the constructor namespace even when a local
+value has the same name; ordinary expressions continue to use lexical value bindings.
 
 ## Typed stack programming
 
@@ -385,6 +387,12 @@ point to identifier tokens, including qualified-name members and alias prefixes.
 Shadowed locals, parameters, pattern bindings, loop variables and closure captures
 retain separate binding IDs. Writes and compound-assignment targets are uses of
 the same source binding, and generic instantiations do not duplicate references.
+Resolution also follows expression context: ordinary function values and explicit
+specialization use source-function lookup, direct calls may select constructors,
+pattern callees resolve constructors despite same-named values, pipelines invoke
+functions/words/externs, and C callbacks select named structured functions.
+Sharing one constructor-first lookup across these contexts would misidentify
+references and could change a program during rename.
 
 The index includes source in unused generic templates. Inferred types that vary
 with a generic context are described as generic declarations rather than taking
