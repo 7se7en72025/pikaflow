@@ -109,6 +109,10 @@ int main() {
         require(imports.statements[2]->exported && imports.statements[2]->returnType.kind == TypeKind::Result, "Result/export types failed");
         const auto aliased = tree("extern fun libc_free(p: ptr[unit]) -> unit = \"free\"\n");
         require(aliased.statements[0]->expression && aliased.statements[0]->expression->text == "free", "foreign symbol alias failed");
+        const auto exportedExtern = tree("export extern fun magnitude(value: f64) -> f64 = \"fabs\"\n");
+        require(exportedExtern.statements[0]->kind == Stmt::Kind::Extern
+            && exportedExtern.statements[0]->exported
+            && exportedExtern.statements[0]->expression->text == "fabs", "exported foreign declaration failed");
         const auto unsafe = tree("fun main():\n    unsafe:\n        let memory: ptr[i64] = alloc_i64(2)\n        store(memory, 0, 42)\n        free(memory)\n");
         require(unsafe.statements[0]->body[0]->kind == Stmt::Kind::Unsafe && unsafe.statements[0]->body[0]->body.size() == 3, "unsafe suite failed");
         require(tree("let n = -9223372036854775808\n").statements[0]->expression->integer == std::numeric_limits<int64_t>::min(), "minimum i64 literal failed");

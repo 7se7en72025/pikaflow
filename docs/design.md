@@ -133,7 +133,8 @@ syntax remain separate work.
 
 ## Modules and C boundary
 
-Files are namespaces with explicit `export` on functions/words. Imports expose
+Files are namespaces with explicit `export` on functions, words and extern
+declarations. Imports expose
 only directly imported exported declarations; transitive private names and private
 extern aliases do not leak. Import cycles diagnose. `std:` resolves bundled
 standard-library modules from the development or installed library layout.

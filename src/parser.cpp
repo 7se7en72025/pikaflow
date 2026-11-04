@@ -307,8 +307,9 @@ class Parser {
             if (is("export")) throw Error(peek().location, "duplicate export modifier");
             auto result = statement(stack);
             if (result->kind != Stmt::Kind::Function && result->kind != Stmt::Kind::Word
+                && result->kind != Stmt::Kind::Extern
                 && result->kind != Stmt::Kind::Let && result->kind != Stmt::Kind::Var)
-                throw Error(start.location, "only functions, words and variables may be exported");
+                throw Error(start.location, "only functions, words, extern declarations and variables may be exported");
             result->exported = true;
             return result;
         }
