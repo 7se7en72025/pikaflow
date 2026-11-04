@@ -1,0 +1,16 @@
+import "library.pf" as lib
+
+fun main() -> unit:
+    var total = 20
+    total += 22
+    let values = [total]
+    values[0] *= 2
+    let item: lib.Option[i64] = lib.Some::[i64](values[0])
+    match item:
+        case lib.Some(value):
+            value |> lib.identity |> print
+        case lib.None():
+            pass
+    let sum = stack(20, 22) -> i64:
+        lib.add
+    print(sum)
