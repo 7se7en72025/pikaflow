@@ -127,6 +127,10 @@ int main() {
         const auto compound = tree("fun main():\n    values[index()] += right()\n");
         require(compound.statements[0]->body[0]->operation == "+" && compound.statements[0]->body[0]->expression->kind == Expr::Kind::Call,
             "compound assignment must preserve one lvalue and one RHS");
+        const auto underscorePatterns = tree("fun main():\n    match value:\n        case _.Boxed(x):\n            pass\n        case _(x):\n            pass\n        case _:\n            pass\n");
+        const auto &underscoreArms = underscorePatterns.statements[0]->body[0]->body;
+        require(underscoreArms[0]->expression->items[0]->text == "_.Boxed" && underscoreArms[1]->expression->items[0]->text == "_"
+            && underscoreArms[2]->name == "_", "qualified underscore and constructor patterns must remain distinct from a wildcard");
         const auto unsafe = tree("fun main():\n    unsafe:\n        let memory: ptr[i64] = alloc_i64(2)\n        store(memory, 0, 42)\n        free(memory)\n");
         require(unsafe.statements[0]->body[0]->kind == Stmt::Kind::Unsafe && unsafe.statements[0]->body[0]->body.size() == 3, "unsafe suite failed");
         require(tree("let n = -9223372036854775808\n").statements[0]->expression->integer == std::numeric_limits<int64_t>::min(), "minimum i64 literal failed");

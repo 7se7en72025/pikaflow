@@ -136,6 +136,16 @@ def main():
         assert [use["line"] for use in underscore("variable", 12)["uses"]] == [13, 14, 15, 16, 22]
         assert [use["line"] for use in underscore("variable", 18)["uses"]] == [19]
         assert not any(record["name"] == "_" and record["definition"]["line"] == 21 for record in underscore_records), "match wildcard must not introduce an underscore binding"
+        alias_library = root / "underscore_library.pf"
+        alias_library.write_text("export enum Box:\n    _(value:i64)\n", encoding="utf-8")
+        alias_source = root / "underscore_alias.pf"
+        alias_source.write_text('import "underscore_library.pf" as _\nfun main():\n    let value:_.Box=_._(42)\n    match value:\n        case _._(payload):\n            print(payload)\n', encoding="utf-8")
+        alias_records = symbols(alias_source)["symbols"]
+        alias_underscore = [record for record in alias_records if record["name"] == "_" and record["kind"] == "module"]
+        ctor_underscore = [record for record in alias_records if record["name"] == "_" and record["kind"] == "constructor"]
+        assert len(alias_underscore) == 1 and len(alias_underscore[0]["uses"]) == 3
+        assert len(ctor_underscore) == 1 and len(ctor_underscore[0]["uses"]) == 2
+        assert alias_underscore[0]["id"] != ctor_underscore[0]["id"]
 
         # Changing an identifier spelling leaves unrelated same-text bindings alone.
         shadow = find("value", "parameter", "fun inner")

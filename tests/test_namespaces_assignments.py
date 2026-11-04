@@ -26,6 +26,26 @@ extern fun private_magnitude(value: f64) -> f64 = "fabs"
 '''
 
 CASES = {
+    "underscore_namespace": ('''
+        import "underscore.pf" as _
+        fun main() -> unit:
+            let boxed: _.Box = _._(42)
+            match boxed:
+                case _._(value):
+                    print(value)
+    ''', "42\n"),
+    "underscore_constructor_and_wildcard": ('''
+        import "underscore.pf"
+        fun main() -> unit:
+            let boxed = _(42)
+            match boxed:
+                case _(value):
+                    print(value)
+            let _ = 20
+            match 999:
+                case _:
+                    print(_ + 22)
+    ''', "42\n42\n"),
     "word_local_shadow": ('''
         word answer() -> i64:
             1
@@ -159,6 +179,7 @@ def main():
         root = pathlib.Path(temporary)
         (root / "library.pf").write_text(textwrap.dedent(LIBRARY).lstrip(), encoding="utf-8")
         (root / "other.pf").write_text("export fun answer()->i64:\n    return 9\n", encoding="utf-8")
+        (root / "underscore.pf").write_text("export enum Box:\n    _(value:i64)\n", encoding="utf-8")
         for name, (source, expected) in CASES.items():
             path = root / (name + ".pf")
             path.write_text(textwrap.dedent(source).lstrip(), encoding="utf-8")

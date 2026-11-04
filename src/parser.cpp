@@ -336,7 +336,7 @@ class Parser {
             Token caseToken = expect("case");
             if (wildcardSeen) throw Error(caseToken.location, "wildcard case must be the final match case");
             auto arm = std::make_shared<Stmt>(Stmt::Kind::If, caseToken.location);
-            if (accept("_")) arm->name = "_";
+            if (is("_") && peek(1).text != "." && peek(1).text != "(") { take(); arm->name = "_"; }
             else arm->expression = expression();
             if (accept("if")) arm->other = expression();
             if (arm->name == "_" && !arm->other) wildcardSeen = true;

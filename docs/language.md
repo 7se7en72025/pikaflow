@@ -179,6 +179,10 @@ boolean guard. Nominal `enum` declarations support generic and recursive payload
 their matches are checked for exhaustiveness, including nested enum/tuple/bool/
 Result combinations. Guarded cases do not establish coverage. See the
 [generic/ADT reference](language-extensions.md) for constructors and examples.
+Only a bare `_` in a match pattern is a wildcard. An ordinary local, parameter,
+type parameter or `let (a, _)` declaration named `_` remains a real binding.
+`_(payload)` is a constructor pattern and `_.Constructor(payload)` uses a module
+alias named `_`; neither is mistaken for the wildcard.
 
 ## Typed stack programming
 
