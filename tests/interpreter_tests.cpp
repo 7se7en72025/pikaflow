@@ -130,6 +130,13 @@ void testFloatingAndAuditedExterns() {
     program.externals = {External{"sqrt", {F64}, F64, false}};
     require(execute(program) == "3\n3\n", "audited C math signature and numeric conversion");
 
+    auto aliasInput = instruction(Op::ConstF64, 0);
+    aliasInput.real = -2.5;
+    main.code = {aliasInput, named(Op::ExternalCall, 1, {0}, "magnitude"), instruction(Op::Print, -1, {1}), instruction(Op::Return)};
+    program.functions = {main};
+    program.externals = {External{"magnitude", {F64}, F64, false, "fabs"}};
+    require(execute(program) == "2.5\n", "audited math extern uses native symbol behind a source alias");
+
     input.real = std::numeric_limits<double>::quiet_NaN();
     main.code = {input, instruction(Op::Eq, 3, {0, 0}), instruction(Op::Ne, 4, {0, 0}),
         instruction(Op::Print, -1, {3}), instruction(Op::Print, -1, {4}), instruction(Op::Return)};
@@ -173,10 +180,10 @@ void testUnsafeMemoryAndCString() {
         instruction(Op::RawStore, -1, {1, 2, 3}), instruction(Op::RawLoad, 4, {1, 2}),
         instruction(Op::Print, -1, {4}), instruction(Op::RawFree, -1, {1}), text(5, "hello"),
         instruction(Op::Pin, 6, {5}), instruction(Op::CString, 7, {5}), instruction(Op::Collect),
-        named(Op::ExternalCall, 8, {7}, "strlen"), instruction(Op::Print, -1, {8}),
+        named(Op::ExternalCall, 8, {7}, "byte_length"), instruction(Op::Print, -1, {8}),
         instruction(Op::Unpin, -1, {6}), instruction(Op::Return)};
     program.functions = {main};
-    program.externals = {External{"strlen", {nativePointer}, I64, false}};
+    program.externals = {External{"byte_length", {nativePointer}, I64, false, "strlen"}};
     require(execute(program) == "42\n5\n", "unsafe raw memory, pinning, C string boundary and audited strlen");
 }
 

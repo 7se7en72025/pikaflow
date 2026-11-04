@@ -80,6 +80,7 @@ class Interpreter {
 
     PFValue external(const Instruction& instruction, const std::vector<PFValue>& arguments) {
         const auto& declaration = *externals.at(instruction.text);
+        const auto& symbol = declaration.symbol.empty() ? declaration.name : declaration.symbol;
         auto matches = [&](size_t count, const Type& input, const Type& output) {
             if (declaration.variadic || declaration.parameters.size() != count || declaration.result != output) return false;
             for (const auto& type : declaration.parameters) if (type != input) return false;
@@ -106,20 +107,20 @@ class Interpreter {
             {"round", static_cast<double (*)(double)>(&std::round)}
         };
         for (const auto& operation : unary)
-            if (instruction.text == operation.name && matches(1, F64, F64))
+            if (symbol == operation.name && matches(1, F64, F64))
                 return fromFloat(operation.call(floating(arguments[0])));
         if (matches(2, F64, F64)) {
             const auto a = floating(arguments[0]), b = floating(arguments[1]);
-            if (instruction.text == "pow") return fromFloat(std::pow(a, b));
-            if (instruction.text == "atan2") return fromFloat(std::atan2(a, b));
-            if (instruction.text == "fmod") return fromFloat(std::fmod(a, b));
+            if (symbol == "pow") return fromFloat(std::pow(a, b));
+            if (symbol == "atan2") return fromFloat(std::atan2(a, b));
+            if (symbol == "fmod") return fromFloat(std::fmod(a, b));
         }
-        if (instruction.text == "llabs" && matches(1, I64, I64)) {
+        if (symbol == "llabs" && matches(1, I64, I64)) {
             const auto value = integer(arguments[0]);
             return fromInteger(value < 0 ? pf_checked_neg(value) : value);
         }
         const Type nativePointer{TypeKind::Pointer, {Unit}};
-        if (instruction.text == "strlen" && sizeof(size_t) == sizeof(int64_t) && matches(1, nativePointer, I64)) {
+        if (symbol == "strlen" && sizeof(size_t) == sizeof(int64_t) && matches(1, nativePointer, I64)) {
             const auto* bytes = static_cast<const char*>(reference(arguments[0]));
             if (!bytes) pf_fail("null C string pointer", instruction.location.file.c_str(), static_cast<int32_t>(instruction.location.line));
             const auto count = std::strlen(bytes);
