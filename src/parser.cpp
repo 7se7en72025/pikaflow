@@ -359,6 +359,11 @@ class Parser {
             return result;
         }
         if (accept("match")) return matchStatement(start, stack);
+        if (accept("unsafe")) {
+            auto result = std::make_shared<Stmt>(Stmt::Kind::Unsafe, start.location);
+            result->body = suite(stack);
+            return result;
+        }
         if (accept("break") || accept("continue")) {
             auto result = std::make_shared<Stmt>(start.text == "break" ? Stmt::Kind::Break : Stmt::Kind::Continue, start.location);
             finishSimple(); return result;
@@ -394,7 +399,7 @@ class Parser {
     }
     void stackStatement(std::vector<StmtPtr>& body) {
         if (is("if") || is("while") || is("for") || is("match") || is("let") || is("var")
-            || is("return") || is("break") || is("continue") || is("fun") || is("word")) {
+            || is("return") || is("break") || is("continue") || is("fun") || is("word") || is("unsafe")) {
             body.push_back(statement(true)); return;
         }
         const Token token = peek();
@@ -470,6 +475,7 @@ const char* statementName(Stmt::Kind kind) {
     case Stmt::Kind::Continue: return "Continue";
     case Stmt::Kind::StackOp: return "StackOp";
     case Stmt::Kind::Match: return "Match";
+    case Stmt::Kind::Unsafe: return "Unsafe";
     }
     return "Unknown";
 }

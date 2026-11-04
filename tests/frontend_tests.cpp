@@ -104,6 +104,8 @@ int main() {
         require(imports.statements[0]->other->text == "math", "import alias failed");
         require(imports.statements[1]->variadic, "extern varargs failed");
         require(imports.statements[2]->exported && imports.statements[2]->returnType.kind == TypeKind::Result, "Result/export types failed");
+        const auto unsafe = tree("fun main():\n    unsafe:\n        let memory: ptr[i64] = alloc_i64(2)\n        store(memory, 0, 42)\n        free(memory)\n");
+        require(unsafe.statements[0]->body[0]->kind == Stmt::Kind::Unsafe && unsafe.statements[0]->body[0]->body.size() == 3, "unsafe suite failed");
         require(tree("let n = -9223372036854775808\n").statements[0]->expression->integer == std::numeric_limits<int64_t>::min(), "minimum i64 literal failed");
 
         reject("fun main():\n\tprint(1)\n", "tabs");
