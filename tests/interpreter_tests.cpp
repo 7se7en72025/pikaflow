@@ -252,6 +252,19 @@ void testIsolatedTasks() {
     require(execute(program) == "joined\n", "unit task joins do not require a destination register");
     program.functions[0].code.erase(program.functions[0].code.begin() + 2);
     require(execute(program) == "joined\n", "function exit joins an unobserved interpreter task");
+
+    program.externals = {External{"unsupported_cleanup_probe", {}, Unit, false}};
+    program.functions[0].code.insert(program.functions[0].code.end() - 1,
+        named(Op::ExternalCall, -1, {}, "unsupported_cleanup_probe"));
+    std::ostringstream output;
+    auto* previous = std::cout.rdbuf(output.rdbuf());
+    bool rejected = false;
+    try { interpret(program); }
+    catch (const Error&) { rejected = true; }
+    std::cout.rdbuf(previous);
+    require(rejected && output.str() == "joined\n", "interpreter error unwinding joins outstanding workers before returning");
+    pf_collect();
+    require(pf_heap_objects() == 0, "error unwinding releases task handles and GC frames");
 }
 }
 
