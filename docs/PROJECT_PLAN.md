@@ -2,7 +2,7 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 04:14 IST.
+**Last updated:** 2026-11-05 04:26 IST.
 
 **Status:** the user expanded the goal beyond the verified 0.3.1 delivery.
 A substantive 0.4 expansion is active: nominal records, stronger optimizations,
@@ -81,6 +81,15 @@ Source records remain managed nominal values, not automatic C record declaration
 - 04:14: all implementation milestones are committed. The final source freeze
   and whole-host validation follow; no further feature additions are planned
   during this integration stage. Earlier focused results retain their snapshots.
+- 04:25: candidate `96ae47b` passes Windows native 30/30 and reference 26/26,
+  parser fuzzing (37,183 executions) and 300 generated programs (910 output
+  comparisons). The extra Clang ASan/UBSan compiler run exposes native-stack
+  exhaustion in the valid eight-function generic-expression chain. This is an
+  actual failed sanitizer candidate, not a sanitizer-clean release. Its archive,
+  binary and failure logs remain preserved. Frontend work now measures and
+  reduces expression-dispatch stack frames while retaining the documented
+  traversal budget and valid source behavior; final whole-host checks will use
+  a new frozen snapshot after the correction.
 
 ## 0.3.1 quality hardening — 2026-11-05 (historical delivery)
 
