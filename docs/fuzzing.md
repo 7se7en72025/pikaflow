@@ -111,3 +111,66 @@ mutated corpus and empty artifacts directory are retained under ignored
 `out/fuzz-roadmap-validation/`. Its `results.json` records the machine-readable
 summary. These runs provide bounded parser bug discovery, not semantic,
 concurrency or backend verification.
+
+## 0.3 qualified-name and compound-update refresh
+
+The next campaign used an exact full `git archive` of source commit
+`3c46faf1744c39d07c1573b6792e40779001a63b`. Its source archive SHA-256 is
+`6e8f73a144da176051e6e0ab29b6ffdabb8f4609163cda319f7f1b14f1d0c606`.
+The six starting inputs came from a separate corpus archive of commit
+`0edac06e78b10764c34e3309b80ea7c290975589`, SHA-256
+`d1506e490f23f5029729215498167912fce819916414d2c6a6765528ac0100aa`.
+This separation keeps the tested parser source exactly at `3c46faf` while
+including the new `qualified` seed. That seed covers imported aliases, dotted
+generic types/calls/patterns/words, pipelines, and indexed compound updates.
+
+Ubuntu Clang 18.1.3 built the optional CMake target with LLVM disabled:
+
+```sh
+cmake -S source -B build -G Ninja \
+  -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+  -DPIKAFLOW_ENABLE_LLVM=OFF -DPIKAFLOW_BUILD_FUZZER=ON -DBUILD_TESTING=OFF
+cmake --build build --target pikaflow_parser_fuzzer --parallel 1
+ASAN_OPTIONS=detect_leaks=1 \
+ASAN_SYMBOLIZER_PATH=/usr/lib/llvm-24/bin/llvm-symbolizer \
+  build/pikaflow_parser_fuzzer corpus -seed=20261104 \
+  -max_total_time=45 -max_len=4096 -rss_limit_mb=1024 -timeout=5 \
+  -print_final_stats=1 -artifact_prefix=artifacts/
+```
+
+The target's compile commands include `-O1 -g -fno-omit-frame-pointer`,
+`-fsanitize=fuzzer,address,undefined`, and `-fno-sanitize-recover=all`. The compiler
+executable SHA-256 remains
+`8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45`;
+the new fuzzer binary SHA-256 is
+`12b61c50531353fc127e2dbb433ae776f13eada188b6cd8379f9ee898ecb6f29`.
+
+| Observation | Result |
+| --- | --- |
+| Exit status | 0 |
+| Executions | 78,842 |
+| Reported elapsed / measured wall time | 46 seconds / 46.379 seconds |
+| Starting corpus | 6 inputs, 1,731 bytes |
+| Final in-memory corpus | 649 inputs, 101 KiB |
+| Coverage counter / feature count | 2,185 / 8,706 |
+| Evolving input-length limit | 400 bytes |
+| Peak RSS | 423 MiB |
+| Crash artifacts / sanitizer findings | 0 / 0 |
+
+The existing LLVM 24 symbolizer resolved source frames in this run; no
+symbolizer warnings were reported. No additional toolchain packages were
+installed for this refresh. The configured 4096-byte maximum does not establish
+that larger inputs were explored: the evolving length limit stayed at 400.
+Exploration counters are instrumentation-specific, rather than source coverage
+percentages or performance results.
+
+The full log SHA-256 is
+`d36f347b596d10f1682e1b547fb9efe3c4c49ce995d9ab23210a884fa9d07a71`.
+The archives, initial input hashes, compiler and symbolizer hashes, CMake cache,
+compile commands, executable, run log, corpus file manifest, mutated corpus and
+empty artifacts directory are retained under ignored
+`out/fuzz-0.3-validation/`; `results.json` records the machine-readable summary.
+Only the real lexer/parser ran. Qualified-name binding, assignment evaluation
+order, semantic indexing, the typed optimizer, LLVM execution and editor behavior
+were not exercised by this fuzz target.
