@@ -2,12 +2,12 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 04:51 IST.
+**Last updated:** 2026-11-05 05:03 IST.
 
-**Status:** the substantive 0.4.0 expansion is implemented and verified on
-Windows x64 and Linux x86-64. Corrected implementation `1cfd6aa` passed frozen
-host, default-stack sanitizer and extracted-package checks. Final documentation
-records follow that tested source; historical 0.3.1 and 0.2 deliveries remain below.
+**Status:** verified 0.4.0 is preserved below. The user requested continued
+overnight work; a new compiler-engineering milestone is active. It adds bounded
+coverage-guided semantic testing, stronger contract-checked LLVM simplification
+and inspectable typed-IR optimization reports. Unverified work is not delivery.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -23,6 +23,32 @@ working examples, editor/project tools, a reproducible installation, and passing
 Windows x64/Linux x86-64 native and interpreter checks. Each feature needs valid
 examples, negative diagnostics, relevant edge cases, and cross-mode execution
 where applicable. Preserve explicit unsafe boundaries and source-file protection.
+
+## Next compiler-engineering milestone ? 2026-11-05
+
+The user renewed authorization to continue while the PC stays on. Work resumes
+from clean pushed `200484b`, retaining 0.4.0 artifacts and evidence. Ponytail
+remains active. Three agents own disjoint implementation areas; root coordinates
+interfaces, builds, provenance, integration and documentation. Powered-on hardware
+does not independently restart an ended agent session.
+
+| Deliverable | Acceptance | Owner | Initial estimate |
+|---|---|---|---|
+| Coverage-guided semantic optimizer fuzzing | Byte-driven bounded valid programs with independent expected outcomes; instrument actual compiler/optimizer/interpreter code with libFuzzer/ASan/UBSan; deterministic seeds/replay and clean recorded campaign | Frontend | 45?90 min |
+| Safe constant LLVM checked arithmetic | APInt-based signed i64 safe folds; preserve all checked failures and argument effects; strengthen producer contract without widening old v1 promises; real FileCheck and execution regressions | LLVM backend | 30?60 min |
+| Typed-IR optimization report | Nonexecuting JSON command exposing before/after sizes and existing statistics; LLVM-off support; protect source/import/output aliases and diagnose write errors | Runtime/tooling | 20?45 min |
+| Integration and delivery | Focused and full host checks on a new freeze, new example/docs, preserved source/binary identities and updated local packages | Root | 30?60 min after integration |
+
+Estimates are elapsed planning ranges with parallel work, not promises. This is
+one coherent next milestone, not an unlimited list of unrelated language syntax.
+No production behavior is considered verified by the earlier 0.4.0 suite alone.
+
+### Live log (IST)
+
+- 05:03: inspected clean repository and supported boundaries. Continued work is
+  split across semantic fuzzing, LLVM constant folding/contract, and CLI analysis.
+  Root reserves shared CMake/version integration and this plan. Each agent first
+  confirms a concrete design and runs meaningful checks before integration.
 
 ## 0.4 expansion — 2026-11-05
 
