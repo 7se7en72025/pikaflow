@@ -1,0 +1,34 @@
+name: Manual interpreter checks
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  interpreter:
+    name: Interpreter (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Build and test on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build.ps1 -InterpreterOnly -Jobs 2
+      - name: Configure on Linux
+        if: runner.os == 'Linux'
+        run: cmake -S . -B build/interpreter -G Ninja -DCMAKE_BUILD_TYPE=Release -DPIKAFLOW_ENABLE_LLVM=OFF
+      - name: Build on Linux
+        if: runner.os == 'Linux'
+        run: cmake --build build/interpreter --parallel 2
+      - name: Test on Linux
+        if: runner.os == 'Linux'
+        run: ctest --test-dir build/interpreter --output-on-failure
