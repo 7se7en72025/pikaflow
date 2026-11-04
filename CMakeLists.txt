@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(PikaFlow VERSION 0.3.0 LANGUAGES C CXX)
+project(PikaFlow VERSION 0.3.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -76,6 +76,11 @@ if(BUILD_TESTING)
     add_library(pikaflow_ffi_fixture SHARED tests/ffi_fixture.c)
     target_compile_definitions(pikaflow_ffi_fixture PRIVATE PF_BUILD_FIXTURE=1)
     set_target_properties(pikaflow_ffi_fixture PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
+    if(MSVC AND PIKAFLOW_ENABLE_LLVM)
+        add_library(pikaflow_export_fixture STATIC tests/ffi_fixture.c)
+        target_compile_definitions(pikaflow_export_fixture PRIVATE PF_BUILD_FIXTURE=1)
+        set_target_properties(pikaflow_export_fixture PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
+    endif()
     add_executable(pikaflow_ffi_host_tests tests/ffi_host_tests.c)
     set_target_properties(pikaflow_ffi_host_tests PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
     target_link_libraries(pikaflow_ffi_host_tests PRIVATE pikaflow_ffi_fixture)
@@ -190,8 +195,12 @@ if(BUILD_TESTING)
         add_test(NAME c_abi_generated COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_ffi.py" "$<TARGET_FILE:pikaflow>"
             "$<TARGET_FILE:pikaflow_ffi_fixture>" "$<TARGET_LINKER_FILE:pikaflow_ffi_fixture>")
+        set(PIKAFLOW_NATIVE_ENV_ARGS "$<TARGET_FILE:pikaflow>")
+        if(TARGET pikaflow_export_fixture)
+            list(APPEND PIKAFLOW_NATIVE_ENV_ARGS "$<TARGET_FILE:pikaflow_export_fixture>")
+        endif()
         add_test(NAME native_environment COMMAND "${Python3_EXECUTABLE}"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_environment.py" "$<TARGET_FILE:pikaflow>")
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_environment.py" ${PIKAFLOW_NATIVE_ENV_ARGS})
     endif()
 endif()
 

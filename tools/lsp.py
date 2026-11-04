@@ -203,7 +203,7 @@ class Server:
                 "hoverProvider": True, "definitionProvider": True, "referencesProvider": True,
                 "renameProvider": {"prepareProvider": True},
                 "completionProvider": {"resolveProvider": False}},
-                "serverInfo": {"name": "PikaFlow", "version": "0.3.0"}}
+                "serverInfo": {"name": "PikaFlow", "version": "0.3.1"}}
         if not self.initialized:
             return {"__error__": -32002, "message": "server not initialized"}
         if method == "shutdown":

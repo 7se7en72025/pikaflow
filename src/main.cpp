@@ -47,6 +47,7 @@ void write(const fs::path &file, const std::string &content) {
     if (!output)
         throw std::runtime_error("cannot write output file: " + file.u8string());
     output << content;
+    output.close();
     if (!output)
         throw std::runtime_error("failed writing output file: " + file.u8string());
 }
@@ -492,6 +493,16 @@ int runCLI(int argc, char **argv) {
 #endif
                     }
                     modules.protect(fs::u8path(output));
+                    auto database = debug ? pika::nativeDebugDatabasePath(output) : std::string{};
+                    if (!database.empty()) {
+                        modules.protect(fs::u8path(database));
+                        if (sameFile(fs::u8path(output), fs::u8path(database)))
+                            throw std::runtime_error("executable and debug database outputs must differ");
+                    }
+                    for (const auto &library : links)
+                        if (sameFile(fs::u8path(output), fs::u8path(library)) ||
+                            (!database.empty() && sameFile(fs::u8path(database), fs::u8path(library))))
+                            throw std::runtime_error("output path would overwrite an input library");
                     pika::buildExecutable(program, output, runtimeLibrary(argv[0]),
                                           PF_COMPILER_DRIVER, optimization, debug, links);
                     std::cout << "Built " << output << "\n";

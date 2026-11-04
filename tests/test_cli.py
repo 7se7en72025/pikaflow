@@ -438,6 +438,11 @@ def main() -> int:
         protected = directory / "protected source.pf"
         original_source = "fun main():\n    print(42)\n"
         protected.write_text(original_source, encoding="utf-8")
+        if sys.platform.startswith("linux") and pathlib.Path("/dev/full").is_char_device():
+            result = run([compiler, "dump-ir", str(protected), "-o", "/dev/full"])
+            require(result.returncode != 0 and "failed writing output file" in result.stderr,
+                    "buffered output failure was reported as success: " + result.stderr)
+            completed += 1
         for command in ("dump-tokens", "dump-ast", "dump-ir", "emit-ir", "emit-obj", "build"):
             result = run([compiler, command, str(protected), "-o", str(protected)])
             require(result.returncode != 0 and "overwrite" in result.stderr,
