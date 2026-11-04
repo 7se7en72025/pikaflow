@@ -110,6 +110,32 @@ def main():
         anonymous_data = symbols(anonymous)
         function_arg0 = [record for record in anonymous_data["symbols"] if record["name"] == "arg0"]
         assert len(function_arg0) == 1 and not function_arg0[0]["uses"], "anonymous parameters must shadow globals without exposing a fake rename target"
+        underscores = root / "underscores.pf"
+        underscore_text = "\n".join([
+            "fun _()->i64:", "    return 1",
+            "fun global_call()->i64:", "    return _()",
+            "fun parameter(_:i64)->i64:", "    return _",
+            "fun generic[_](value:_)->_:", "    return value",
+            "fun generic_value[_](_:_) -> _:", "    return _",
+            "fun main():", "    let _=42", "    print(_)", "    print(parameter(_))",
+            "    print(generic(_))", "    print(generic_value(_))",
+            "    if true:", "        let (first,_)=(1,2)", "        print(_)",
+            "    match (3,4):", "        case (_,value):", "            print(_)", ""
+        ])
+        underscores.write_text(underscore_text, encoding="utf-8")
+        underscore_records = symbols(underscores)["symbols"]
+        def underscore(kind, line):
+            matches = [record for record in underscore_records if record["name"] == "_" and record["kind"] == kind and record["definition"]["line"] == line]
+            assert len(matches) == 1, (kind, line, matches)
+            return matches[0]
+        assert [use["line"] for use in underscore("function", 1)["uses"]] == [4]
+        assert [use["line"] for use in underscore("parameter", 5)["uses"]] == [6]
+        assert len(underscore("typeParameter", 7)["uses"]) == 2
+        assert len(underscore("typeParameter", 9)["uses"]) == 2
+        assert [use["line"] for use in underscore("parameter", 9)["uses"]] == [10]
+        assert [use["line"] for use in underscore("variable", 12)["uses"]] == [13, 14, 15, 16, 22]
+        assert [use["line"] for use in underscore("variable", 18)["uses"]] == [19]
+        assert not any(record["name"] == "_" and record["definition"]["line"] == 21 for record in underscore_records), "match wildcard must not introduce an underscore binding"
 
         # Changing an identifier spelling leaves unrelated same-text bindings alone.
         shadow = find("value", "parameter", "fun inner")

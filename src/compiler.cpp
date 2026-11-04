@@ -158,7 +158,7 @@ class Compiler {
         }
     }
     void indexBinding(const std::string &name, const Location &location, const Type &annotation = Unit, const std::string &kind = "variable") {
-        if (name == "_" || location.file.empty()) return;
+        if (location.file.empty()) return;
         if (reserved(name)) fail(location, "'" + name + "' is reserved for the language or runtime");
         if (moduleAliases[location.file].count(name)) fail(location, "binding name '" + name + "' conflicts with a module alias");
         if (indexScopes.back().values.count(name)) fail(location, "duplicate local name '" + name + "'");
@@ -173,13 +173,16 @@ class Compiler {
         }
         indexScopes.back().values[name] = addSymbol(name, kind, location, type, detail);
     }
-    void indexPattern(const ExprPtr &pattern) {
+    void indexPattern(const ExprPtr &pattern, bool wildcards = true) {
         if (!pattern) return;
-        if (pattern->kind == Expr::Kind::Name) { indexBinding(pattern->text, pattern->location); return; }
+        if (pattern->kind == Expr::Kind::Name) {
+            if (!wildcards || pattern->text != "_") indexBinding(pattern->text, pattern->location);
+            return;
+        }
         if (pattern->kind == Expr::Kind::Call && !pattern->items.empty()) {
             if (pattern->items[0]->kind == Expr::Kind::Name) indexValue(*pattern->items[0]);
-            for (size_t i = 1; i < pattern->items.size(); ++i) indexPattern(pattern->items[i]);
-        } else for (const auto &item : pattern->items) indexPattern(item);
+            for (size_t i = 1; i < pattern->items.size(); ++i) indexPattern(pattern->items[i], wildcards);
+        } else for (const auto &item : pattern->items) indexPattern(item, wildcards);
     }
     void indexExpression(const ExprPtr &expression) {
         if (!expression) return;
@@ -251,7 +254,7 @@ class Compiler {
         }
         if (s.kind == Stmt::Kind::Let || s.kind == Stmt::Kind::Var) {
             indexExpression(s.expression); indexType(s.type);
-            if (s.target) indexPattern(s.target);
+            if (s.target) indexPattern(s.target, false);
             else indexBinding(s.name, s.nameLocation, s.annotated ? s.type : Unit);
             return;
         }
