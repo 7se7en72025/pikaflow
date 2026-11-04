@@ -177,6 +177,19 @@ Program aggregateCase(unsigned choice) {
     }
     return b.finish(result);
 }
+Program narrowRecord() {
+    ForeignTest b;
+    auto inner=b.tuple({b.integer(-4),b.integer(65000),b.integer(-65000)});
+    auto tuple=b.tuple({inner,b.integer(39)});
+    Type record=b.function.registers[tuple];
+    int returned=b.call("pf_ffi_nested_widths",record,{tuple});
+    CABIType innerABI{0,true,{{8,true,{}},{16,false,{}},{32,true,{}}}};
+    CABIType recordABI{0,true,{innerABI,{8,false,{}}}};
+    b.program.externals.back().abiParameters={recordABI};
+    b.program.externals.back().abiResult=recordABI;
+    int total=b.sum(b.index(returned,0));
+    return b.finish(b.emit(Op::Add,I64,{total,b.index(returned,1)}));
+}
 }
 int main() {
     try {
@@ -204,9 +217,13 @@ int main() {
         require(emitAssembly(arithmetic(),0).find("pf_fn_add")!=std::string::npos,"native assembly missing function");
 #ifdef PF_FFI_FIXTURE
         loadLibrary(PF_FFI_FIXTURE);
+        require(runJIT(narrowRecord(),0)==42,"O0 nested narrow C record failed");
+        require(runJIT(narrowRecord(),2)==42,"O2 nested narrow C record failed");
 #ifndef _WIN32
         require(emitLLVM(aggregateCase(0),0).find("declare { i64, i64 } @pf_ffi_pair(i64, i64, i64)")!=std::string::npos,
             "SysV C POD pair must use register arguments and return values");
+        require(emitLLVM(narrowRecord(),0).find("alloca [16 x i8]")!=std::string::npos,
+            "SysV record coercion storage must include the rounded register padding");
 #endif
         for(unsigned choice=0;choice<12;++choice) {
             require(runJIT(aggregateCase(choice),0)==42,"O0 C aggregate ABI mismatch");

@@ -52,3 +52,17 @@ void pf_ffi_callback_unit(void (*callback)(void)) { callback(); }
 int64_t pf_ffi_callback_pointer(int64_t* (*callback)(int64_t*)) {
     int64_t value = 42; return *callback(&value);
 }
+int8_t pf_ffi_i8(int8_t value) { return value; }
+int16_t pf_ffi_i16(int16_t value) { return value; }
+int32_t pf_ffi_i32(int32_t value) { return value; }
+int64_t pf_ffi_i64(int64_t value) { return value; }
+uint8_t pf_ffi_u8(uint8_t value) { return value; }
+uint16_t pf_ffi_u16(uint16_t value) { return value; }
+uint32_t pf_ffi_u32(uint32_t value) { return value; }
+uint64_t pf_ffi_u64(uint64_t value) { return value; }
+PFWidths pf_ffi_widths(PFWidths value) {
+    value.small += 1; value.medium += 2; value.large += 3; return value;
+}
+PFNestedWidths pf_ffi_nested_widths(PFNestedWidths value) {
+    value.inner = pf_ffi_widths(value.inner); value.tail += 1; return value;
+}

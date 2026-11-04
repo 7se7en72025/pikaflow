@@ -238,8 +238,13 @@ class Emitter {
         debugBuilder->insertDeclare(debugAddress,variable,debugBuilder->createExpression({llvm::dwarf::DW_OP_deref}),
             llvm::DILocation::get(context,ins.location.line,ins.location.column,debugScope),builder.GetInsertBlock());
     }
-    llvm::Type* cMemoryType(const Type& source) {
+    const CABIType& cField(const CABIType& native,size_t index) {
+        static const CABIType ordinary;
+        return native.fields.empty()?ordinary:native.fields.at(index);
+    }
+    llvm::Type* cMemoryType(const Type& source,const CABIType& native={}) {
         if(!source.name.empty())throw std::runtime_error("nominal managed types are not C records");
+        if(native.bits)return llvm::IntegerType::get(context,native.bits);
         if(source.kind==TypeKind::Bool) return llvm::Type::getInt8Ty(context);
         if(source.kind!=TypeKind::Tuple) {
             if(source.managed()) throw std::runtime_error("C records cannot contain managed references");
@@ -247,45 +252,67 @@ class Emitter {
         }
         if(source.args.empty()) throw std::runtime_error("empty C records are unsupported");
         std::vector<llvm::Type*> fields;
-        for(const auto& field:source.args) {
+        for(size_t n=0;n<source.args.size();++n) {
+            const auto& field=source.args[n];
             if(field.kind!=TypeKind::I64 && field.kind!=TypeKind::F64 &&
                 field.kind!=TypeKind::Bool && field.kind!=TypeKind::Pointer && field.kind!=TypeKind::Tuple)
                 throw std::runtime_error("C records require scalar, raw-pointer, or nested record fields");
-            fields.push_back(cMemoryType(field));
+            fields.push_back(cMemoryType(field,cField(native,n)));
         }
         return llvm::StructType::get(context,fields,false);
     }
-    llvm::AllocaInst* cTemporary(llvm::Type* memoryType) {
+    llvm::AllocaInst* cTemporary(llvm::Type* memoryType,llvm::Type* coercion=nullptr,unsigned offset=0) {
         auto& entry=builder.GetInsertBlock()->getParent()->getEntryBlock();
         llvm::IRBuilder<> prologue(entry.begin());
-        auto* slot=prologue.CreateAlloca(memoryType,nullptr,"c_record");
-        auto alignment=module.getDataLayout().getABITypeAlign(memoryType);
+        auto& layout=module.getDataLayout();
+        auto bytes=layout.getTypeAllocSize(memoryType).getFixedValue();
+        auto alignment=layout.getABITypeAlign(memoryType);
+        llvm::Type* storage=memoryType;
+        if(coercion) {
+            // Register coercions can round a 12-byte C record to a 16-byte IR
+            // struct. Reserve its padding before loading or storing that type.
+            auto required=layout.getTypeStoreSize(coercion).getFixedValue()+offset;
+            if(required>bytes) {bytes=required;storage=llvm::ArrayType::get(llvm::Type::getInt8Ty(context),bytes);}
+            alignment=std::max(alignment,layout.getABITypeAlign(coercion));
+        }
+        auto* slot=prologue.CreateAlloca(storage,nullptr,"c_record");
         if(module.getTargetTriple().isOSWindows()) alignment=std::max(alignment,llvm::Align(16));
         slot->setAlignment(alignment);
         builder.CreateMemSet(slot,llvm::ConstantInt::get(llvm::Type::getInt8Ty(context),0),
-            module.getDataLayout().getTypeAllocSize(memoryType).getFixedValue(),alignment);
+            bytes,alignment);
         return slot;
     }
-    void packCFields(llvm::Value* object,const Type& source,llvm::Value* slot) {
-        auto* memoryType=llvm::cast<llvm::StructType>(cMemoryType(source));
+    llvm::Value* cIntegerArgument(llvm::Value* value,const CABIType& native) {
+        if(!native.bits)return value;
+        value=runtime("pf_c_integer",i64(),{i64(),i32(),i32()},
+            {value,llvm::ConstantInt::get(i32(),native.bits),llvm::ConstantInt::get(i32(),native.isSigned)});
+        return builder.CreateTruncOrBitCast(value,llvm::IntegerType::get(context,native.bits));
+    }
+    llvm::Value* cIntegerResult(llvm::Value* value,const CABIType& native) {
+        if(!native.bits)return value;
+        return native.isSigned?builder.CreateSExtOrTrunc(value,i64()):builder.CreateZExtOrTrunc(value,i64());
+    }
+    void packCFields(llvm::Value* object,const Type& source,const CABIType& native,llvm::Value* slot) {
+        auto* memoryType=llvm::cast<llvm::StructType>(cMemoryType(source,native));
         for(size_t n=0;n<source.args.size();++n) {
             auto* field=fromBits(runtime("pf_index",i64(),{ptr(),i64()},{object,n64(int64_t(n))}),source.args[n]);
             auto* address=builder.CreateStructGEP(memoryType,slot,unsigned(n));
             if(source.args[n].kind==TypeKind::Tuple) {
-                packCFields(field,source.args[n],address);continue;
+                packCFields(field,source.args[n],cField(native,n),address);continue;
             }
             if(source.args[n].kind==TypeKind::Bool) field=builder.CreateZExt(field,llvm::Type::getInt8Ty(context));
+            if(source.args[n].kind==TypeKind::I64)field=cIntegerArgument(field,cField(native,n));
             builder.CreateStore(field,address);
         }
     }
-    llvm::Value* packCRecord(int reg) {
+    llvm::Value* packCRecord(int reg,const CABIType& native,llvm::Type* coercion,unsigned offset) {
         const auto& source=current->registers.at(reg);
-        auto* slot=cTemporary(cMemoryType(source));
-        packCFields(load(reg),source,slot);
+        auto* slot=cTemporary(cMemoryType(source,native),coercion,offset);
+        packCFields(load(reg),source,native,slot);
         return slot;
     }
-    llvm::Value* unpackCRecord(const Type& source,llvm::Value* slot) {
-        auto* memoryType=llvm::cast<llvm::StructType>(cMemoryType(source));
+    llvm::Value* unpackCRecord(const Type& source,const CABIType& native,llvm::Value* slot) {
+        auto* memoryType=llvm::cast<llvm::StructType>(cMemoryType(source,native));
         auto* tuple=runtime("pf_tuple_new",ptr(),{i64()},{n64(int64_t(source.args.size()))});
         auto& entry=builder.GetInsertBlock()->getParent()->getEntryBlock();
         llvm::IRBuilder<> prologue(entry.begin());
@@ -296,10 +323,11 @@ class Emitter {
             const auto& field=source.args[n];
             auto* address=builder.CreateStructGEP(memoryType,slot,unsigned(n));
             llvm::Value* value;
-            if(field.kind==TypeKind::Tuple)value=unpackCRecord(field,address);
+            if(field.kind==TypeKind::Tuple)value=unpackCRecord(field,cField(native,n),address);
             else {
-                value=builder.CreateLoad(cMemoryType(field),address);
+                value=builder.CreateLoad(cMemoryType(field,cField(native,n)),address);
                 if(field.kind==TypeKind::Bool)value=builder.CreateTrunc(value,type(field));
+                if(field.kind==TypeKind::I64)value=cIntegerResult(value,cField(native,n));
             }
             runtime("pf_set_index",llvm::Type::getVoidTy(context),{ptr(),i64(),i64(),i32()},
                 {tuple,n64(int64_t(n)),bits(value,field),tag(field)});
@@ -310,12 +338,14 @@ class Emitter {
     struct CArg {
         llvm::Type* wire=nullptr;
         bool indirect=false,byval=false,flatten=false,ignore=false;
+        bool signExtend=false,zeroExtend=false;
         unsigned offset=0;
         llvm::Align alignment{1};
     };
 #ifndef _WIN32
-    const llvm::abi::Type* abiType(const Type& source,llvm::abi::TypeBuilder& types) {
+    const llvm::abi::Type* abiType(const Type& source,const CABIType& native,llvm::abi::TypeBuilder& types) {
         auto& layout=module.getDataLayout();
+        if(native.bits)return types.getIntegerType(native.bits,llvm::Align(native.bits/8),native.isSigned);
         switch(source.kind) {
         case TypeKind::Unit:return types.getVoidType();
         case TypeKind::I64:return types.getIntegerType(64,llvm::Align(8),true);
@@ -323,13 +353,13 @@ class Emitter {
         case TypeKind::Bool:return types.getIntegerType(8,llvm::Align(1),false);
         case TypeKind::Pointer:return types.getPointerType(64,llvm::Align(8));
         case TypeKind::Tuple: {
-            auto* memory=llvm::cast<llvm::StructType>(cMemoryType(source));
+            auto* memory=llvm::cast<llvm::StructType>(cMemoryType(source,native));
             auto* recordLayout=layout.getStructLayout(memory);
             std::vector<llvm::abi::FieldInfo> fields;
             for(size_t n=0;n<source.args.size();++n)
-                fields.emplace_back(abiType(source.args[n],types),recordLayout->getElementOffsetInBits(unsigned(n)));
+                fields.emplace_back(abiType(source.args[n],cField(native,n),types),recordLayout->getElementOffsetInBits(unsigned(n)));
             auto alignment=layout.getABITypeAlign(memory);
-            // Flat C records are PODs. Without this flag the classifier models
+            // Plain C records are PODs. Without this flag the classifier models
             // a C++ record that must travel through an invisible reference.
             return types.getRecordType(fields,layout.getTypeAllocSize(memory)*8,alignment,alignment,
                 llvm::abi::StructPacking::Default,{}, {},llvm::abi::RecordFlags::CanPassInRegisters);
@@ -337,22 +367,23 @@ class Emitter {
         default:throw std::runtime_error("unsupported C ABI type");
         }
     }
-    CArg sysvArgument(const llvm::abi::ArgInfo& argument,const Type& source,llvm::abi::IRTypeMapper& mapper) {
+    CArg sysvArgument(const llvm::abi::ArgInfo& argument,const Type& source,const CABIType& native,llvm::abi::IRTypeMapper& mapper) {
         CArg result;
         if(argument.isIgnore()) { result.ignore=true; return result; }
-        result.alignment=module.getDataLayout().getABITypeAlign(cMemoryType(source));
-        if(source.kind!=TypeKind::Tuple) { result.wire=type(source); return result; }
+        result.alignment=module.getDataLayout().getABITypeAlign(cMemoryType(source,native));
+        if(argument.isExtend()) {result.signExtend=argument.isSignExt();result.zeroExtend=argument.isZeroExt();}
+        if(source.kind!=TypeKind::Tuple) { result.wire=native.bits?cMemoryType(source,native):type(source); return result; }
         if(argument.isIndirect()) {
             result.indirect=true;result.byval=argument.getIndirectByVal();
             result.alignment=argument.getIndirectAlign(); result.wire=ptr(); return result;
         }
         if(!argument.isDirect()) throw std::runtime_error("unsupported C aggregate ABI classification");
-        result.wire=argument.getCoerceToType()?mapper.convertType(argument.getCoerceToType()):cMemoryType(source);
+        result.wire=argument.getCoerceToType()?mapper.convertType(argument.getCoerceToType()):cMemoryType(source,native);
         result.offset=argument.getDirectOffset();
         result.flatten=argument.getCanBeFlattened() && result.wire->isStructTy();
         return result;
     }
-    void classifySysv(const External& declaration,const std::vector<Type>& sourceTypes,
+    void classifySysv(const External& declaration,const std::vector<Type>& sourceTypes,const std::vector<CABIType>& nativeTypes,
         CArg& returnPlan,std::vector<CArg>& plans) {
         if(module.getTargetTriple().getArch()!=llvm::Triple::x86_64 || !module.getTargetTriple().isOSLinux())
             throw std::runtime_error("this C ABI classifier requires Linux x86-64 SysV");
@@ -363,16 +394,16 @@ class Emitter {
         for(size_t n=0;n<sourceTypes.size();++n) {
             if(n>=declaration.parameters.size() && sourceTypes[n].kind==TypeKind::Bool)
                 arguments.push_back(types.getIntegerType(32,llvm::Align(4),true));
-            else arguments.push_back(abiType(sourceTypes[n],types));
+            else arguments.push_back(abiType(sourceTypes[n],nativeTypes[n],types));
         }
-        auto information=llvm::abi::FunctionInfo::create(llvm::CallingConv::C,abiType(declaration.result,types),arguments,
+        auto information=llvm::abi::FunctionInfo::create(llvm::CallingConv::C,abiType(declaration.result,declaration.abiResult,types),arguments,
             declaration.variadic?llvm::abi::RequiredArgs(unsigned(declaration.parameters.size())):
                 llvm::abi::RequiredArgs(llvm::abi::RequiredArgs::All));
         auto target=llvm::abi::createX86_64TargetInfo(types,llvm::abi::X86AVXABILevel::None,true,{});
         target->computeInfo(*information);
-        returnPlan=sysvArgument(information->getReturnInfo(),declaration.result,mapper);
+        returnPlan=sysvArgument(information->getReturnInfo(),declaration.result,declaration.abiResult,mapper);
         for(size_t n=0;n<sourceTypes.size();++n)
-            plans.push_back(sysvArgument(information->getArgInfo(unsigned(n)).Info,sourceTypes[n],mapper));
+            plans.push_back(sysvArgument(information->getArgInfo(unsigned(n)).Info,sourceTypes[n],nativeTypes[n],mapper));
     }
 #endif
     llvm::Function* cCallback(const std::string& name) {
@@ -431,6 +462,8 @@ class Emitter {
         if(declaration==program.externals.end()) throw std::runtime_error("unknown external: "+ins.text);
         std::vector<Type> sourceTypes;
         for(int reg:ins.args) sourceTypes.push_back(current->registers.at(reg));
+        std::vector<CABIType> nativeTypes(sourceTypes.size());
+        for(size_t n=0;n<declaration->abiParameters.size();++n)nativeTypes[n]=declaration->abiParameters[n];
         std::vector<CArg> plans;
         CArg returnPlan;
         const auto& returnType=declaration->result;
@@ -439,14 +472,15 @@ class Emitter {
         if(aggregate && module.getTargetTriple().getArch()!=llvm::Triple::x86_64)
             throw std::runtime_error("C aggregate ABI is implemented only for x86-64");
 #ifdef _WIN32
-        auto classify=[&](const Type& source) {
+        auto classify=[&](const Type& source,const CABIType& native) {
             CArg result;
             if(source.kind==TypeKind::Unit) {result.ignore=true;return result;}
             if(source.kind!=TypeKind::Tuple) {
                 if(source.managed()) throw std::runtime_error("managed references require explicit C handles");
-                result.wire=type(source); return result;
+                result.wire=native.bits?cMemoryType(source,native):type(source);
+                result.zeroExtend=source.kind==TypeKind::Bool;return result;
             }
-            auto* record=cMemoryType(source);
+            auto* record=cMemoryType(source,native);
             auto bytes=module.getDataLayout().getTypeAllocSize(record).getFixedValue();
             result.alignment=module.getDataLayout().getABITypeAlign(record);
             // Clang's WinX86_64ABIInfo uses integer coercion only at these sizes.
@@ -455,17 +489,17 @@ class Emitter {
             else {result.indirect=true;result.wire=ptr();}
             return result;
         };
-        returnPlan=classify(returnType);
-        for(const auto& t:sourceTypes) plans.push_back(classify(t));
+        returnPlan=classify(returnType,declaration->abiResult);
+        for(size_t n=0;n<sourceTypes.size();++n)plans.push_back(classify(sourceTypes[n],nativeTypes[n]));
 #else
-        classifySysv(*declaration,sourceTypes,returnPlan,plans);
+        classifySysv(*declaration,sourceTypes,nativeTypes,returnPlan,plans);
 #endif
         std::vector<llvm::Value*> values;
         std::vector<llvm::Type*> parameters;
         std::vector<std::pair<unsigned,llvm::Attribute>> attributes;
         llvm::Value* returnSlot=nullptr;
         if(returnPlan.indirect) {
-            auto* memory=cMemoryType(returnType);returnSlot=cTemporary(memory);
+            auto* memory=cMemoryType(returnType,declaration->abiResult);returnSlot=cTemporary(memory);
             values.push_back(returnSlot);parameters.push_back(ptr());
             attributes.emplace_back(0,llvm::Attribute::getWithStructRetType(context,memory));
             attributes.emplace_back(0,llvm::Attribute::get(context,llvm::Attribute::NoAlias));
@@ -477,17 +511,20 @@ class Emitter {
             if(plan.ignore)continue;
             if(source.kind!=TypeKind::Tuple) {
                 auto* value=load(ins.args[n]);
+                if(source.kind==TypeKind::I64)value=cIntegerArgument(value,nativeTypes[n]);
                 if(!fixed && source.kind==TypeKind::Bool) value=builder.CreateZExt(value,i32());
-                if(fixed && source.kind==TypeKind::Bool)
+                if(fixed && plan.zeroExtend)
                     attributes.emplace_back(unsigned(values.size()),llvm::Attribute::get(context,llvm::Attribute::ZExt));
+                if(fixed && plan.signExtend)
+                    attributes.emplace_back(unsigned(values.size()),llvm::Attribute::get(context,llvm::Attribute::SExt));
                 values.push_back(value);if(fixed)parameters.push_back(value->getType());
                 continue;
             }
-            auto* slot=packCRecord(ins.args[n]);
+            auto* slot=packCRecord(ins.args[n],nativeTypes[n],plan.indirect?nullptr:plan.wire,plan.offset);
             if(plan.indirect) {
                 unsigned index=unsigned(values.size());
                 values.push_back(slot);if(fixed)parameters.push_back(ptr());
-                if(plan.byval)attributes.emplace_back(index,llvm::Attribute::getWithByValType(context,cMemoryType(source)));
+                if(plan.byval)attributes.emplace_back(index,llvm::Attribute::getWithByValType(context,cMemoryType(source,nativeTypes[n])));
                 attributes.emplace_back(index,llvm::Attribute::getWithAlignment(context,plan.alignment));
             } else {
                 auto* address=builder.CreateGEP(llvm::Type::getInt8Ty(context),slot,n64(plan.offset));
@@ -514,18 +551,23 @@ class Emitter {
             call->addParamAttr(attribute.first,attribute.second);
             if(declared && attribute.first<declared->arg_size())declared->addParamAttr(attribute.first,attribute.second);
         }
-        if(returnType.kind==TypeKind::Bool) {
-            call->addRetAttr(llvm::Attribute::ZExt);
-            if(declared)declared->addRetAttr(llvm::Attribute::ZExt);
+        if(returnPlan.zeroExtend) {
+            call->addRetAttr(llvm::Attribute::ZExt);if(declared)declared->addRetAttr(llvm::Attribute::ZExt);
         }
-        if(returnType.kind!=TypeKind::Tuple)return returnType.kind==TypeKind::Unit?nullptr:call;
-        auto* memory=llvm::cast<llvm::StructType>(cMemoryType(returnType));
+        if(returnPlan.signExtend) {
+            call->addRetAttr(llvm::Attribute::SExt);if(declared)declared->addRetAttr(llvm::Attribute::SExt);
+        }
+        if(returnType.kind!=TypeKind::Tuple) {
+            if(returnType.kind==TypeKind::Unit)return nullptr;
+            return returnType.kind==TypeKind::I64?cIntegerResult(call,declaration->abiResult):call;
+        }
+        auto* memory=llvm::cast<llvm::StructType>(cMemoryType(returnType,declaration->abiResult));
         if(!returnSlot) {
-            returnSlot=cTemporary(memory);
+            returnSlot=cTemporary(memory,returnPlan.wire,returnPlan.offset);
             auto* address=builder.CreateGEP(llvm::Type::getInt8Ty(context),returnSlot,n64(returnPlan.offset));
             builder.CreateAlignedStore(call,address,llvm::Align(1));
         }
-        return unpackCRecord(returnType,returnSlot);
+        return unpackCRecord(returnType,declaration->abiResult,returnSlot);
     }
     void lower(const Instruction& ins) {
         auto arg = [&](size_t n) { return load(ins.args.at(n)); };
@@ -900,10 +942,12 @@ int runJIT(const Program& program,unsigned optimization) {
     PF_JIT_SYMBOL(pf_tasks_enter); PF_JIT_SYMBOL(pf_tasks_leave);
     PF_JIT_SYMBOL(pf_task_spawn); PF_JIT_SYMBOL(pf_task_join);
     PF_JIT_SYMBOL(pf_raw_offset);
+    PF_JIT_SYMBOL(pf_c_integer);
 #define PF_C_SYMBOL(name, address) symbols[mangle(name)] = llvm::orc::ExecutorSymbolDef(llvm::orc::ExecutorAddr::fromPtr(address),llvm::JITSymbolFlags::Exported)
     PF_C_SYMBOL("strlen",&std::strlen); PF_C_SYMBOL("malloc",&std::malloc); PF_C_SYMBOL("free",&std::free);
     PF_C_SYMBOL("memcpy",&std::memcpy); PF_C_SYMBOL("memmove",&std::memmove); PF_C_SYMBOL("memset",&std::memset);
     PF_C_SYMBOL("llabs",&std::llabs);
+    PF_C_SYMBOL("abs",static_cast<int(*)(int)>(&std::abs));
     PF_C_SYMBOL("sqrt",static_cast<double(*)(double)>(&std::sqrt));
     PF_C_SYMBOL("sin",static_cast<double(*)(double)>(&std::sin));
     PF_C_SYMBOL("cos",static_cast<double(*)(double)>(&std::cos));

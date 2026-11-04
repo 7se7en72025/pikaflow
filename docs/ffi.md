@@ -22,6 +22,8 @@ not expose every C integer width.
 | `unit` return | `void` |
 | `ptr[T]` | Raw native pointer; no ownership transfer is inferred |
 | Plain tuple | Naturally aligned C struct with fields in tuple order |
+| `c_i8`, `c_i16`, `c_i32`, `c_i64` | Explicit signed C integer width, carried as source `i64` |
+| `c_u8`, `c_u16`, `c_u32`, `c_u64` | Explicit unsigned C integer width, carried as source `i64` |
 
 Plain C records may contain `i64`, `f64`, `bool`, raw pointers, and nested plain
 records. Their memory
@@ -32,6 +34,40 @@ not pass a managed tuple pointer as though it were a C struct.
 Nominal language ADTs are managed values and cannot be used as C records. Unions,
 packed records, bitfields, C++ objects, and other managed-reference fields are
 outside this subset and must not be inferred from a tuple declaration.
+
+## Integer widths
+
+The `c_` integer annotations are valid only inside external declarations,
+including nested record fields. Ordinary source values and arithmetic remain
+`i64`. For example, C's `int abs(int)` on the supported x86-64 hosts can be called
+with an explicit 32-bit signature:
+
+```text
+extern fun absolute(value: c_i32) -> c_i32 = "abs"
+
+fun main() -> unit:
+    unsafe:
+        print(absolute(-42))
+```
+
+Inputs to 8-, 16-, and 32-bit parameters are checked before the C call, including
+record fields. An out-of-range value reports a runtime error at the source call;
+it does not wrap silently. Signed results are sign-extended to source `i64` and
+unsigned narrow results are zero-extended. `c_u64` preserves all 64 bits in its
+signed source carrier: `-1` encodes C's `UINT64_MAX`, and a returned `UINT64_MAX`
+appears as source `-1`. This supplies an ABI contract rather than unsigned source
+arithmetic.
+
+A record such as `(c_i8, c_u16, c_i32)` is still passed and returned as an ordinary
+source tuple of `i64` values. Its native fields use widths 1, 2, and 4 bytes,
+with the C compiler's natural padding and alignment.
+
+Annotations describe fixed parameters and the result. Variadic extra arguments
+retain their ordinary source ABI: `i64` is `int64_t`, `f64` is `double`, and
+`bool` promotes to C `int`. A format string does not change those widths.
+Narrow annotated extern calls require native or JIT execution; the interpreter
+rejects them explicitly. Compatible 64-bit annotations remain usable with its
+existing audited scalar externs.
 
 ## Example
 
@@ -119,6 +155,8 @@ hidden environment argument. Boolean parameters and results retain the required
 ABI extension attributes. Captured closures and managed/record callback
 signatures are rejected. A raw pointer does not encode the callback signature;
 the caller must match the C declaration.
+Callback source functions retain their ordinary scalar widths; extern-only
+`c_` annotations do not change a callback's signature.
 
 The callback's code must remain loaded until C has finished using it. A native
 executable retains its generated functions for the process lifetime; a CLI JIT
@@ -141,7 +179,8 @@ through the corresponding C allocator; they are not runtime-owned raw blocks.
 `test_ffi.py` exercise generated calls, including scalar and mixed records,
 padding, small/non-power-of-two records, large returns, raw-pointer fields,
 nested records, repeated nested returns across collection, scalar callbacks,
-register pressure, variadic promotions, and real libc/math aliases. Generated
+all explicit integer widths, narrow nested record layouts, checked input range
+failures with source locations, register pressure, variadic promotions, and real libc/math aliases. Generated
 execution is checked separately for JIT/native code and `-O0`/`-O2`.
 
 Passing on one host establishes evidence for that host ABI only. Linux and

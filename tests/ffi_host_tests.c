@@ -35,5 +35,19 @@ int main(void) {
     REQUIRE(pf_ffi_callback_bool(choose_bool) == 42);
     pf_ffi_callback_unit(mark_unit); REQUIRE(unit_called);
     REQUIRE(pf_ffi_callback_pointer(same_pointer) == 42);
+    REQUIRE(pf_ffi_i8(INT8_MIN) == INT8_MIN);
+    REQUIRE(pf_ffi_i16(INT16_MIN) == INT16_MIN);
+    REQUIRE(pf_ffi_i32(INT32_MIN) == INT32_MIN);
+    REQUIRE(pf_ffi_i64(-42) == -42);
+    REQUIRE(pf_ffi_u8(UINT8_MAX) == UINT8_MAX);
+    REQUIRE(pf_ffi_u16(UINT16_MAX) == UINT16_MAX);
+    REQUIRE(pf_ffi_u32(UINT32_MAX) == UINT32_MAX);
+    REQUIRE(pf_ffi_u64(UINT64_MAX) == UINT64_MAX);
+    PFWidths widths = {-4, 65000, -65000};
+    PFWidths transformed = pf_ffi_widths(widths);
+    REQUIRE(transformed.small + transformed.medium + transformed.large + 40 == 42);
+    PFNestedWidths nested_widths = {widths, 39};
+    nested_widths = pf_ffi_nested_widths(nested_widths);
+    REQUIRE(nested_widths.inner.small + nested_widths.inner.medium + nested_widths.inner.large + nested_widths.tail == 42);
     puts("C ABI reference fixture passed"); return 0;
 }
