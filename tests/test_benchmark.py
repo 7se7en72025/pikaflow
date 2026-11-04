@@ -65,4 +65,7 @@ class BenchmarkTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    # CTest may provide its compiler target even though these unit tests use mocks.
+    if len(sys.argv) > 1 and not sys.argv[1].startswith("-") and pathlib.Path(sys.argv[1]).is_file():
+        del sys.argv[1]
     unittest.main()
