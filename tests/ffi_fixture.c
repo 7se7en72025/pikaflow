@@ -37,3 +37,18 @@ int64_t pf_ffi_pointer(PFPointer value) { return value.enabled ? *value.value : 
 PFOne pf_ffi_one(PFOne value) { PFOne result = {value.value + 22}; return result; }
 PFSmall pf_ffi_small(PFSmall value) { PFSmall result = {!value.first, !value.last}; return result; }
 int64_t pf_ffi_small_score(PFSmall value) { return value.first && !value.last ? 42 : 0; }
+PFNested pf_ffi_nested(PFNested value, int64_t delta) {
+    value.pair.a += delta; value.pair.b += delta;
+    value.mixed.x += delta; value.mixed.y += delta;
+    return value;
+}
+PFNestedDouble pf_ffi_nested_small(PFNestedDouble value, double delta) {
+    value.inner.value += delta; return value;
+}
+int64_t pf_ffi_callback_i64(int64_t (*callback)(int64_t, int64_t)) { return callback(20, 22); }
+double pf_ffi_callback_f64(double (*callback)(double, double)) { return callback(10.0, 32.0); }
+int64_t pf_ffi_callback_bool(bool (*callback)(bool, bool)) { return callback(true, false) ? 42 : 0; }
+void pf_ffi_callback_unit(void (*callback)(void)) { callback(); }
+int64_t pf_ffi_callback_pointer(int64_t* (*callback)(int64_t*)) {
+    int64_t value = 42; return *callback(&value);
+}

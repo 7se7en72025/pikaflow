@@ -130,6 +130,8 @@ class Emitter {
     const Function* current = nullptr;
     llvm::Value* environment = nullptr;
     llvm::Value* rootFrame = nullptr;
+    llvm::Value* taskScope = nullptr;
+    std::map<std::string,llvm::Function*> taskEntries;
     std::vector<llvm::AllocaInst*> registers;
     std::vector<llvm::Value*> roots;
     std::vector<llvm::BasicBlock*> blocks;
@@ -227,10 +229,17 @@ class Emitter {
             variable=parameter->second;
         else variable=debugBuilder->createAutoVariable(debugScope,found->second,debugFile,
             ins.location.line,debugType(current->registers.at(ins.dst).args.at(0)),true);
-        debugBuilder->insertDeclare(address,variable,debugBuilder->createExpression(),
+        // Spill the stable cell payload address so debuggers can describe it
+        // after calls, rather than losing a transient SSA address at -O0.
+        auto& entry=builder.GetInsertBlock()->getParent()->getEntryBlock();
+        llvm::IRBuilder<> prologue(entry.begin());
+        auto* debugAddress=prologue.CreateAlloca(ptr(),nullptr,"debug_address_"+found->second);
+        builder.CreateStore(address,debugAddress);
+        debugBuilder->insertDeclare(debugAddress,variable,debugBuilder->createExpression({llvm::dwarf::DW_OP_deref}),
             llvm::DILocation::get(context,ins.location.line,ins.location.column,debugScope),builder.GetInsertBlock());
     }
     llvm::Type* cMemoryType(const Type& source) {
+        if(!source.name.empty())throw std::runtime_error("nominal managed types are not C records");
         if(source.kind==TypeKind::Bool) return llvm::Type::getInt8Ty(context);
         if(source.kind!=TypeKind::Tuple) {
             if(source.managed()) throw std::runtime_error("C records cannot contain managed references");
@@ -240,15 +249,15 @@ class Emitter {
         std::vector<llvm::Type*> fields;
         for(const auto& field:source.args) {
             if(field.kind!=TypeKind::I64 && field.kind!=TypeKind::F64 &&
-                field.kind!=TypeKind::Bool && field.kind!=TypeKind::Pointer)
-                throw std::runtime_error("C records require flat i64/f64/bool/raw-pointer fields");
+                field.kind!=TypeKind::Bool && field.kind!=TypeKind::Pointer && field.kind!=TypeKind::Tuple)
+                throw std::runtime_error("C records require scalar, raw-pointer, or nested record fields");
             fields.push_back(cMemoryType(field));
         }
         return llvm::StructType::get(context,fields,false);
     }
     llvm::AllocaInst* cTemporary(llvm::Type* memoryType) {
         auto& entry=builder.GetInsertBlock()->getParent()->getEntryBlock();
-        llvm::IRBuilder<> prologue(&entry,entry.begin());
+        llvm::IRBuilder<> prologue(entry.begin());
         auto* slot=prologue.CreateAlloca(memoryType,nullptr,"c_record");
         auto alignment=module.getDataLayout().getABITypeAlign(memoryType);
         if(module.getTargetTriple().isOSWindows()) alignment=std::max(alignment,llvm::Align(16));
@@ -257,17 +266,46 @@ class Emitter {
             module.getDataLayout().getTypeAllocSize(memoryType).getFixedValue(),alignment);
         return slot;
     }
-    llvm::Value* packCRecord(int reg) {
-        const auto& source=current->registers.at(reg);
+    void packCFields(llvm::Value* object,const Type& source,llvm::Value* slot) {
         auto* memoryType=llvm::cast<llvm::StructType>(cMemoryType(source));
-        auto* slot=cTemporary(memoryType);
-        auto* object=load(reg);
         for(size_t n=0;n<source.args.size();++n) {
             auto* field=fromBits(runtime("pf_index",i64(),{ptr(),i64()},{object,n64(int64_t(n))}),source.args[n]);
+            auto* address=builder.CreateStructGEP(memoryType,slot,unsigned(n));
+            if(source.args[n].kind==TypeKind::Tuple) {
+                packCFields(field,source.args[n],address);continue;
+            }
             if(source.args[n].kind==TypeKind::Bool) field=builder.CreateZExt(field,llvm::Type::getInt8Ty(context));
-            builder.CreateStore(field,builder.CreateStructGEP(memoryType,slot,unsigned(n)));
+            builder.CreateStore(field,address);
         }
+    }
+    llvm::Value* packCRecord(int reg) {
+        const auto& source=current->registers.at(reg);
+        auto* slot=cTemporary(cMemoryType(source));
+        packCFields(load(reg),source,slot);
         return slot;
+    }
+    llvm::Value* unpackCRecord(const Type& source,llvm::Value* slot) {
+        auto* memoryType=llvm::cast<llvm::StructType>(cMemoryType(source));
+        auto* tuple=runtime("pf_tuple_new",ptr(),{i64()},{n64(int64_t(source.args.size()))});
+        auto& entry=builder.GetInsertBlock()->getParent()->getEntryBlock();
+        llvm::IRBuilder<> prologue(entry.begin());
+        auto* temporaryRoot=prologue.CreateAlloca(ptr(),nullptr,"c_result_root");
+        builder.CreateStore(tuple,temporaryRoot);
+        auto* frame=runtime("pf_roots_push",ptr(),{ptr(),i64()},{temporaryRoot,n64(1)});
+        for(size_t n=0;n<source.args.size();++n) {
+            const auto& field=source.args[n];
+            auto* address=builder.CreateStructGEP(memoryType,slot,unsigned(n));
+            llvm::Value* value;
+            if(field.kind==TypeKind::Tuple)value=unpackCRecord(field,address);
+            else {
+                value=builder.CreateLoad(cMemoryType(field),address);
+                if(field.kind==TypeKind::Bool)value=builder.CreateTrunc(value,type(field));
+            }
+            runtime("pf_set_index",llvm::Type::getVoidTy(context),{ptr(),i64(),i64(),i32()},
+                {tuple,n64(int64_t(n)),bits(value,field),tag(field)});
+        }
+        runtime("pf_roots_pop",llvm::Type::getVoidTy(context),{ptr()},{frame});
+        return tuple;
     }
     struct CArg {
         llvm::Type* wire=nullptr;
@@ -337,6 +375,56 @@ class Emitter {
             plans.push_back(sysvArgument(information->getArgInfo(unsigned(n)).Info,sourceTypes[n],mapper));
     }
 #endif
+    llvm::Function* cCallback(const std::string& name) {
+        auto source=std::find_if(program.functions.begin(),program.functions.end(),
+            [&](const Function& f){return f.name==name;});
+        if(source==program.functions.end())throw std::runtime_error("unknown C callback function: "+name);
+        if(std::any_of(source->code.begin(),source->code.end(),[](const Instruction& i){return i.op==Op::Capture;}))
+            throw std::runtime_error("C callbacks cannot capture an environment");
+        auto scalar=[](const Type& t){return t.kind==TypeKind::I64 || t.kind==TypeKind::F64 ||
+            t.kind==TypeKind::Bool || t.kind==TypeKind::Pointer;};
+        if(source->result!=Unit && !scalar(source->result))
+            throw std::runtime_error("C callbacks require a scalar or unit result");
+        for(const auto& parameter:source->parameters)
+            if(!scalar(parameter))throw std::runtime_error("C callbacks require scalar parameters");
+        auto wrapperName="pf_c_callback_"+nativeName(name);
+        if(auto* existing=module.getFunction(wrapperName))return existing;
+        auto* wrapper=llvm::Function::Create(signature(source->parameters,source->result,false),
+            llvm::GlobalValue::InternalLinkage,wrapperName,module);
+        auto* entry=llvm::BasicBlock::Create(context,"entry",wrapper);
+        llvm::IRBuilder<> callbackBuilder(entry);
+        std::vector<llvm::Value*> arguments{null()};
+        for(auto& argument:wrapper->args()) {
+            if(source->parameters[argument.getArgNo()].kind==TypeKind::Bool)
+                wrapper->addParamAttr(argument.getArgNo(),llvm::Attribute::ZExt);
+            arguments.push_back(&argument);
+        }
+        if(source->result.kind==TypeKind::Bool)wrapper->addRetAttr(llvm::Attribute::ZExt);
+        auto* returned=callbackBuilder.CreateCall(functions.at(name),arguments);
+        if(source->result==Unit)callbackBuilder.CreateRetVoid();else callbackBuilder.CreateRet(returned);
+        return wrapper;
+    }
+    llvm::Function* taskEntry(const Type& resultType) {
+        auto key=resultType.str();
+        auto existing=taskEntries.find(key);
+        if(existing!=taskEntries.end())return existing->second;
+        auto* entry=llvm::Function::Create(llvm::FunctionType::get(i64(),{ptr(),ptr()},false),
+            llvm::GlobalValue::InternalLinkage,"pf_task_entry_"+std::to_string(taskEntries.size()),module);
+        taskEntries.emplace(key,entry);
+        llvm::IRBuilder<> worker(llvm::BasicBlock::Create(context,"entry",entry));
+        auto* closure=entry->getArg(0);
+        auto codeFunction=module.getOrInsertFunction("pf_closure_code",llvm::FunctionType::get(ptr(),{ptr()},false));
+        auto* code=worker.CreateCall(codeFunction,{closure});
+        auto* value=worker.CreateCall(signature({},resultType,true),code,{closure});
+        llvm::Value* packed;
+        if(resultType==Unit)packed=n64(0);
+        else if(resultType.kind==TypeKind::I64)packed=value;
+        else if(resultType.kind==TypeKind::F64)packed=worker.CreateBitCast(value,i64());
+        else if(resultType.kind==TypeKind::Bool)packed=worker.CreateZExt(value,i64());
+        else packed=worker.CreatePtrToInt(value,i64());
+        worker.CreateRet(packed);
+        return entry;
+    }
     llvm::Value* external(const Instruction& ins) {
         auto declaration=std::find_if(program.externals.begin(),program.externals.end(),
             [&](const External& e){return e.name==ins.text;});
@@ -437,16 +525,7 @@ class Emitter {
             auto* address=builder.CreateGEP(llvm::Type::getInt8Ty(context),returnSlot,n64(returnPlan.offset));
             builder.CreateAlignedStore(call,address,llvm::Align(1));
         }
-        auto* tuple=runtime("pf_tuple_new",ptr(),{i64()},{n64(int64_t(returnType.args.size()))});
-        store(ins.dst,tuple);
-        for(size_t n=0;n<returnType.args.size();++n) {
-            const auto& source=returnType.args[n];
-            llvm::Value* value=builder.CreateLoad(cMemoryType(source),builder.CreateStructGEP(memory,returnSlot,unsigned(n)));
-            if(source.kind==TypeKind::Bool)value=builder.CreateTrunc(value,type(source));
-            runtime("pf_set_index",llvm::Type::getVoidTy(context),{ptr(),i64(),i64(),i32()},
-                {tuple,n64(int64_t(n)),bits(value,source),tag(source)});
-        }
-        return tuple;
+        return unpackCRecord(returnType,returnSlot);
     }
     void lower(const Instruction& ins) {
         auto arg = [&](size_t n) { return load(ins.args.at(n)); };
@@ -457,6 +536,14 @@ class Emitter {
         case Op::ConstI64: result = n64(ins.integer); break;
         case Op::ConstF64: result = llvm::ConstantFP::get(llvm::Type::getDoubleTy(context), ins.real); break;
         case Op::ConstBool: result = llvm::ConstantInt::get(llvm::Type::getInt1Ty(context), ins.integer != 0); break;
+        case Op::CCallback: result=cCallback(ins.text);break;
+        case Op::Spawn: {
+            const auto& returnType=argType(0).args.back();
+            result=runtime("pf_task_spawn",ptr(),{ptr(),ptr(),ptr(),i32()},
+                {arg(0),taskEntry(returnType),null(),tag(returnType)});break;
+        }
+        case Op::Join:
+            result=fromBits(runtime("pf_task_join",i64(),{ptr()},{arg(0)}),argType(0).args.at(0));break;
         case Op::ConstString: {
             auto* text = builder.CreateGlobalString(ins.text, "literal");
             result = runtime("pf_string", ptr(), {ptr(), i64()}, {text, n64(int64_t(ins.text.size()))});
@@ -575,6 +662,7 @@ class Emitter {
         }
         case Op::Return: {
             auto* value = ins.args.empty() ? nullptr : arg(0);
+            runtime("pf_tasks_leave",voidTy,{ptr()},{taskScope});
             runtime("pf_roots_pop",voidTy,{ptr()},{rootFrame});
             if (current->result.kind == TypeKind::Unit) builder.CreateRetVoid();
             else builder.CreateRet(value);
@@ -591,6 +679,9 @@ class Emitter {
                 {arg(0),tag(current->registers.at(ins.dst).args.at(0))}); break;
         case Op::RawFree:
             runtime("pf_raw_free",voidTy,{ptr()},{arg(0)}); break;
+        case Op::RawOffset:
+            result=runtime("pf_raw_offset",ptr(),{ptr(),i64(),i32()},
+                {arg(0),arg(1),tag(argType(0).args.at(0))});break;
         case Op::RawLoad:
             result=fromBits(runtime("pf_raw_load",i64(),{ptr(),i64(),i32()},
                 {arg(0),arg(1),tag(current->registers.at(ins.dst))}),current->registers.at(ins.dst)); break;
@@ -650,6 +741,7 @@ class Emitter {
         }
         sourceLocation(source.location);
         rootFrame=runtime("pf_roots_push",ptr(),{ptr(),i64()},{rootArray,n64(int64_t(count))});
+        taskScope=runtime("pf_tasks_enter",ptr(),{},{});
         for(size_t n=0;n<source.code.size();++n)
             blocks.push_back(llvm::BasicBlock::Create(context,"op"+std::to_string(n),fn));
         if(blocks.empty()) throw std::runtime_error("IR function has no instructions: "+source.name);
@@ -664,6 +756,7 @@ class Emitter {
             if(!blocks[n]->hasTerminator()) {
                 if(n+1<blocks.size()) builder.CreateBr(blocks[n+1]);
                 else {
+                    runtime("pf_tasks_leave",llvm::Type::getVoidTy(context),{ptr()},{taskScope});
                     runtime("pf_roots_pop",llvm::Type::getVoidTy(context),{ptr()},{rootFrame});
                     if(source.result.kind==TypeKind::Unit) builder.CreateRetVoid();
                     else throw std::runtime_error("IR function falls through without returning: "+source.name);
@@ -675,7 +768,7 @@ class Emitter {
     }
 public:
     Emitter(const Program& p,llvm::LLVMContext& c,llvm::Module& m,bool debug)
-        : program(p),context(c),module(m),builder(c) {
+        : program(p),context(c),module(m),builder(m) {
         if(debug) {
             debugBuilder=std::make_unique<llvm::DIBuilder>(module);
             auto path=std::filesystem::u8path(program.sourceFile);
@@ -804,6 +897,9 @@ int runJIT(const Program& program,unsigned optimization) {
     PF_JIT_SYMBOL(pf_raw_store); PF_JIT_SYMBOL(pf_cstr); PF_JIT_SYMBOL(pf_pin); PF_JIT_SYMBOL(pf_unpin);
     PF_JIT_SYMBOL(pf_result_error);
     PF_JIT_SYMBOL(pf_cell_address); PF_JIT_SYMBOL(pf_source_location);
+    PF_JIT_SYMBOL(pf_tasks_enter); PF_JIT_SYMBOL(pf_tasks_leave);
+    PF_JIT_SYMBOL(pf_task_spawn); PF_JIT_SYMBOL(pf_task_join);
+    PF_JIT_SYMBOL(pf_raw_offset);
 #define PF_C_SYMBOL(name, address) symbols[mangle(name)] = llvm::orc::ExecutorSymbolDef(llvm::orc::ExecutorAddr::fromPtr(address),llvm::JITSymbolFlags::Exported)
     PF_C_SYMBOL("strlen",&std::strlen); PF_C_SYMBOL("malloc",&std::malloc); PF_C_SYMBOL("free",&std::free);
     PF_C_SYMBOL("memcpy",&std::memcpy); PF_C_SYMBOL("memmove",&std::memmove); PF_C_SYMBOL("memset",&std::memset);

@@ -21,16 +21,17 @@ not expose every C integer width.
 | `bool` | `_Bool` / `bool`, including ABI extension attributes |
 | `unit` return | `void` |
 | `ptr[T]` | Raw native pointer; no ownership transfer is inferred |
-| Flat tuple | Naturally aligned C struct with fields in tuple order |
+| Plain tuple | Naturally aligned C struct with fields in tuple order |
 
-Flat C records may contain `i64`, `f64`, `bool`, and raw pointers. Their memory
+Plain C records may contain `i64`, `f64`, `bool`, raw pointers, and nested plain
+records. Their memory
 layout uses the target data layout, with one-byte C boolean fields. The compiler
 copies fields between the managed PikaFlow tuple and a native temporary. It does
 not pass a managed tuple pointer as though it were a C struct.
 
-Nested records, unions, packed records, bitfields, C++ objects, managed-reference
-fields, and arbitrary callback signatures are outside this subset and must not
-be inferred from a tuple declaration.
+Nominal language ADTs are managed values and cannot be used as C records. Unions,
+packed records, bitfields, C++ objects, and other managed-reference fields are
+outside this subset and must not be inferred from a tuple declaration.
 
 ## Example
 
@@ -89,6 +90,42 @@ together. The LLVM `abi` component is required for this build.
 The source implementations are in `clang/lib/CodeGen/Targets/X86.cpp` and
 `llvm/lib/ABI/Targets/X86.cpp` of the pinned LLVM checkout.
 
+Nested records retain their own natural field offsets and alignment. Returning
+a record creates managed tuples recursively, with temporary GC roots while
+child tuples are allocated. The SysV classifier sees the complete recursive
+record rather than a flattened list of source values.
+
+## C callbacks
+
+`c_callback(name)` creates a native C function pointer for a module-level source
+function. The operation requires `unsafe`. Parameters may be `i64`, `f64`,
+`bool`, or raw pointers, and the result may additionally be `unit`. For example:
+
+```text
+extern fun invoke(callback: ptr[unit]) -> i64 = "invoke_callback"
+
+fun add(a: i64, b: i64) -> i64:
+    return a + b
+
+fun main() -> unit:
+    unsafe:
+        print(invoke(c_callback(add)))
+```
+
+The matching C declaration is
+`int64_t invoke_callback(int64_t (*callback)(int64_t, int64_t))`.
+The compiler generates a C ABI wrapper that supplies the source function's
+hidden environment argument. Boolean parameters and results retain the required
+ABI extension attributes. Captured closures and managed/record callback
+signatures are rejected. A raw pointer does not encode the callback signature;
+the caller must match the C declaration.
+
+The callback's code must remain loaded until C has finished using it. A native
+executable retains its generated functions for the process lifetime; a CLI JIT
+run unloads its module when that run returns. C must finish callback invocations
+before that point. The interpreter reports that callbacks require native or
+JIT execution.
+
 ## Strings and ownership
 
 `cstr(text)` borrows a null-terminated string buffer. Keep the managed string
@@ -103,6 +140,7 @@ through the corresponding C allocator; they are not runtime-owned raw blocks.
 `ffi_host_tests.c` first checks the reference C calls. Backend tests and
 `test_ffi.py` exercise generated calls, including scalar and mixed records,
 padding, small/non-power-of-two records, large returns, raw-pointer fields,
+nested records, repeated nested returns across collection, scalar callbacks,
 register pressure, variadic promotions, and real libc/math aliases. Generated
 execution is checked separately for JIT/native code and `-O0`/`-O2`.
 

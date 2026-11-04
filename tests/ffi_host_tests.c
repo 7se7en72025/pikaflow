@@ -2,6 +2,12 @@
 #include <stdio.h>
 
 #define REQUIRE(condition) do { if (!(condition)) { fprintf(stderr, "C ABI reference failed at line %d\n", __LINE__); return 1; } } while (0)
+static int64_t add_i64(int64_t a, int64_t b) { return a + b; }
+static double add_f64(double a, double b) { return a + b; }
+static bool choose_bool(bool a, bool b) { return a && !b; }
+static int unit_called;
+static void mark_unit(void) { unit_called = 1; }
+static int64_t* same_pointer(int64_t* value) { return value; }
 int main(void) {
     PFPair pair = {10, 20}; PFPair p = pf_ffi_pair(pair, 6);
     REQUIRE(p.a + p.b == 42);
@@ -18,5 +24,16 @@ int main(void) {
     int64_t forty_two = 42; PFPointer pointer = {&forty_two, true}; REQUIRE(pf_ffi_pointer(pointer) == 42);
     PFOne one = {20}; REQUIRE(pf_ffi_one(one).value == 42);
     PFSmall small = {false, true}; REQUIRE(pf_ffi_small_score(pf_ffi_small(small)) == 42);
+    PFNested nested = {{1, 2}, {3.0, 4}, true};
+    nested = pf_ffi_nested(nested, 8);
+    REQUIRE(nested.pair.a + nested.pair.b + (int64_t)nested.mixed.x + nested.mixed.y == 42);
+    PFNestedDouble nested_small = {{10.0}, 20};
+    nested_small = pf_ffi_nested_small(nested_small, 12.0);
+    REQUIRE((int64_t)nested_small.inner.value + nested_small.count == 42);
+    REQUIRE(pf_ffi_callback_i64(add_i64) == 42);
+    REQUIRE(pf_ffi_callback_f64(add_f64) == 42.0);
+    REQUIRE(pf_ffi_callback_bool(choose_bool) == 42);
+    pf_ffi_callback_unit(mark_unit); REQUIRE(unit_called);
+    REQUIRE(pf_ffi_callback_pointer(same_pointer) == 42);
     puts("C ABI reference fixture passed"); return 0;
 }

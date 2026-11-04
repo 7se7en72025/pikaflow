@@ -71,6 +71,23 @@ Program managedResult(bool error) {
         operation(Op::ConstI64,5,{},0),operation(Op::Index,6,{4,5}),operation(Op::Return,-1,{6})};
     program.functions={main}; return program;
 }
+Program isolatedTask() {
+    Program program; program.sourceFile="backend-test.pf";
+    Type array=Type::array(I64),cell=Type::cell(array),closure=Type::function({},array);
+    Function worker;worker.name="worker";worker.result=array;worker.location={program.sourceFile,1,1};
+    worker.registers={cell,array,I64,I64,I64,I64,array};
+    worker.code={operation(Op::Capture,0,{},0),operation(Op::LoadCell,1,{0}),operation(Op::Collect),
+        operation(Op::ConstI64,2,{},0),operation(Op::Index,3,{1,2}),operation(Op::ConstI64,4,{},35),
+        operation(Op::Add,5,{3,4}),operation(Op::MakeArray,6,{5}),operation(Op::Return,-1,{6})};
+    Function main;main.name="main";main.result=I64;main.location={program.sourceFile,5,1};
+    main.registers={I64,array,cell,closure,Type{TypeKind::Task,{array}},I64,I64,array,I64};
+    main.code={operation(Op::ConstI64,0,{},7),operation(Op::MakeArray,1,{0}),operation(Op::MakeCell,2,{1}),
+        operation(Op::MakeClosure,3,{2},0,"worker"),operation(Op::Spawn,4,{3}),
+        operation(Op::ConstI64,5,{},0),operation(Op::ConstI64,6,{},99),operation(Op::SetIndex,-1,{1,5,6}),
+        operation(Op::Collect),operation(Op::Join,7,{4}),operation(Op::Collect),
+        operation(Op::Index,8,{7,5}),operation(Op::Return,-1,{8})};
+    program.functions={worker,main};return program;
+}
 class ForeignTest {
 public:
     Program program;
@@ -175,12 +192,15 @@ int main() {
         require(runJIT(managedResult(false),2)==42,"optimized managed success Result failed");
         require(runJIT(managedResult(true),0)==42,"managed error Result failed");
         require(runJIT(managedResult(true),2)==42,"optimized managed error Result failed");
+        require(runJIT(isolatedTask(),0)==42,"O0 isolated task capture/result failed");
+        require(runJIT(isolatedTask(),2)==42,"O2 isolated task capture/result failed");
         auto plain=emitLLVM(identity(),0);
         auto optimized=emitLLVM(identity(),2);
         require(plain.find("call i64 @pf_checked_add")!=std::string::npos,"baseline checked addition missing");
         require(optimized.find("call i64 @pf_checked_add")==std::string::npos,"checked identity custom pass did not fold addition");
         require(emitLLVM(arithmetic(),0,true).find("!DICompileUnit")!=std::string::npos,"debug metadata missing");
         require(emitLLVM(rootsAndClosure(),0,true).find("name: \"captured_value\"")!=std::string::npos,"source variable debug metadata missing");
+        require(emitLLVM(rootsAndClosure(),0,true).find("DW_OP_deref")!=std::string::npos,"debugger payload address must have stable storage");
         require(emitAssembly(arithmetic(),0).find("pf_fn_add")!=std::string::npos,"native assembly missing function");
 #ifdef PF_FFI_FIXTURE
         loadLibrary(PF_FFI_FIXTURE);

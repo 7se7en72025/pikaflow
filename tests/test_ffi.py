@@ -53,6 +53,45 @@ CASES = {
         let p = increment((20,))
         print(p[0])
     """),
+    "nested": source('extern fun shift(p: ((i64, i64), (f64, i64), bool), delta: i64) -> ((i64, i64), (f64, i64), bool) = "pf_ffi_nested"', """
+        var index = 0
+        var total = 0
+        while index < 200:
+            let p = shift(((1, 2), (3.0, 4), true), 8)
+            total = p[0][0] + p[0][1] + i64(p[1][0]) + p[1][1]
+            index = index + 1
+        gc()
+        print(total)
+    """),
+    "nested_small": source('extern fun shift(p: ((f64,), i64), delta: f64) -> ((f64,), i64) = "pf_ffi_nested_small"', """
+        let p = shift(((10.0,), 20), 12.0)
+        print(i64(p[0][0]) + p[1])
+    """),
+    "callback_i64": source('''
+        extern fun invoke(callback: ptr[unit]) -> i64 = "pf_ffi_callback_i64"
+        fun callback(a: i64, b: i64) -> i64:
+            return a + b
+    ''', 'print(invoke(c_callback(callback)))'),
+    "callback_f64": source('''
+        extern fun invoke(callback: ptr[unit]) -> f64 = "pf_ffi_callback_f64"
+        fun callback(a: f64, b: f64) -> f64:
+            return a + b
+    ''', 'print(i64(invoke(c_callback(callback))))'),
+    "callback_bool": source('''
+        extern fun invoke(callback: ptr[unit]) -> i64 = "pf_ffi_callback_bool"
+        fun callback(a: bool, b: bool) -> bool:
+            return a and not b
+    ''', 'print(invoke(c_callback(callback)))'),
+    "callback_unit": source('''
+        extern fun invoke(callback: ptr[unit]) -> unit = "pf_ffi_callback_unit"
+        fun callback() -> unit:
+            print(42)
+    ''', 'invoke(c_callback(callback))'),
+    "callback_pointer": source('''
+        extern fun invoke(callback: ptr[unit]) -> i64 = "pf_ffi_callback_pointer"
+        fun callback(value: ptr[i64]) -> ptr[i64]:
+            return value
+    ''', 'print(invoke(c_callback(callback)))'),
     "libc": source('''
         extern fun length(p: ptr[unit]) -> i64 = "strlen"
         extern fun root(x: f64) -> f64 = "sqrt"
@@ -68,6 +107,12 @@ CASES = {
         let memory = foreign_alloc(16)
         foreign_free(memory)
     '''),
+}
+
+REJECTED = {
+    "callback_unsafe": ("fun callback() -> i64:\n    return 42\nfun main():\n    c_callback(callback)\n", "unsafe"),
+    "callback_capture": ("fun main():\n    let n = 42\n    fun callback() -> i64:\n        return n\n    unsafe:\n        c_callback(callback)\n", "noncapturing module-level"),
+    "callback_managed": ("fun callback(value: str) -> i64:\n    return len(value)\nfun main():\n    unsafe:\n        c_callback(callback)\n", "scalar/pointer parameters"),
 }
 
 
@@ -91,6 +136,12 @@ def main() -> int:
         directory = pathlib.Path(temporary)
         if os.name == "nt":
             shutil.copy2(fixture, directory / pathlib.Path(fixture).name)
+        for name, (contents, diagnostic) in REJECTED.items():
+            path = directory / (name + ".pf")
+            path.write_text(contents, encoding="utf-8")
+            result = subprocess.run([compiler, "check", str(path)], capture_output=True, text=True, timeout=30, env=environment)
+            if result.returncode == 0 or diagnostic not in result.stderr:
+                raise AssertionError(f"{name}: expected {diagnostic!r}\n{result.stderr}")
         for name, contents in CASES.items():
             path = directory / (name + ".pf")
             path.write_text(contents, encoding="utf-8")
@@ -102,7 +153,7 @@ def main() -> int:
                 run([compiler, "build", str(path), level, "--link", link_library, "-o", str(executable)])
                 run([str(executable)], expected)
                 count += 2
-    print(f"{count} C ABI JIT/native checks passed")
+    print(f"{count} C ABI JIT/native checks and {len(REJECTED)} rejected callbacks passed")
     return 0
 
 
