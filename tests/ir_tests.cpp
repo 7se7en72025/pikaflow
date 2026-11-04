@@ -70,6 +70,33 @@ int main() {
             auto &f = p.functions[0];
             f.code.insert(f.code.begin() + 1, instruction(Op::Index, 1, {0, 0}));
         });
+        for (bool branch : {false, true}) {
+            rejects("parameter is not a constant tuple index", [branch](Program &p) {
+                Function f;
+                f.name = "tuple_reader";
+                f.result = I64;
+                Type tuple{TypeKind::Tuple, {I64, String}};
+                f.parameters = {tuple, I64, Bool};
+                f.registers = {tuple, I64, Bool, I64};
+                f.code = {instruction(Op::Index, 3, {0, 1}),
+                          instruction(Op::ConstI64, 1), instruction(Op::Return, -1, {3})};
+                if (branch) {
+                    auto jump = instruction(Op::JumpFalse, -1, {2});
+                    jump.target = 3;
+                    f.code.insert(f.code.begin() + 1, jump);
+                }
+                p.functions.push_back(std::move(f));
+            });
+        }
+        rejects("reassigned tuple index is not constant", [](Program &p) {
+            auto &f = p.functions[0];
+            f.registers.push_back(Type{TypeKind::Tuple, {I64, String}});
+            auto second = instruction(Op::ConstI64, 1);
+            second.integer = 1;
+            f.code = {instruction(Op::Zero, 3), instruction(Op::ConstI64, 1),
+                      instruction(Op::Index, 0, {3, 1}), second,
+                      instruction(Op::Return, -1, {0})};
+        });
         rejects("malformed cell type", [](Program &p) {
             auto &f = p.functions[0];
             f.registers[0] = {TypeKind::Cell};
@@ -216,6 +243,30 @@ int main() {
             p.nominalLayouts["Node"] = Type{TypeKind::Tuple, {I64}, "Node"};
             p.functions[0].registers.push_back(Type{TypeKind::Tuple, {I64, Bool}, "Node"});
         });
+        {
+            auto deepProgram = valid();
+            Type deep = I64;
+            for (size_t i = 0; i < 50000; ++i) {
+                Type parent{TypeKind::Array};
+                parent.args.push_back(std::move(deep));
+                deep = std::move(parent);
+            }
+            Type layout{TypeKind::Tuple};
+            layout.name = "Deep";
+            layout.args.push_back(I64);
+            layout.args.push_back(std::move(deep));
+            deepProgram.nominalLayouts.emplace("Deep", std::move(layout));
+            bool rejected = false;
+            try { verify(deepProgram); } catch (const Error &) { rejected = true; }
+            // Dispose the deliberately invalid type without recursing in vector destructors.
+            auto &field = deepProgram.nominalLayouts.at("Deep").args[1];
+            while (!field.args.empty()) {
+                Type next = std::move(field.args[0]);
+                field.args.clear();
+                field = std::move(next);
+            }
+            if (!rejected) throw std::runtime_error("deep nominal type bypassed IR depth limit");
+        }
         {
             auto recursive = valid();
             Type node{TypeKind::Tuple, {}, "Node"};

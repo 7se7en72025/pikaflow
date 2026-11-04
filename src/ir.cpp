@@ -33,6 +33,7 @@ const char *name(Op op) {
 void verify(const Program &program) {
     auto validType = [&](const Type &initial) {
         std::vector<std::pair<const Type *, unsigned>> work{{&initial, 0}};
+        std::vector<std::pair<const Type *, const Type *>> nominalUses;
         size_t visited = 0;
         while (!work.empty()) {
             if (++visited > 4096) return false;
@@ -45,9 +46,9 @@ void verify(const Program &program) {
                 return false;
             if (!t.name.empty()) {
                 auto layout = program.nominalLayouts.find(t.name);
-                if (layout == program.nominalLayouts.end() ||
-                    (!t.args.empty() && t.args != layout->second.args))
+                if (layout == program.nominalLayouts.end())
                     return false;
+                if (!t.args.empty()) nominalUses.push_back({&t, &layout->second});
             }
             switch (t.kind) {
             case TypeKind::Unit:
@@ -93,6 +94,9 @@ void verify(const Program &program) {
             for (const auto &arg : t.args)
                 work.push_back({&arg, item.second + 1});
         }
+        // Bound the input shape before recursive Type equality examines nominal layouts.
+        for (const auto &use : nominalUses)
+            if (use.first->args != use.second->args) return false;
         return true;
     };
     if (program.nominalLayouts.size() > 1024)
@@ -238,6 +242,8 @@ void verify(const Program &program) {
         };
         std::map<int, int64_t> constants;
         std::set<int> nonconstant;
+        for (size_t i = 0; i < f.parameters.size(); ++i)
+            nonconstant.insert(static_cast<int>(i));
         for (const auto &ins : f.code)
             if (ins.dst >= 0) {
                 if (ins.op != Op::ConstI64)
