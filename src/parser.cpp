@@ -24,7 +24,9 @@ class Parser {
         return tokens[std::min(position + ahead, tokens.size() - 1)];
     }
     bool is(TokenKind kind) const { return peek().kind == kind; }
-    bool is(const std::string& text) const { return peek().text == text; }
+    bool is(const std::string& text) const {
+        return (peek().kind == TokenKind::Name || peek().kind == TokenKind::Symbol) && peek().text == text;
+    }
     Token take() {
         Token token = peek();
         if (position + 1 < tokens.size()) ++position;
@@ -154,7 +156,7 @@ class Parser {
         NestingGuard guard(nesting, peek().location);
         ExprPtr left = unary();
         for (;;) {
-            const int binding = precedence(peek().text);
+            const int binding = peek().kind == TokenKind::Name || peek().kind == TokenKind::Symbol ? precedence(peek().text) : 0;
             if (binding <= minimum) break;
             Token op = take();
             auto result = std::make_shared<Expr>(Expr::Kind::Binary, op.location);

@@ -31,6 +31,8 @@ int main() {
         require(lex("    ", "test.pf").size() == 1, "trailing whitespace should produce only END");
         require(tree("").statements.empty(), "empty module should parse");
         require(tree("\xEF\xBB\xBF" "fun main():\n    return\n").statements.size() == 1, "UTF-8 BOM was not accepted");
+        const auto punctuation = tree("fun main():\n    print(\"-\")\n    print(\"+\")\n    print(\")\")\n    print([\"]\", \"return\", \"not\"])\n");
+        require(punctuation.statements[0]->body.size() == 4, "string contents were treated as language tokens");
 
         const auto basic = tree(
             "fun add(a: i64, b: i64) -> i64:\n"
