@@ -1,0 +1,17 @@
+fun counter(start: i64) -> fn() -> i64:
+    var value = start
+    fun next() -> i64:
+        value = value + 1
+        return value
+    return next
+
+fun main() -> unit:
+    let next = counter(40)
+    print(next())
+    gc()
+    print(next())
+
+    let offset = 10
+    let add_offset = fun(value: i64) -> i64:
+        return value + offset
+    print(add_offset(32))

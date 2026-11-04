@@ -1,0 +1,12 @@
+fun divide(a: i64, b: i64) -> Result[i64, str]:
+    if b == 0:
+        return err("division requires a nonzero denominator")
+    return ok(a / b)
+
+fun main() -> unit:
+    let good = divide(84, 2)
+    print(is_ok(good))
+    print(unwrap(good))
+    let bad = divide(1, 0)
+    print(is_ok(bad))
+    print(error(bad))

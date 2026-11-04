@@ -1,0 +1,11 @@
+fun make_factorial() -> fn(i64) -> i64:
+    fun factorial(value: i64) -> i64:
+        if value <= 1:
+            return 1
+        return value * factorial(value - 1)
+    return factorial
+
+fun main() -> unit:
+    let factorial = make_factorial()
+    gc()
+    print(factorial(6))

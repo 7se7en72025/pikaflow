@@ -1,0 +1,12 @@
+# Structured expressions, stack words, and pipelines share one type system.
+word square(i64) -> i64:
+    dup *
+
+fun add(a: i64, b: i64) -> i64:
+    return a + b
+
+fun main() -> unit:
+    20 |> add(22) |> print
+    let answer = stack(6) -> i64:
+        square
+    print(answer)

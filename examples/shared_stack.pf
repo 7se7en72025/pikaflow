@@ -1,0 +1,28 @@
+word exchange(i64, i64) -> (i64, i64):
+    swap
+
+fun main() -> unit:
+    let multiplier = 3
+    stack(10, 20):
+        swap
+    let difference = stack() -> i64:
+        -
+    print(difference)
+
+    let scaled = stack(14) -> i64:
+        multiplier *
+    print(scaled)
+
+    let (first, second) = stack(7, 9) -> (i64, i64):
+        exchange
+    print(first)
+    print(second)
+
+    stack(0):
+        pass
+    for number in range(1, 6):
+        stack:
+            number +
+    let total = stack() -> i64:
+        pass
+    print(total)

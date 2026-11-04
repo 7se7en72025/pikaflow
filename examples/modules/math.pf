@@ -1,0 +1,5 @@
+export fun twice(value: i64) -> i64:
+    return value * 2
+
+fun private_helper() -> i64:
+    return 123

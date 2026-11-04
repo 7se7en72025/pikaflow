@@ -1,0 +1,14 @@
+# Foreign-memory operations require an explicit unsafe boundary.
+fun main() -> unit:
+    unsafe:
+        let memory = alloc_i64(2)
+        store(memory, 0, 20)
+        store(memory, 1, 22)
+        print(load(memory, 0) + load(memory, 1))
+        free(memory)
+
+        let values = [42]
+        let handle = pin(values)
+        gc()
+        print(values[0])
+        unpin(handle)

@@ -1,0 +1,4 @@
+import "math.pf"
+
+fun main() -> unit:
+    print(twice(21))

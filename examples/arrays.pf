@@ -1,0 +1,11 @@
+fun main() -> unit:
+    let values = [1, 2, 3]
+    values[1] = 40
+    var total = 0
+    for value in values:
+        total = total + value
+    print(total)
+    print(len(values))
+    print(values)
+    let empty: [i64] = []
+    print(len(empty))

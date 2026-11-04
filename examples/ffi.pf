@@ -1,0 +1,7 @@
+# This C ABI symbol is exported by the bundled runtime.
+# General foreign calls require the LLVM native/JIT backend.
+extern fun pf_checked_add(a: i64, b: i64) -> i64
+
+fun main() -> unit:
+    unsafe:
+        print(pf_checked_add(20, 22))
