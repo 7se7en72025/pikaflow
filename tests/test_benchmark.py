@@ -32,7 +32,7 @@ class BenchmarkTests(unittest.TestCase):
 
         def fake_execute(command, timeout=120):
             if command[0] == "git":
-                text = "test-source-revision\n"
+                text = "test-source-revision\n" if "rev-parse" in command else ""
             elif "--version" in command:
                 text = "PikaFlow; LLVM enabled; test-target\n"
             elif "interpret" in command:
@@ -53,7 +53,8 @@ class BenchmarkTests(unittest.TestCase):
             with mock.patch.object(sys, "argv", arguments), mock.patch.object(BENCHMARK, "execute", side_effect=fake_execute):
                 self.assertEqual(BENCHMARK.main(), 0)
             data = json.loads(report.read_text(encoding="utf-8"))
-            self.assertEqual(data["compiler"]["source_revision"], "test-source-revision")
+            self.assertEqual(data["benchmark_checkout"]["revision"], "test-source-revision")
+            self.assertFalse(data["benchmark_checkout"]["dirty"])
             self.assertEqual(len(data["compiler"]["sha256"]), 64)
             self.assertEqual(len(data["workloads"]), 4)
             for workload in data["workloads"]:

@@ -77,13 +77,15 @@ def main() -> int:
     source_root = pathlib.Path(__file__).resolve().parents[1]
     try:
         revision = execute(["git", "-C", str(source_root), "rev-parse", "HEAD"]).stdout.strip()
+        dirty = bool(execute(["git", "-C", str(source_root), "status", "--porcelain", "--untracked-files=no"]).stdout.strip())
     except (OSError, RuntimeError):
         revision = None
+        dirty = None
     report = {
         "schema_version": 1,
         "recorded_at_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "compiler": {"path": str(compiler), "version": version, "sha256": digest(compiler),
-                     "source_revision": revision},
+        "compiler": {"path": str(compiler), "version": version, "sha256": digest(compiler)},
+        "benchmark_checkout": {"revision": revision, "dirty": dirty},
         "machine": {"platform": platform.platform(), "machine": platform.machine(),
                     "processor": platform.processor(), "logical_cpus": os.cpu_count(),
                     "python": platform.python_version()},

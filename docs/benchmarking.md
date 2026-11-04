@@ -15,11 +15,13 @@ known output. Native executables are built at `-O0` and `-O2`, their outputs are
 verified in an untimed warmup, and every timed run is checked again. A mismatch
 fails the benchmark rather than producing a successful report.
 
-Reports record the compiler's version, binary SHA-256, source Git revision when
-available, machine/platform information, source program, expected output,
+Reports record the compiler's version and binary SHA-256, the benchmark checkout's
+Git revision/dirty state when available, machine/platform information, source program, expected output,
 optimization flags, build duration, repeated process durations, median, minimum,
 and maximum. Measurements include process startup and output capture; they are
 not isolated instruction-level measurements.
+The checkout revision describes the report script's repository, not proof of
+which source revision produced an arbitrary compiler binary supplied by the user.
 
 These small synthetic cases are tools for investigation, not evidence that
 PikaFlow is faster than another language or that one optimization level always
