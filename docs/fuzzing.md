@@ -174,3 +174,36 @@ empty artifacts directory are retained under ignored
 Only the real lexer/parser ran. Qualified-name binding, assignment evaluation
 order, semantic indexing, the typed optimizer, LLVM execution and editor behavior
 were not exercised by this fuzz target.
+
+## Latest grammar: underscore constructor patterns
+
+The parser subsequently distinguished qualified underscore names and constructor
+calls from a bare match wildcard. A fresh campaign used exact source commit
+`fa90a352b2fffed9a7fe41dedc8150f59a4ff27d`, source archive SHA-256
+`03b774542a4fd01ce562322c43880c7be11b077aae992b3227c6149447e13a26`.
+Its seven seeds came from commit
+`391510b2f2c8c67fe38ec63b91bdb2b40e9b0b6d`, corpus archive SHA-256
+`21a41df5833a1576beaf78b5fa781a3239f7ca551744e4c96bb84bbbddf35c22`.
+The new `underscore_patterns` seed includes `_.Ctor(...)`, `_()`, a bare
+`case _:`, and an underscore in a `let` destructuring target.
+
+The same Clang 18 CMake target, LLVM-off configuration, ASan/UBSan/leak settings,
+LLVM 24 symbolizer, seed `20261104`, 45-second budget, 4096-byte maximum,
+1024-MiB RSS limit and 5-second input timeout were used. The new executable
+SHA-256 is
+`7a301e4409416fdba2e81f33628773381461b50ea2f407d8919bf4a500e6d853`.
+
+The process exited **0** after **79,589 executions in 46 seconds** (46.638 seconds
+wall time), with no sanitizer finding, crash artifact or symbolizer warning.
+The initial corpus contained seven inputs/2,008 bytes. Final in-memory stats
+were 646 retained inputs/100 KiB, counter count 2,205, feature count 8,576, and
+peak RSS 421 MiB. The evolving input-length limit remained 400 bytes.
+
+The full log SHA-256 is
+`cf9f38b34f964e31a2b9d21737ba88934d62982b54f5296067ca7222a494af68`.
+The exact archives, executable, configuration, per-file hashes, raw log, corpus
+manifest and empty artifacts directory are retained under ignored
+`out/fuzz-0.3-final-validation/`, with the summary in `results.json`.
+Earlier campaign records above remain historical results for their respective
+snapshots. This refresh exercises lexer/parser behavior only; it does not
+validate semantic binding roles, rename safety, or editor execution.
