@@ -45,7 +45,7 @@ and test results.
 | Linux support | CMake/runtime/backend are intended to be portable; a Windows test run does not validate Linux |
 | LLVM main compatibility | One LLVM version/revision is tested at a time; ongoing compatibility requires repeated builds and tests |
 | Specialized optimization work | LLVM pipelines exist; substantial project-specific analysis/transform passes require separate correctness tests |
-| Production fuzzing | Bounded malformed-input smoke checks exist; coverage-guided long-running fuzz campaigns remain work |
+| Production fuzzing | A bounded Clang ASan/UBSan/libFuzzer frontend campaign passed; long-running campaigns and semantic/runtime fuzzing remain work |
 | Generics | Compile-time specialization is planned, not implemented |
 | Formatter | Planned after grammar stability |
 | LSP | Planned after v1; not implemented |
@@ -73,3 +73,5 @@ their own specified scope and tests.
 structured and stack syntax and compares interpreted results with a Python
 reference, including signed division/remainder semantics. It complements the
 malformed-input parser checks; neither is a coverage-guided fuzzing campaign.
+The separate [libFuzzer target and recorded campaign](fuzzing.md) exercise real
+lexer/parser coverage under ASan and UBSan.

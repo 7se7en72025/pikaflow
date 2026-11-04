@@ -1,0 +1,6 @@
+word add(i64, i64) -> i64:
+    +
+fun main() -> unit:
+    let answer = stack(20, 22) -> i64:
+        add
+    println(answer)

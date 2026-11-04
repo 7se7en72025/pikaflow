@@ -1,0 +1,7 @@
+fun main() -> unit:
+    let value: Result[(i64, [i64]), str] = ok((1, [2, 3]))
+    match value:
+        case ok((head, [a, b])):
+            println(head + a + b)
+        case err(message):
+            println(message)

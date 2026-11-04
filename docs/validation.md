@@ -13,6 +13,7 @@ integration settles.
 | Windows x64, frontend | Current frontend suite | Lexer/parser/AST, unsafe/extern syntax, bounded recovery, nesting limits, and 1,000 deterministic malformed inputs passed |
 | Windows x64, typed IR | Current IR verifier suite | Signature/type/target/assignment checks and side-effect-destination/captured-direct-call rejection regressions passed |
 | Windows x64, generated arithmetic | Earlier current-language snapshot | **30 programs passed**, seed `20261104`, against independent Python arithmetic reference |
+| WSL Ubuntu 24.04, Clang 18 frontend sanitizers | Bounded libFuzzer snapshot | **64,258 executions / 46 seconds**, no crash artifacts or ASan/UBSan failures; see [commands and limits](fuzzing.md) |
 | Windows x64, benchmark report tooling | Current report-unit suite | **3 tests passed**; no native performance measurement implied |
 | Linux, reference interpreter | Earlier snapshot | **74 CLI checks passed**; this predates the expanded 99-check suite and must not be described as its Linux validation |
 | Windows x64, LLVM native/JIT | In progress | LLVM/backend integration and full generated execution checks pending final result |
@@ -44,6 +45,8 @@ Passing the reference interpreter does not validate LLVM lowering. Passing LLVM
 verification does not prove source-level correctness. Passing one ABI/host does
 not establish another host's behavior. Bounded generated-program tests are not a
 coverage-guided fuzz campaign.
+The separately recorded libFuzzer run supplies bounded coverage-guided frontend
+evidence; it does not validate source semantics, lowering or runtime behavior.
 
 The manual GitHub workflow has been written and its YAML structure checked. It
 has not been dispatched as part of this record; no remote CI result is implied.

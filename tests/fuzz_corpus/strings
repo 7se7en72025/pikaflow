@@ -1,0 +1,6 @@
+# UTF-8 bytes and escaped strings exercise separate lexical paths.
+fun main() -> unit:
+    let text = "hello\n\t\"world\"\\"
+    let bytes = "héllo"
+    println(text)
+    println(bytes[0])
