@@ -51,6 +51,12 @@ virtual registers in local slots; optimization may promote them and introduce
 SSA joins. Inspect an `if`/loop at O0 and O2 to see that transition. A verifier
 success means an IR is structurally valid, not that source semantics are correct.
 
+For rename changes, compiler checking and reindexing alone can agree on the same
+incorrect resolver. Add independent fixture tests that execute the original and
+renamed programs and compare output. Cover legal `_` bindings versus pattern
+wildcards and constructor/function/value precedence in each AST context; the
+language server must not execute user programs as part of a rename request.
+
 ## Make a change reviewable
 
 1. Specify the observable behavior and the invalid form before modifying a shared

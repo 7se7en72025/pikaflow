@@ -1,0 +1,44 @@
+{
+  "source_commit": "5f0b10915013d38d834ad72dca785bf8f9f8e4fa",
+  "dirty": false,
+  "archive_sha256": "69d25facc34387e4b92ee515605162a10ddc852b17ca02d0eeb33d2a0d8cc41f",
+  "platform": "Windows x64",
+  "toolchain": "MSVC19.52, Release, LLVM disabled",
+  "python": "Python3.14.2",
+  "reference": {
+    "ctest": "21/21 passed",
+    "seconds": 40.8,
+    "binary_sha256": "bc7effad51327782faab69456a81e90fb61858298655e388796be3fe912256e7"
+  },
+  "checks": {
+    "compiler_integration": 99,
+    "language_extensions": 53,
+    "namespaces_assignments": 21,
+    "optimizer_execution": 23,
+    "typed_ir_optimizer": "passed",
+    "git_packages": 10,
+    "editor_workflows": 19,
+    "tools": 14,
+    "semantic_symbols": "passed",
+    "runtime_fatal": 47,
+    "task_fatal": 10,
+    "task_execution": 10,
+    "task_rejections": 4,
+    "differential_arithmetic": 30,
+    "contextual_programs": 6,
+    "c_abi_host_reference": "passed"
+  },
+  "provenance": {
+    "build_command": "scripts/build.ps1 -InterpreterOnly -Jobs2",
+    "prebuild_target": "a6fd04c713b4e0ca74a39a57c8fe30ad2b0de129",
+    "docs_only_drift_verified": true,
+    "drift_files": [
+      "docs/fuzzing.md"
+    ],
+    "code_test_input_tree_sha256": "6941ed7ccfa747c25ca99684d785a956f80e43a6d0dae2917aa5600230ec9a73",
+    "all_tracked_blob_hashes": "out/windows-validation/0.3-reference-source-hashes-5f0b109.json",
+    "full_test_log": "out/windows-validation/0.3-reference-5f0b109.log",
+    "full_test_log_sha256": "22a96c9934aa65ffaddd102434d1f0acdf7f20c44be72447b72f0068dc7fbbc1",
+    "source_archive": "out/windows-validation/0.3-reference-source-5f0b109.tar"
+  }
+}

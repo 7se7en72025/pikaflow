@@ -1,0 +1,361 @@
+{
+  "commit": "5f0b10915013d38d834ad72dca785bf8f9f8e4fa",
+  "dirty": false,
+  "capture_head": "5f0b10915013d38d834ad72dca785bf8f9f8e4fa",
+  "capture_worktree_status": "",
+  "archive_git_comment": "5f0b10915013d38d834ad72dca785bf8f9f8e4fa",
+  "archive_sha256": "69d25facc34387e4b92ee515605162a10ddc852b17ca02d0eeb33d2a0d8cc41f",
+  "source_file_count": 118,
+  "source_files_manifest_sha256": "5de905c451c6a3071098ea2ff070ca1c006c1355e7411725151ebc82a0b3d0e7",
+  "source_directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.3/source",
+  "build_directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.3/build",
+  "updated_files": [
+    "docs/fuzzing.md",
+    "docs/language.md",
+    "src/compiler.cpp",
+    "src/parser.cpp",
+    "tests/frontend_tests.cpp",
+    "tests/fuzz_corpus/underscore_patterns",
+    "tests/test_editor.py",
+    "tests/test_namespaces_assignments.py",
+    "tests/test_semantic_symbols.py"
+  ],
+  "byte_identical_files_with_preserved_mtime": 109,
+  "removed_generated_cache_directories": [
+    "scripts/__pycache__",
+    "tests/__pycache__",
+    "tools/__pycache__"
+  ],
+  "previous_candidate_commit": "cca857a17f1797b992ba5aba8ec3fa7aa1de5e73",
+  "previous_candidate_manifest_sha256": "1101910de037b2a736d2aa565df6bf5798aef11cc06487eb2c79f745fdfe5be1",
+  "previous_candidate_binary_sha256": "9daa60bc1ee01f1b3da5fc0b13e382775f6475884699802a10d8669005276862",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "configuration": "Release, LLVM24 enabled, BUILD_TESTING enabled, incremental isolated archive snapshot",
+  "started_utc": "2026-11-04T18:16:57.835741+00:00",
+  "build_parallel": 1,
+  "test_parallel": 1,
+  "toolchains": {
+    "compiler": {
+      "command": [
+        "/usr/bin/g++",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "stderr": ""
+    },
+    "compiler_target": {
+      "command": [
+        "/usr/bin/g++",
+        "-dumpmachine"
+      ],
+      "exit_code": 0,
+      "stdout": "x86_64-linux-gnu\n",
+      "stderr": ""
+    },
+    "cmake": {
+      "command": [
+        "cmake",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "cmake version 3.28.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "stderr": ""
+    },
+    "ninja": {
+      "command": [
+        "ninja",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "1.11.1\n",
+      "stderr": ""
+    },
+    "python": {
+      "command": [
+        "python3",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Python 3.12.3\n",
+      "stderr": ""
+    },
+    "git": {
+      "command": [
+        "git",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "git version 2.43.0\n",
+      "stderr": ""
+    },
+    "llvm": {
+      "command": [
+        "/usr/lib/llvm-24/bin/llvm-config",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "24.0.0\n",
+      "stderr": ""
+    },
+    "llvm_target": {
+      "command": [
+        "/usr/lib/llvm-24/bin/llvm-config",
+        "--host-target"
+      ],
+      "exit_code": 0,
+      "stdout": "x86_64-pc-linux-gnu\n",
+      "stderr": ""
+    },
+    "debugger": {
+      "command": [
+        "gdb",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1\nCopyright (C) 2024 Free Software Foundation, Inc.\nLicense GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\nThis is free software: you are free to change and redistribute it.\nThere is NO WARRANTY, to the extent permitted by law.\n",
+      "stderr": ""
+    }
+  },
+  "commands": [
+    [
+      "cmake",
+      "-S",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.3/source",
+      "-B",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.3/build",
+      "-G",
+      "Ninja",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+      "-DPIKAFLOW_ENABLE_LLVM=ON",
+      "-DBUILD_TESTING=ON",
+      "-DLLVM_DIR=/usr/lib/llvm-24/lib/cmake/llvm"
+    ],
+    [
+      "cmake",
+      "--build",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.3/build",
+      "--parallel",
+      "1"
+    ],
+    [
+      "ctest",
+      "--test-dir",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.3/build",
+      "--output-on-failure",
+      "--parallel",
+      "1",
+      "--output-junit",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.3-final/ctest-junit.xml",
+      "--no-tests=error"
+    ]
+  ],
+  "stages": [
+    {
+      "name": "configure",
+      "exit_code": 0,
+      "seconds": 7.273,
+      "log": "configure.log",
+      "log_sha256": "98562b5aaa5fc465d9c6b519a0734e6623e8abc3af8b7d11ace62c024e9c0065"
+    },
+    {
+      "name": "build",
+      "exit_code": 0,
+      "seconds": 182.169,
+      "log": "build.log",
+      "log_sha256": "2f7d2e2d37a3bed863ffd89defb2f43fd62bfe1511f3e8a9d40ed114c7103ddb"
+    },
+    {
+      "name": "ctest",
+      "exit_code": 0,
+      "seconds": 255.598,
+      "log": "ctest.log",
+      "log_sha256": "02aa72bebbb310578750ae903d84e07ebed18689d781beab0a07966933a40007"
+    }
+  ],
+  "wall_seconds": 447.01,
+  "registered_test_count": 26,
+  "registered_tests": [
+    "c_abi_reference",
+    "llvm_backend",
+    "runtime",
+    "structured_concurrency",
+    "frontend",
+    "typed_ir",
+    "ir_optimizer",
+    "interpreter",
+    "runtime_failures",
+    "compiler",
+    "contextual_types",
+    "language_extensions",
+    "developer_tools",
+    "namespaces_assignments",
+    "optimization_semantics",
+    "git_packages",
+    "editor_workflows",
+    "semantic_symbols",
+    "task_failures",
+    "tasks_cli",
+    "source_debugger",
+    "differential_arithmetic",
+    "benchmark_report",
+    "installed_layout",
+    "c_abi_generated",
+    "native_environment"
+  ],
+  "binary_sha256": "a6c60117650f2f856d589ddb572118567b6f76d0ca15d0862ca2e3baa816e6d1",
+  "runtime_library_sha256": "73bc6f6acb4005897ac10e38951d7c94a80b6dbfa84d857ef7bd0ea8a034582e",
+  "binary_version": {
+    "command": [
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.3/build/pikaflow",
+      "--version"
+    ],
+    "exit_code": 0,
+    "stdout": "PikaFlow 0.3.0; LLVM enabled; x86_64-pc-linux-gnu\n",
+    "stderr": ""
+  },
+  "cmake_cache_sha256": "b4adaae74fe47793a5b7c7aff071b06436d175214093e1f468c6d03165b06a8f",
+  "compile_commands_sha256": "05d7d12d36877e269057902e1c09cc6699f10429cb322a7503ff998926e3ee09",
+  "last_test_log_sha256": "606a9674ceb631f4c4215820e8b429f4158a4b41da3c5be6b3ae17e4f42ba587",
+  "tests": [
+    {
+      "name": "c_abi_reference",
+      "seconds": 0.0112806,
+      "status": "passed"
+    },
+    {
+      "name": "llvm_backend",
+      "seconds": 0.582283,
+      "status": "passed"
+    },
+    {
+      "name": "runtime",
+      "seconds": 0.00940573,
+      "status": "passed"
+    },
+    {
+      "name": "structured_concurrency",
+      "seconds": 0.0319798,
+      "status": "passed"
+    },
+    {
+      "name": "frontend",
+      "seconds": 0.0209289,
+      "status": "passed"
+    },
+    {
+      "name": "typed_ir",
+      "seconds": 0.0108057,
+      "status": "passed"
+    },
+    {
+      "name": "ir_optimizer",
+      "seconds": 0.0108204,
+      "status": "passed"
+    },
+    {
+      "name": "interpreter",
+      "seconds": 0.0110324,
+      "status": "passed"
+    },
+    {
+      "name": "runtime_failures",
+      "seconds": 0.43837,
+      "status": "passed"
+    },
+    {
+      "name": "compiler",
+      "seconds": 46.0153,
+      "status": "passed"
+    },
+    {
+      "name": "contextual_types",
+      "seconds": 0.650501,
+      "status": "passed"
+    },
+    {
+      "name": "language_extensions",
+      "seconds": 39.5229,
+      "status": "passed"
+    },
+    {
+      "name": "developer_tools",
+      "seconds": 12.0522,
+      "status": "passed"
+    },
+    {
+      "name": "namespaces_assignments",
+      "seconds": 16.8131,
+      "status": "passed"
+    },
+    {
+      "name": "optimization_semantics",
+      "seconds": 36.4045,
+      "status": "passed"
+    },
+    {
+      "name": "git_packages",
+      "seconds": 3.32768,
+      "status": "passed"
+    },
+    {
+      "name": "editor_workflows",
+      "seconds": 8.98012,
+      "status": "passed"
+    },
+    {
+      "name": "semantic_symbols",
+      "seconds": 0.758277,
+      "status": "passed"
+    },
+    {
+      "name": "task_failures",
+      "seconds": 0.151121,
+      "status": "passed"
+    },
+    {
+      "name": "tasks_cli",
+      "seconds": 16.0206,
+      "status": "passed"
+    },
+    {
+      "name": "source_debugger",
+      "seconds": 1.32141,
+      "status": "passed"
+    },
+    {
+      "name": "differential_arithmetic",
+      "seconds": 4.48493,
+      "status": "passed"
+    },
+    {
+      "name": "benchmark_report",
+      "seconds": 0.287523,
+      "status": "passed"
+    },
+    {
+      "name": "installed_layout",
+      "seconds": 2.92121,
+      "status": "passed"
+    },
+    {
+      "name": "c_abi_generated",
+      "seconds": 63.474,
+      "status": "passed"
+    },
+    {
+      "name": "native_environment",
+      "seconds": 1.03567,
+      "status": "passed"
+    }
+  ],
+  "passed": 26,
+  "failed": 0,
+  "skipped": 0,
+  "ctest_junit_sha256": "95c83a7d11669445cbf1785188c699903527a7a7dc1edacde8bf2517f089007c",
+  "source_changes_after_tests": [],
+  "source_matches_archive_after_tests": true,
+  "exit_code": 0,
+  "finished_utc": "2026-11-04T18:24:47.566148+00:00"
+}

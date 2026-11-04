@@ -1,6 +1,129 @@
 # Validation record
 
-## 0.2 clean release validation
+## 0.3 clean release validation
+
+The frozen implementation at **`5f0b10915013d38d834ad72dca785bf8f9f8e4fa`**
+passed the complete host suites below. Both hosts used clean source
+(`dirty: false`) with the same archive SHA-256:
+`69d25facc34387e4b92ee515605162a10ddc852b17ca02d0eeb33d2a0d8cc41f`.
+The tracked records are exact copies of the captured JSON, including source,
+binary, toolchain and log identities. Earlier release records remain below as
+history; they do not substitute for these checks.
+
+| Host / mode | Result | Tracked record |
+|---|---|---|
+| Windows x64, MSVC 19.52 / LLVM 24.0.0git | **25/25 native suites passed**, 98.00 s | [Windows 0.3 manifest](validation/windows-0.3-2026-11-04.json) |
+| Windows x64, MSVC 19.52, LLVM disabled | **21/21 reference suites passed**, 40.80 s | [Reference manifest](validation/windows-reference-0.3-2026-11-04.json) |
+| Ubuntu 24.04 x86-64 / WSL2, GNU 13.3 / LLVM 24.0.0 | **26/26 native suites passed**, 255.54 s | [Linux 0.3 manifest](validation/linux-0.3-2026-11-04.json) |
+
+Windows used CMake-selected Python 3.14.2; Linux used Python 3.12.3. The Linux
+archive's 118 source files still matched after testing, with no source changes.
+No CTest suite was skipped on either host. Within Linux's developer-tools suite,
+one Windows-only junction unittest was skipped. The Windows reference build was
+started at `a6fd04c`; the only source drift to the frozen revision was
+`docs/fuzzing.md`. Its manifest records verified code/test input identities.
+
+The LLVM-enabled suites on each host include:
+
+| Check group | Passed checks |
+|---|---:|
+| Compiler integration | 216 |
+| Generic/recursive ADT/guard/Result/showcase language cases | 133 |
+| Namespace, assignment order and resolution cases | 61 |
+| Typed-IR optimization execution comparisons | 115 |
+| Typed-IR optimizer and semantic-symbol unit suites | Passed |
+| Exact-commit Git package tests | 10 |
+| Editor workflow tests | 19 |
+| Developer-tools unittests | 14; Linux internally skips one Windows-only case |
+| Generated C ABI JIT/native execution comparisons | 120 |
+| Located C integer range failures | 40 |
+| Invalid callback declarations | 3 rejected |
+| Threaded task/pointer executions | 50 |
+| Invalid task/pointer source programs | 4 rejected |
+| Fatal runtime cases / fatal task cases | 47 / 10 |
+| Arithmetic differential programs / contextual typing programs | 30 / 6 |
+
+Source cases compare reference interpretation, JIT and native output at `-O0`
+and `-O2` where applicable. Host C fixtures independently check ABI expectations.
+These counts describe check groups, which can overlap CTest organization; they
+are not a sum of independent CTest executables. The reference manifest records
+its smaller execution counts separately: 99 compiler, 53 language, 21 namespace,
+23 optimizer and 10 task execution checks, alongside the shared tool and failure
+checks.
+
+The extra Linux suite exercises actual GDB source breakpoints, stepping,
+backtraces and mutated/captured scalar watches. Windows CodeView inspection is
+separate evidence. Managed-value visualization, graphical IDE integration and
+optimized-code debugger quality remain unverified. Installed-layout and
+clean-environment native-linking checks passed on both hosts.
+
+### Corrections covered by the final regressions
+
+An earlier Python 3.14 editor test exposed reliance on the JSON decoder's
+recursion threshold. The protocol now checks a **128-container nesting limit**
+before parsing, with boundary tests; targeted editor checks also passed with
+Python 3.11. That earlier failed candidate is not the release result above.
+
+Review also found that a compiler check and a candidate binding graph could
+agree on an incorrect reference. The final index keeps legal `_` value and type
+bindings separate from match wildcards, and resolves constructors, function
+values, explicit specializations, pipelines, callbacks and stack words according
+to their actual compilation context. Qualified underscore constructors have
+parser regressions. The 19 editor tests include constructor/local shadowing and
+constructor/imported-function conflicts: independent tests execute original and
+renamed fixture programs and compare output. The language server itself does
+not execute user programs during rename. These checks complement its compilation
+and binding-graph validation; they are not a claim that every future rename bug
+is impossible. See [editor contracts](editor.md) and [contribution checks](CONTRIBUTING.md).
+
+### Identities, fuzzing, benchmark and local package
+
+| Compiler | SHA-256 |
+|---|---|
+| Windows native | `0ef879d8c236c91a850c4e10234a674080d548ff57725a127d77f4bc86e4e778` |
+| Windows reference | `bc7effad51327782faab69456a81e90fb61858298655e388796be3fe912256e7` |
+| Linux native | `a6c60117650f2f856d589ddb572118567b6f76d0ca15d0862ca2e3baa816e6d1` |
+
+Windows uses LLVM source `0247623ddadb8d078a446a704cc20f0a8c944fc8`;
+Linux uses LLVM 24.0.0 nightly `5883ca2582af`. The Linux record retains exact
+configure/build/test commands, per-suite results, toolchain outputs and log
+hashes. These identities do not imply bit-for-bit build reproducibility or
+compatibility with every LLVM revision.
+
+The latest bounded [parser fuzz campaign](fuzzing.md) completed **79,589 executions
+in 46 seconds** with ASan/UBSan and no reported finding or crash. It identifies
+its exact parser snapshot (`fa90a35`) separately. It exercises lexer/parser/common
+code, and provides no sanitizer claim for the later semantic-index changes,
+code generation, runtime or editor. Earlier campaigns remain historical evidence.
+
+The [0.3 benchmark report](benchmarks/windows-0.3-2026-11-04.json) was captured
+from this clean frozen revision and the same Windows native binary after the
+host tests finished. Every output matched. Three whole-process samples per
+configuration gave median loop times of **27.957/28.602 ms** and Fibonacci(20)
+times of **17.252/18.722 ms**, at `-O0`/`-O2`. Startup and captured output are
+included; these measurements establish no performance or optimization advantage.
+See [benchmark methodology](benchmarking.md).
+
+A [local Windows package record](validation/windows-package-0.3-2026-11-04.json)
+identifies `pikaflow-0.3.0-windows-x64-5f0b109.zip`, **18,175,451 bytes**, SHA-256
+`03cff2c8b384e2c1bafd36d2089a613da6689dd23e83755f0c466e55e7825494`.
+The extracted compiler, showcase, namespaces, interpreter/JIT, installed tools
+and underscore/context symbol-index cases passed. This is a local artifact,
+not a published Release or a universal installer; native linking needs a
+compatible host toolchain and SDK.
+
+Reproduce the configured suites with:
+
+```powershell
+ctest --test-dir build/interpreter --output-on-failure
+ctest --test-dir build/native --output-on-failure
+```
+
+Raw logs and archives remain under ignored `out/windows-validation/` and
+`out/linux-validation/` paths. The GitHub workflow is manual-only and was not
+dispatched; these are local host results.
+
+## Historical 0.2 clean release validation
 
 The frozen implementation at **`39fcac34a3528a4e74ea1cdbbff58dd9e433a19b`**
 passed the complete host suites below. Both hosts used the same clean source
@@ -89,7 +212,7 @@ these local results are not remote CI claims.
 ## Historical 0.1 evidence
 
 The records below are retained as the earlier baseline. Their counts, hashes and
-debugger limitations describe 0.1 and are superseded by the 0.2 record above;
+debugger limitations describe 0.1 and are superseded by the later records above;
 they must not be reported as the current release's feature or test coverage.
 
 **Status: the recorded Windows/Linux native integration checks passed.** This

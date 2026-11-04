@@ -1,0 +1,47 @@
+{
+  "source_commit": "5f0b10915013d38d834ad72dca785bf8f9f8e4fa",
+  "dirty": false,
+  "archive_sha256": "69d25facc34387e4b92ee515605162a10ddc852b17ca02d0eeb33d2a0d8cc41f",
+  "recorded_at_utc": "2026-11-04T18:17:24.968298+00:00",
+  "platform": "Windows x64",
+  "toolchain": "MSVC 19.52 / LLVM 24.0.0git 0247623ddadb8d078a446a704cc20f0a8c944fc8",
+  "python": "CMake-selected Python 3.14.2",
+  "native": {
+    "ctest": "25/25 passed",
+    "seconds": 98.0,
+    "binary_sha256": "0ef879d8c236c91a850c4e10234a674080d548ff57725a127d77f4bc86e4e778"
+  },
+  "reference": {
+    "ctest": "21/21 passed",
+    "seconds": 40.8,
+    "binary_sha256": "bc7effad51327782faab69456a81e90fb61858298655e388796be3fe912256e7"
+  },
+  "checks": {
+    "compiler_integration": 216,
+    "language_extensions": 133,
+    "namespaces_assignments": 61,
+    "optimizer_execution": 115,
+    "typed_ir_optimizer": "passed",
+    "semantic_symbols": "passed",
+    "git_packages": 10,
+    "editor_workflows": 19,
+    "tools": 14,
+    "abi_execution": 120,
+    "abi_located_failures": 40,
+    "callback_rejections": 3,
+    "task_execution": 50,
+    "task_rejections": 4,
+    "runtime_fatal": 47,
+    "task_fatal": 10,
+    "differential_arithmetic": 30,
+    "contextual_programs": 6,
+    "installed_layout": "passed"
+  },
+  "provenance": {
+    "full_test_log": "out/windows-validation/0.3-native-5f0b109.log",
+    "full_test_log_sha256": "02ff9744fd3560a09f0590a42bb607a68387a04d195b3269d3832f1769dc6c4a",
+    "reference_manifest": "out/windows-validation/0.3-reference.json",
+    "reference_prebuild_target": "a6fd04c",
+    "configuration": "Release; LLVM enabled; build parallel2"
+  }
+}

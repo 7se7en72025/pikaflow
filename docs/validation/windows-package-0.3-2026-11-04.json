@@ -1,0 +1,9 @@
+{
+  "path": "C:\\Users\\RAIYYAN\\pikaflow\\out\\dist\\pikaflow-0.3.0-windows-x64-5f0b109.zip",
+  "sha256": "03cff2c8b384e2c1bafd36d2089a613da6689dd23e83755f0c466e55e7825494",
+  "bytes": 18175451,
+  "source_commit": "5f0b10915013d38d834ad72dca785bf8f9f8e4fa",
+  "extracted_showcase_namespace_interpreter_jit": "passed",
+  "installed_tools_package_example": "passed",
+  "extracted_underscore_and_context_symbol_index": "passed"
+}

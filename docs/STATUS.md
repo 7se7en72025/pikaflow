@@ -8,6 +8,15 @@ and exact-commit Git package restoration. These are implemented source paths wit
 focused regression tests; complete host-suite results are recorded by frozen
 revision in [validation.md](validation.md).
 
+The frozen clean `5f0b109` release passed **25/25 Windows native**, **21/21
+Windows reference** and **26/26 Linux native** CTest suites. Native checks on
+each host include 216 compiler, 133 language, 61 namespace/assignment, 115
+optimizer execution, 19 editor workflow and 10 Git package cases, alongside C
+ABI, tasks, runtime failures, installed layout and source-binding verification.
+Linux also ran actual GDB tests; its tools suite internally skips one
+Windows-only junction unittest. Exact counts and identities are in
+[the 0.3 validation record](validation.md).
+
 The clean `39fcac3` results are the historical 0.2 baseline. Their 19/19 Windows
 native, 15/15 reference and 20/20 Linux suites are retained as history, not reused
 as an automatic full-suite claim for later source revisions.
@@ -51,14 +60,17 @@ watches; Windows CodeView line/local records are also inspected. Graphical IDE
 integration, managed-value visualization and optimized-code debugger quality
 remain unverified.
 
-A bounded 0.2 frontend libFuzzer campaign completed 80,430 executions in 49 seconds
-under ASan/UBSan without a reported failure. Native benchmark outputs were verified before three
-timed repetitions per configuration; [the 0.2 raw report](benchmarks/windows-0.2-2026-11-04.json)
-does not establish a performance advantage.
+The latest bounded parser libFuzzer campaign completed 79,589 executions in
+46 seconds under ASan/UBSan without a reported finding. Its scope and exact
+parser snapshot are recorded in [fuzzing.md](fuzzing.md); semantic-index changes
+are covered by source/editor regressions rather than that parser harness.
+The [0.3 native benchmark report](benchmarks/windows-0.3-2026-11-04.json) records
+verified outputs and three process-inclusive samples per configuration from the
+clean frozen release. It establishes no performance advantage.
 
 The earlier clean `6ca5992` validation/benchmark/install records establish the
-0.1 baseline, not automatic verification of every later extension. The 0.2
-language source cases compare interpreter/JIT/native outputs at `-O0`/`-O2`,
+0.1 baseline, not automatic verification of every later extension. The language
+source cases compare interpreter/JIT/native outputs at `-O0`/`-O2`,
 alongside independent host-C fixtures, threaded runtime tests, debugger sessions
 and protocol/tool subprocess tests. Final source/archive/binary hashes and
 host-specific suite results are maintained in [validation.md](validation.md).

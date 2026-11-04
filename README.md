@@ -15,7 +15,8 @@ semantic index for incremental editor navigation and verified rename. It include
 generic recursive ADTs, Result propagation, isolated threaded tasks, C interop,
 formatting and exact-commit Git/local packages. Native targets are Windows x64
 and Linux x86-64. The [validation record](docs/validation.md) identifies frozen
-source/toolchain results; historical 0.2 counts are separate from 0.3 verification.
+source/toolchain results. Clean `5f0b109` passed 25/25 Windows native, 21/21
+Windows reference and 26/26 Linux native suites; historical records remain separate.
 See [feature status](docs/FEATURES.md) for supported contracts and limits.
 
 ## A small hybrid program
@@ -226,8 +227,11 @@ The integration suite detects whether LLVM is enabled. LLVM builds add JIT and
 native output comparisons at `-O0`/`-O2`, object/IR checks, and C ABI tests.
 Bounded generated-program checks complement the parser's malformed-input tests;
 they are not a coverage-guided fuzz campaign.
-The separate [Clang libFuzzer target](docs/fuzzing.md) completed 80,430 frontend
-executions under ASan/UBSan in its bounded 0.2 campaign without a reported failure.
+The separate [Clang libFuzzer target](docs/fuzzing.md) completed 79,589 parser
+executions under ASan/UBSan in its latest bounded campaign without a reported
+finding. The final native suites include 216 compiler, 133 language, 61 namespace,
+115 optimizer execution and 19 editor workflow checks on each host, with
+[host-specific counts and identities](docs/validation.md).
 
 Benchmarks verify results before recording timings, retain repeated measurements,
 and record the compiler binary identity, checkout metadata, machine, source, and
@@ -283,7 +287,7 @@ toolchain and SDK. This is a development install, not a standalone distribution
 or package manager.
 
 Read the [design and decision record](docs/design.md), [language reference](docs/language.md),
-[validation record](docs/validation.md), and [remaining feature scope](docs/FEATURES.md).
+[validation record](docs/validation.md), and [supported feature scope](docs/FEATURES.md).
 The release has bounded, documented contracts; broader ABI, editor-protocol,
 distributed-package and shared-memory concurrency features require their own
 design and validation rather than being implied by these commands.
