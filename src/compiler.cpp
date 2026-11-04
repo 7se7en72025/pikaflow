@@ -37,6 +37,7 @@ class Compiler {
     std::map<std::string, size_t> byModule;
     std::map<std::string, std::vector<size_t>> exported;
     std::map<std::string, External> externals;
+    std::map<std::string, std::vector<std::pair<std::string, std::string>>> exportedExternals;
     std::map<std::string, std::set<std::string>> imports;
     std::unique_ptr<Context> context;
     unsigned serial = 0;
@@ -75,6 +76,19 @@ class Compiler {
             "unwrap", "error",    "range",  "alloc_i64", "alloc_f64", "alloc_bool", "free",
             "load",   "store",    "cstr",   "pin",       "unpin"};
         return names.count(name) != 0;
+    }
+    bool cScalar(const Type &t) {
+        return t == I64 || t == F64 || t == Bool || t.kind == TypeKind::Pointer;
+    }
+    bool cType(const Type &t) {
+        if (cScalar(t))
+            return true;
+        if (t.kind != TypeKind::Tuple || t.args.empty())
+            return false;
+        for (const auto &field : t.args)
+            if (!cScalar(field))
+                return false;
+        return true;
     }
     void validateType(const Type &t, Location loc, bool allowUnit = false, unsigned depth = 0) {
         if (depth > 64)
@@ -147,15 +161,40 @@ class Compiler {
         auto local = byModule.find(loc.file + "::" + name);
         if (local != byModule.end())
             return &declarations[local->second];
-        auto global = exported.find(name);
-        if (global == exported.end())
+        if (externals.count(loc.file + "::" + name))
             return nullptr;
+        auto global = exported.find(name);
         Declaration *result = nullptr;
-        for (size_t index : global->second)
-            if (imports[loc.file].count(declarations[index].file)) {
+        if (global != exported.end())
+            for (size_t index : global->second)
+                if (imports[loc.file].count(declarations[index].file)) {
+                    if (result)
+                        fail(loc, "ambiguous imported symbol '" + name + "'");
+                    result = &declarations[index];
+                }
+        auto native = exportedExternals.find(name);
+        size_t nativeCount = 0;
+        if (native != exportedExternals.end())
+            for (const auto &item : native->second)
+                if (imports[loc.file].count(item.first))
+                    ++nativeCount;
+        if (nativeCount > 1 || (result && nativeCount))
+            fail(loc, "ambiguous imported callable '" + name + "'");
+        return result;
+    }
+    External *external(const std::string &name, const Location &loc) {
+        auto local = externals.find(loc.file + "::" + name);
+        if (local != externals.end())
+            return &local->second;
+        auto exportedNative = exportedExternals.find(name);
+        if (exportedNative == exportedExternals.end())
+            return nullptr;
+        External *result = nullptr;
+        for (const auto &item : exportedNative->second)
+            if (imports[loc.file].count(item.first)) {
                 if (result)
-                    fail(loc, "ambiguous imported symbol '" + name + "'");
-                result = &declarations[index];
+                    fail(loc, "ambiguous imported extern '" + name + "'");
+                result = &externals.at(item.second);
             }
         return result;
     }
@@ -465,11 +504,10 @@ class Compiler {
             fn().code.back().text = target->irName;
             return value;
         }
-        auto external = externals.find(loc.file + "::" + name);
-        if (external != externals.end()) {
+        if (auto *resolved = external(name, loc)) {
             if (!context->unsafeMode)
                 fail(loc, "extern call '" + name + "' requires an explicit unsafe: block");
-            auto &target = external->second;
+            auto &target = *resolved;
             if (arguments.size() < target.parameters.size() ||
                 (!target.variadic && arguments.size() != target.parameters.size()))
                 fail(loc, "wrong argument count for extern '" + name + "'");
@@ -477,8 +515,9 @@ class Compiler {
                 require(type(arguments[i]), target.parameters[i], loc,
                         "extern argument " + std::to_string(i + 1));
             for (size_t i = target.parameters.size(); i < arguments.size(); ++i)
-                if (type(arguments[i]) != I64 && type(arguments[i]) != F64)
-                    fail(loc, "variadic arguments must be explicitly promoted to i64 or f64");
+                if (!cType(type(arguments[i])))
+                    fail(loc, "variadic argument requires a C-compatible scalar, pointer or flat "
+                              "tuple record");
             int value = emit(Op::ExternalCall, target.result, arguments, loc);
             fn().code.back().text = target.name;
             return value;
@@ -512,6 +551,24 @@ class Compiler {
         int value = emit(Op::MakeClosure, callable, cells, expression.location);
         fn().code.back().text = name;
         return value;
+    }
+    std::vector<Type> parameterTypes(const std::string &name, Location loc, const Type *expected) {
+        if ((name == "ok" || name == "err") && expected && expected->kind == TypeKind::Result)
+            return {expected->args[name == "ok" ? 0 : 1]};
+        if (auto *local = binding(name)) {
+            auto result = local->type.args;
+            if (local->type.kind == TypeKind::Function && !result.empty())
+                result.pop_back();
+            return result;
+        }
+        if (auto *target = declaration(name, loc)) {
+            auto result = target->type.args;
+            result.pop_back();
+            return result;
+        }
+        if (auto *native = external(name, loc))
+            return native->parameters;
+        return {};
     }
     int expr(const ExprPtr &expression, const Type *expected = nullptr) {
         if (!expression)
@@ -600,20 +657,29 @@ class Compiler {
             auto callee = e.items.at(0);
             std::vector<int> arguments;
             if (callee->kind == Expr::Kind::Name) {
+                auto parameters = parameterTypes(callee->text, loc, expected);
                 if (auto *local = binding(callee->text)) {
                     Binding b = *local;
                     int callable = emit(Op::LoadCell, b.type, {b.cell}, loc);
                     for (size_t i = 1; i < e.items.size(); ++i)
-                        arguments.push_back(expr(e.items[i]));
+                        arguments.push_back(expr(
+                            e.items[i], i - 1 < parameters.size() ? &parameters[i - 1] : nullptr));
                     return indirect(callable, arguments, loc);
                 }
                 for (size_t i = 1; i < e.items.size(); ++i)
-                    arguments.push_back(expr(e.items[i]));
+                    arguments.push_back(
+                        expr(e.items[i], i - 1 < parameters.size() ? &parameters[i - 1] : nullptr));
                 return invoke(callee->text, arguments, loc, expected);
             }
             int callable = expr(callee);
+            auto parameters = type(callable).args;
+            if (type(callable).kind == TypeKind::Function && !parameters.empty())
+                parameters.pop_back();
+            else
+                parameters.clear();
             for (size_t i = 1; i < e.items.size(); ++i)
-                arguments.push_back(expr(e.items[i]));
+                arguments.push_back(
+                    expr(e.items[i], i - 1 < parameters.size() ? &parameters[i - 1] : nullptr));
             return indirect(callable, arguments, loc);
         }
         case Expr::Kind::Array: {
@@ -622,7 +688,7 @@ class Compiler {
             if (expected && expected->kind == TypeKind::Array)
                 element = expected->args.at(0);
             for (auto &item : e.items) {
-                int value = expr(item);
+                int value = expr(item, element == Unit ? nullptr : &element);
                 if (value < 0)
                     fail(item->location, "array cannot contain unit");
                 if (values.empty() && element == Unit)
@@ -637,8 +703,13 @@ class Compiler {
         case Expr::Kind::Tuple: {
             std::vector<int> values;
             std::vector<Type> types;
-            for (auto &item : e.items) {
-                int value = expr(item);
+            for (size_t index = 0; index < e.items.size(); ++index) {
+                auto &item = e.items[index];
+                const Type *field =
+                    expected && expected->kind == TypeKind::Tuple && index < expected->args.size()
+                        ? &expected->args[index]
+                        : nullptr;
+                int value = expr(item, field);
                 if (value < 0)
                     fail(loc, "tuple cannot contain unit");
                 values.push_back(value);
@@ -1243,19 +1314,6 @@ class Compiler {
                 validateType(s.returnType, s.location, true);
                 for (const auto &parameter : s.parameters)
                     validateType(parameter.type, parameter.location);
-                auto scalar = [](const Type &t) {
-                    return t == I64 || t == F64 || t == Bool || t.kind == TypeKind::Pointer;
-                };
-                auto cType = [&](const Type &t) {
-                    if (scalar(t))
-                        return true;
-                    if (t.kind != TypeKind::Tuple || t.args.empty())
-                        return false;
-                    for (const auto &field : t.args)
-                        if (!scalar(field))
-                            return false;
-                    return true;
-                };
                 if (reserved(s.name))
                     fail(s.location, "extern name '" + s.name +
                                          "' is reserved; declare a distinct local name with = "
@@ -1275,7 +1333,7 @@ class Compiler {
                     ext.parameters.push_back(p.type);
                 }
                 std::string externalKey = s.location.file + "::" + s.name;
-                if (externals.count(externalKey))
+                if (externals.count(externalKey) || byModule.count(externalKey))
                     fail(s.location, "duplicate extern declaration");
                 for (const auto &previous : program.externals)
                     if (previous.symbol == ext.symbol &&
@@ -1284,6 +1342,8 @@ class Compiler {
                         fail(s.location,
                              "conflicting declarations for native symbol '" + ext.symbol + "'");
                 externals[externalKey] = ext;
+                if (s.exported)
+                    exportedExternals[s.name].push_back({s.location.file, externalKey});
                 program.externals.push_back(ext);
                 continue;
             }
@@ -1293,7 +1353,7 @@ class Compiler {
             if (reserved(s.name))
                 fail(s.location, "'" + s.name + "' is reserved for the language or runtime");
             std::string key = s.location.file + "::" + s.name;
-            if (byModule.count(key))
+            if (byModule.count(key) || externals.count(key))
                 fail(s.location, "duplicate function or word '" + s.name + "'");
             std::vector<Type> params;
             for (auto &parameter : s.parameters)

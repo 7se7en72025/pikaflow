@@ -81,20 +81,49 @@ void verify(const Program &program) {
     };
     std::map<std::string, const Function *> functions;
     for (const auto &function : program.functions) {
+        if (function.name.empty() || function.name.find('\0') != std::string::npos)
+            throw Error(function.location, "invalid IR function name");
+        if (!validType(function.result))
+            throw Error(function.location, "invalid IR result type");
+        for (const auto &t : function.registers)
+            if (!validType(t) || t == Unit)
+                throw Error(function.location, "invalid IR register type");
+        for (const auto &t : function.parameters)
+            if (!validType(t) || t == Unit)
+                throw Error(function.location, "invalid IR parameter type");
         if (!functions.emplace(function.name, &function).second)
             throw Error(function.location, "duplicate IR function");
+    }
+    std::set<std::string> externalNames;
+    auto cScalar = [](const Type &t) {
+        return t == I64 || t == F64 || t == Bool || t.kind == TypeKind::Pointer;
+    };
+    auto cType = [&](const Type &t) {
+        if (!validType(t))
+            return false;
+        if (cScalar(t))
+            return true;
+        if (t.kind != TypeKind::Tuple || t.args.empty())
+            return false;
+        for (const auto &field : t.args)
+            if (!cScalar(field))
+                return false;
+        return true;
+    };
+    for (const auto &external : program.externals) {
+        if (external.name.empty() || external.name.find('\0') != std::string::npos ||
+            external.symbol.find('\0') != std::string::npos ||
+            !externalNames.insert(external.name).second || functions.count(external.name))
+            throw Error({program.sourceFile, 1, 1}, "invalid or duplicate IR external name");
+        if (external.result != Unit && !cType(external.result))
+            throw Error({program.sourceFile, 1, 1}, "invalid C ABI external result type");
+        for (const auto &t : external.parameters)
+            if (!cType(t))
+                throw Error({program.sourceFile, 1, 1}, "invalid C ABI external parameter type");
     }
     if (!functions.count(program.entry))
         throw Error({program.sourceFile, 1, 1}, "missing IR entry function");
     for (const auto &f : program.functions) {
-        if (!validType(f.result))
-            throw Error(f.location, "invalid IR result type");
-        for (const auto &t : f.registers)
-            if (!validType(t) || t == Unit)
-                throw Error(f.location, "invalid IR register type");
-        for (const auto &t : f.parameters)
-            if (!validType(t) || t == Unit)
-                throw Error(f.location, "invalid IR parameter type");
         for (const auto &local : f.localNames)
             if (local.first < 0 || static_cast<size_t>(local.first) >= f.registers.size() ||
                 f.registers[local.first].kind != TypeKind::Cell || local.second.empty())
@@ -259,6 +288,9 @@ void verify(const Program &program) {
                         check(capture.integer >= 0 &&
                                   static_cast<size_t>(capture.integer) < ins.args.size(),
                               ins, "capture index outside closure environment");
+                        check(capture.dst >= 0 &&
+                                  static_cast<size_t>(capture.dst) < target.registers.size(),
+                              ins, "capture destination outside closure function registers");
                         check(target.registers.at(capture.dst) ==
                                   arg(static_cast<size_t>(capture.integer)),
                               ins, "capture environment type mismatch");
