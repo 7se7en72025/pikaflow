@@ -31,7 +31,7 @@ const char *name(Op op) {
 }
 } // namespace
 void verify(const Program &program) {
-    auto validType = [](const Type &initial) {
+    auto validType = [&](const Type &initial) {
         std::vector<std::pair<const Type *, unsigned>> work{{&initial, 0}};
         while (!work.empty()) {
             auto item = work.back();
@@ -41,6 +41,12 @@ void verify(const Program &program) {
                 return false;
             if (!t.name.empty() && t.kind != TypeKind::Tuple)
                 return false;
+            if (!t.name.empty()) {
+                auto layout = program.nominalLayouts.find(t.name);
+                if (layout == program.nominalLayouts.end() ||
+                    (!t.args.empty() && t.args != layout->second.args))
+                    return false;
+            }
             switch (t.kind) {
             case TypeKind::Unit:
             case TypeKind::I64:
@@ -87,6 +93,20 @@ void verify(const Program &program) {
         }
         return true;
     };
+    if (program.nominalLayouts.size() > 1024)
+        throw Error({program.sourceFile, 1, 1}, "too many nominal IR layouts");
+    for (const auto &entry : program.nominalLayouts) {
+        const auto &layout = entry.second;
+        if (entry.first.empty() || entry.first.find('\0') != std::string::npos ||
+            layout.kind != TypeKind::Tuple || layout.name != entry.first ||
+            layout.args.empty() || layout.args[0] != I64 || !validType(layout))
+            throw Error({program.sourceFile, 1, 1}, "invalid nominal IR layout");
+    }
+    auto canonical = [&](Type type) {
+        if (type.kind == TypeKind::Tuple && !type.name.empty())
+            return program.nominalLayouts.at(type.name);
+        return type;
+    };
     std::map<std::string, const Function *> functions;
     for (const auto &function : program.functions) {
         if (function.name.empty() || function.name.find('\0') != std::string::npos)
@@ -118,11 +138,33 @@ void verify(const Program &program) {
                 return false;
         return true;
     };
+    std::set<std::string> transferVisited;
     std::function<bool(const Type &)> transferable = [&](const Type &t) {
         if (t.kind == TypeKind::Pointer || t.kind == TypeKind::Task)
             return false;
+        if (t.kind == TypeKind::Tuple && !t.name.empty()) {
+            if (!transferVisited.insert(t.name).second)
+                return true;
+            const auto &layout = program.nominalLayouts.at(t.name);
+            return std::all_of(layout.args.begin(), layout.args.end(), transferable);
+        }
         return std::all_of(t.args.begin(), t.args.end(), transferable);
     };
+    std::function<bool(const Type &, const CABIType &, unsigned)> validABI =
+        [&](const Type &type, const CABIType &abi, unsigned depth) {
+            if (depth > 64) return false;
+            if (abi.bits) {
+                return type == I64 && abi.fields.empty() &&
+                       (abi.bits == 8 || abi.bits == 16 || abi.bits == 32 || abi.bits == 64);
+            }
+            if (!abi.isSigned) return false;
+            if (abi.fields.empty()) return true;
+            if (type.kind != TypeKind::Tuple || !type.name.empty() || abi.fields.size() != type.args.size())
+                return false;
+            for (size_t i = 0; i < abi.fields.size(); ++i)
+                if (!validABI(type.args[i], abi.fields[i], depth + 1)) return false;
+            return true;
+        };
     for (const auto &external : program.externals) {
         if (external.name.empty() || external.name.find('\0') != std::string::npos ||
             external.symbol.find('\0') != std::string::npos ||
@@ -133,6 +175,12 @@ void verify(const Program &program) {
         for (const auto &t : external.parameters)
             if (!cType(t))
                 throw Error({program.sourceFile, 1, 1}, "invalid C ABI external parameter type");
+        if ((!external.abiParameters.empty() && external.abiParameters.size() != external.parameters.size()) ||
+            !validABI(external.result, external.abiResult, 0))
+            throw Error({program.sourceFile, 1, 1}, "invalid C ABI descriptor shape");
+        for (size_t i = 0; i < external.abiParameters.size(); ++i)
+            if (!validABI(external.parameters[i], external.abiParameters[i], 0))
+                throw Error({program.sourceFile, 1, 1}, "invalid C ABI parameter descriptor");
     }
     if (!functions.count(program.entry))
         throw Error({program.sourceFile, 1, 1}, "missing IR entry function");
@@ -328,7 +376,7 @@ void verify(const Program &program) {
                     check(arg(i) == dst().args[0], ins, "array element");
                 break;
             case Op::MakeTuple: {
-                Type t = dst();
+                Type t = canonical(dst());
                 check(t.kind == TypeKind::Tuple || t.kind == TypeKind::Result, ins, "tuple type");
                 if (t.kind == TypeKind::Tuple) {
                     check(ins.args.size() == t.args.size(), ins, "tuple arity");
@@ -344,7 +392,7 @@ void verify(const Program &program) {
             case Op::Index: {
                 arity(2);
                 check(arg(1) == I64, ins, "index type");
-                Type base = arg(0);
+                Type base = canonical(arg(0));
                 if (base.kind == TypeKind::Array)
                     check(dst() == base.args[0], ins, "array index result type");
                 else if (base == String)
@@ -452,6 +500,7 @@ void verify(const Program &program) {
                 check(arg(0).kind == TypeKind::Function && arg(0).args.size() == 1 &&
                           dst().kind == TypeKind::Task && dst().args[0] == arg(0).args.back(),
                       ins, "spawn requires a zero-argument function with matching task result");
+                transferVisited.clear();
                 check(transferable(dst().args[0]), ins, "task result is not transferable");
                 break;
             case Op::Join:

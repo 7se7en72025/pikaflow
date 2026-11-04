@@ -170,6 +170,48 @@ int main() {
             auto &f = p.functions[0];
             f.code.insert(f.code.begin() + 1, instruction(Op::RawOffset, 1, {0, 0}));
         });
+        rejects("unregistered nominal reference", [](Program &p) {
+            p.functions[0].registers.push_back(Type{TypeKind::Tuple, {}, "Missing"});
+        });
+        rejects("C ABI unsupported integer width", [](Program &p) {
+            External external{"bad", {I64}, I64, false};
+            external.abiParameters = {{24, true, {}}};
+            p.externals.push_back(std::move(external));
+        });
+        rejects("C ABI descriptors mismatch parameters", [](Program &p) {
+            External external{"bad", {I64}, I64, false};
+            external.abiParameters = {{8, true, {}}, {16, true, {}}};
+            p.externals.push_back(std::move(external));
+        });
+        rejects("C ABI integer descriptor on float", [](Program &p) {
+            External external{"bad", {F64}, I64, false};
+            external.abiParameters = {{32, true, {}}};
+            p.externals.push_back(std::move(external));
+        });
+        rejects("invalid nominal registry tag", [](Program &p) {
+            p.nominalLayouts["Node"] = Type{TypeKind::Tuple, {Bool}, "Node"};
+        });
+        rejects("nominal registry identity mismatch", [](Program &p) {
+            p.nominalLayouts["Node"] = Type{TypeKind::Tuple, {I64}, "Other"};
+        });
+        rejects("nominal use changes canonical layout", [](Program &p) {
+            p.nominalLayouts["Node"] = Type{TypeKind::Tuple, {I64}, "Node"};
+            p.functions[0].registers.push_back(Type{TypeKind::Tuple, {I64, Bool}, "Node"});
+        });
+        {
+            auto recursive = valid();
+            Type node{TypeKind::Tuple, {}, "Node"};
+            recursive.nominalLayouts["Node"] = Type{TypeKind::Tuple, {I64, node}, "Node"};
+            auto &f = recursive.functions[0];
+            f.registers.push_back(node);
+            f.code = {instruction(Op::ConstI64, 0), instruction(Op::Zero, 3),
+                      instruction(Op::MakeTuple, 3, {0, 3}), instruction(Op::Return, -1, {0})};
+            verify(recursive);
+            f.code[2].args = {0, 0};
+            bool rejected = false;
+            try { verify(recursive); } catch (const Error &) { rejected = true; }
+            if (!rejected) throw std::runtime_error("recursive nominal field accepted wrong type");
+        }
         std::cout << "Typed IR verification tests passed\n";
         return 0;
     } catch (const std::exception &error) {

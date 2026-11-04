@@ -79,18 +79,30 @@ struct Function {
     Location location;
     std::map<int, std::string> localNames;
 };
+struct CABIType {
+    unsigned bits = 0;
+    bool isSigned = true;
+    std::vector<CABIType> fields;
+    bool operator==(const CABIType &other) const {
+        return bits == other.bits && isSigned == other.isSigned && fields == other.fields;
+    }
+    bool operator!=(const CABIType &other) const { return !(*this == other); }
+};
 struct External {
     std::string name;
     std::vector<Type> parameters;
     Type result;
     bool variadic = false;
     std::string symbol{};
+    std::vector<CABIType> abiParameters;
+    CABIType abiResult;
 };
 struct Program {
     std::vector<Function> functions;
     std::vector<External> externals;
     std::string entry = "main";
     std::string sourceFile;
+    std::map<std::string, Type> nominalLayouts;
 };
 Program compile(const SyntaxTree &tree);
 void verify(const Program &program);
