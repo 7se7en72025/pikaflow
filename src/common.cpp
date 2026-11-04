@@ -3,6 +3,15 @@
 
 namespace pika {
 std::string Type::str() const {
+    if (!name.empty()) {
+        if (kind != TypeKind::Named || args.empty()) return name;
+        std::string result = name + "[";
+        for (size_t i = 0; i < args.size(); ++i) {
+            if (i) result += ", ";
+            result += args[i].str();
+        }
+        return result + "]";
+    }
     switch (kind) {
     case TypeKind::Unit:
         return "unit";
@@ -28,6 +37,8 @@ std::string Type::str() const {
         out << "ptr[";
     else if (kind == TypeKind::Result)
         out << "Result[";
+    else if (kind == TypeKind::Task)
+        out << "task[";
     else if (kind == TypeKind::Function) {
         out << "fn(";
         for (size_t i = 0; i + 1 < args.size(); ++i) {

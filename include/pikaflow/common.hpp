@@ -28,22 +28,27 @@ enum class TypeKind : uint32_t {
     Function = 7,
     Cell = 8,
     Pointer = 9,
-    Result = 10
+    Result = 10,
+    Named = 11,
+    Task = 12
 };
 struct Type {
     TypeKind kind = TypeKind::Unit;
     std::vector<Type> args;
+    std::string name;
     Type() = default;
     Type(TypeKind k) : kind(k) {}
     Type(TypeKind k, std::vector<Type> a) : kind(k), args(std::move(a)) {}
+    Type(TypeKind k, std::vector<Type> a, std::string n)
+        : kind(k), args(std::move(a)), name(std::move(n)) {}
     bool operator==(const Type &other) const {
-        return kind == other.kind && args == other.args;
+        return kind == other.kind && args == other.args && name == other.name;
     }
     bool operator!=(const Type &other) const {
         return !(*this == other);
     }
     bool managed() const {
-        return (kind >= TypeKind::String && kind <= TypeKind::Cell) || kind == TypeKind::Result;
+        return (kind >= TypeKind::String && kind <= TypeKind::Cell) || kind == TypeKind::Result || kind == TypeKind::Task;
     }
     bool numeric() const {
         return kind == TypeKind::I64 || kind == TypeKind::F64;
