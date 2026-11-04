@@ -54,7 +54,6 @@ class Compiler {
     std::map<std::string, std::pair<std::string, size_t>> constructors;
     std::map<std::string, std::vector<std::string>> exportedConstructors;
     std::map<std::string, EnumInstance> enumInstances;
-    std::set<std::string> expandingEnums;
 
     StmtPtr enumDeclaration(const std::string &name, Location loc) {
         auto own = enumDeclarations.find(loc.file + "::" + name);
@@ -104,9 +103,11 @@ class Compiler {
         auto cached = enumInstances.find(key);
         if (cached != enumInstances.end()) return cached->second.type;
         if (enumInstances.size() >= 256) fail(loc, "enum specialization limit (256) exceeded");
-        if (depth > 64 || !expandingEnums.insert(key).second) fail(loc, "recursive enum layout exceeds the supported limit; recursive fields need indirection");
+        if (depth > 64) fail(loc, "enum layout expansion limit exceeded");
+        Type reference{TypeKind::Tuple, {}, key};
+        enumInstances.emplace(key, EnumInstance{definition, arguments, {}, reference});
         Type layout{TypeKind::Tuple, {I64}, key};
-        EnumInstance result{definition, arguments, {}, {}};
+        auto &result = enumInstances.at(key);
         for (auto &variant : definition->body) {
             result.offsets.push_back(layout.args.size());
             for (auto &field : variant->parameters) {
@@ -115,9 +116,8 @@ class Compiler {
                 layout.args.push_back(std::move(concrete));
             }
         }
-        expandingEnums.erase(key);
-        result.type = layout; enumInstances.emplace(key, result);
-        return layout;
+        program.nominalLayouts[key] = std::move(layout);
+        return reference;
     }
 
     bool unresolved(const Type &t) {
@@ -503,7 +503,8 @@ class Compiler {
             else if (result) fields = {subject.args[variant]};
             else if (instance) {
                 size_t offset = instance->offsets[variant];
-                for (size_t i = 0; i < instance->declaration->body[variant]->parameters.size(); ++i) fields.push_back(subject.args[offset + i]);
+                const auto &layout = program.nominalLayouts.at(subject.name);
+                for (size_t i = 0; i < instance->declaration->body[variant]->parameters.size(); ++i) fields.push_back(layout.args[offset + i]);
             }
             std::vector<std::vector<ExprPtr>> specialized;
             for (const auto &row : rows) {
@@ -614,8 +615,16 @@ class Compiler {
         if (name == "spawn") {
             if (arguments.size() != 1 || type(arguments[0]).kind != TypeKind::Function || type(arguments[0]).args.size() != 1)
                 fail(loc, "spawn requires one zero-argument function");
+            std::set<std::string> transferVisited;
             auto transferable = [&](const auto &self, const Type &t) -> bool {
                 if (t.kind == TypeKind::Pointer || t.kind == TypeKind::Task) return false;
+                if (!t.name.empty()) {
+                    auto layout = program.nominalLayouts.find(t.name);
+                    if (layout == program.nominalLayouts.end()) return false;
+                    if (!transferVisited.insert(t.name).second) return true;
+                    for (const auto &argument : layout->second.args) if (!self(self, argument)) return false;
+                    return true;
+                }
                 for (const auto &argument : t.args) if (!self(self, argument)) return false;
                 return true;
             };
@@ -907,13 +916,14 @@ class Compiler {
         }
         Type layout = enumType(definition, types, loc, 0);
         const auto &instance = enumInstances.at(layout.name);
+        const auto &fieldsLayout = program.nominalLayouts.at(layout.name);
         std::vector<int> fields{integer(static_cast<int64_t>(target.second), loc)};
         const size_t offset = instance.offsets.at(target.second);
-        for (size_t i = 1; i < layout.args.size(); ++i) {
+        for (size_t i = 1; i < fieldsLayout.args.size(); ++i) {
             if (i >= offset && i < offset + values.size()) {
-                require(type(values[i - offset]), layout.args[i], loc, "constructor payload");
+                require(type(values[i - offset]), fieldsLayout.args[i], loc, "constructor payload");
                 fields.push_back(values[i - offset]);
-            } else fields.push_back(emit(Op::Zero, layout.args[i], {}, loc));
+            } else fields.push_back(emit(Op::Zero, fieldsLayout.args[i], {}, loc));
         }
         return emit(Op::MakeTuple, layout, fields, loc);
     }
@@ -1443,7 +1453,7 @@ class Compiler {
                 guard(binary("==", emit(Op::Index, I64, {subject, integer(0, p.location)}, p.location), integer(static_cast<int64_t>(variant.second), p.location), p.location));
                 for (size_t i = 0; i < fields.size(); ++i) {
                     size_t offset = instance.offsets.at(variant.second) + i;
-                    int field = emit(Op::Index, subjectType.args.at(offset), {subject, integer(static_cast<int64_t>(offset), p.location)}, p.location);
+                    int field = emit(Op::Index, program.nominalLayouts.at(subjectType.name).args.at(offset), {subject, integer(static_cast<int64_t>(offset), p.location)}, p.location);
                     pattern(p.items[i + 1], field, failures);
                 }
                 return false;

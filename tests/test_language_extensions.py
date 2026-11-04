@@ -8,6 +8,68 @@ import textwrap
 
 
 CASES = {
+    "generic_higher_order": ('''
+        fun apply[A, B](value: A, operation: fn(A) -> B) -> B:
+            return operation(value)
+        fun double(value: i64) -> i64:
+            return value * 2
+        fun empty[T]() -> [T]:
+            return []
+        fun main() -> unit:
+            print(apply(21, double))
+            let values: [i64] = empty()
+            print(len(values))
+    ''', "42\n0\n"),
+    "generic_stack_word": ('''
+        word duplicate[T](T) -> (T, T):
+            dup
+        fun main() -> unit:
+            let values = stack(21) -> (i64, i64):
+                duplicate
+            print(values[0] + values[1])
+    ''', "42\n"),
+    "enum_recursive_list": ('''
+        enum List[T]:
+            Cons(value: T, rest: List[T])
+            Empty
+        fun sum(values: List[i64]) -> i64:
+            match values:
+                case Empty():
+                    return 0
+                case Cons(value, rest):
+                    return value + sum(rest)
+        fun main() -> unit:
+            let values = Cons(20, Cons(22, Empty::[i64]()))
+            gc()
+            print(sum(values))
+    ''', "42\n"),
+    "enum_mutual_recursion": ('''
+        enum First[T]:
+            Finish(value: T)
+            ToSecond(other: Second[T])
+        enum Second[T]:
+            ToFirst(other: First[T])
+        fun score(value: First[i64]) -> i64:
+            match value:
+                case Finish(result):
+                    return result
+                case ToSecond(ToFirst(other)):
+                    return score(other)
+        fun main() -> unit:
+            print(score(ToSecond(ToFirst(Finish(42)))))
+    ''', "42\n"),
+    "enum_recursive_gc_cycle": ('''
+        enum Node:
+            Link(children: [Node])
+        fun main() -> unit:
+            let children: [Node] = [Link([])]
+            let root = Link(children)
+            children[0] = root
+            gc()
+            match root:
+                case Link(values):
+                    print(len(values) + 41)
+    ''', "42\n"),
     "enum_nested_exhaustiveness": ('''
         enum Decision[T]:
             Present(flag: bool, value: T)
@@ -192,12 +254,13 @@ CASES = {
 }
 
 NEGATIVE = {
+    "task_recursive_pointer": ("enum Node:\n    Link(children:[Node])\n    Foreign(memory:ptr[i64])\nfun worker()->Node:\n    return Link([])\nfun main():\n    spawn(worker)\n", "result cannot contain"),
     "enum_exhaustiveness": ("enum Option[T]:\n    Some(value:T)\n    None\nfun main():\n    match Some(42):\n        case Some(x):\n            print(x)\n", "non-exhaustive enum match"),
     "enum_guard_exhaustiveness": ("enum Flag:\n    Yes\n    No\nfun main():\n    match Yes():\n        case Yes() if true:\n            pass\n        case No():\n            pass\n", "non-exhaustive enum match"),
     "enum_payload_exhaustiveness": ("enum Flag:\n    Value(flag:bool)\nfun main():\n    match Value(true):\n        case Value(true):\n            pass\n", "non-exhaustive enum match"),
     "enum_nominal": ("enum A:\n    First(x:i64)\nenum B:\n    Second(x:i64)\nfun f(x:A):\n    pass\nfun main():\n    f(Second(42))\n", "constructor does not belong"),
     "enum_constructor_arity": ("enum Option[T]:\n    Some(value:T)\n    None\nfun main():\n    Some()\n", "constructor arguments"),
-    "enum_recursive": ("enum List[T]:\n    Cons(value:T, rest:List[T])\n    Empty\nfun main():\n    let x:List[i64]=Empty()\n", "recursive enum layout"),
+    "enum_nonregular_recursion": ("enum Grow[T]:\n    More(value:Grow[[T]])\n    Empty\nfun main():\n    let x:Grow[i64]=Empty()\n", "limit"),
     "enum_representation_private": ("enum Color:\n    Red\nfun main():\n    print(Red()[0])\n", "indexing requires"),
     "generic_conflict": ("fun same[T](a:T,b:T)->T:\n    return a\nfun main():\n    same(1,true)\n", "type parameter"),
     "generic_uninferred": ("fun empty[T]()->[T]:\n    return []\nfun main():\n    empty()\n", "cannot infer type parameter"),

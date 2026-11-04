@@ -32,9 +32,13 @@ tuple destructuring, `len` and C-record interop do not expose its internal tag o
 inactive payload slots. Runtime storage uses existing traced tuples, preserving
 managed payload lifetime through collection.
 
-The current milestone supports finite nonrecursive enum layouts. Recursive field
-definitions diagnose with a layout-limit error; recursive ADTs are being developed
-separately and are not established by the finite-layout tests.
+Direct and mutually recursive enum fields are supported, including generic lists
+and trees. Canonical field layouts live in a checked nominal-layout registry;
+recursive references have finite named types, while the runtime follows actual
+tuple payload references. Arrays can form cycles between enum values, and the
+tracing collector handles those cycles. Nonregular type growth such as
+`Grow[T]` containing `Grow[[T]]` is bounded by the type/layout expansion limits
+instead of constructing infinitely many specializations.
 
 ## Generic functions and words
 
