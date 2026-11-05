@@ -1,6 +1,96 @@
 # Validation record
 
-## 0.4.0 clean release validation
+## 0.5.0 corrected clean release validation
+
+The final frozen implementation is **`8ec3986fe9bf606e383e1c0c06bb8c3436bf4d49`**,
+with clean source (`dirty: false`) and common archive SHA-256
+`3ba8f6ffc0cebf8ad899f3e5556da0f18eb905734a3bb23681182eb7912d8104`.
+Linux and semantic-fuzzer checks verified all 179 archived files unchanged;
+Windows also recorded matching source after testing. The JSON below preserves
+all captured fields, with repository line-ending normalization.
+
+| Host / mode | Complete result | Record |
+|---|---|---|
+| Windows x64, MSVC 19.52 / LLVM 24.0.0git | **31/31 native suites**, 201.89 s | [Windows](validation/windows-0.5.0-2026-11-05.json) |
+| Windows x64, MSVC 19.52, LLVM disabled | **27/27 reference suites**, 54.58 s | [Same record, reference mode](validation/windows-0.5.0-2026-11-05.json) |
+| Ubuntu 24.04 x86-64 / WSL2, GNU 13.3 / LLVM 24.0.0 | **33/33 native suites**, 342.55 s | [Linux](validation/linux-0.5.0-2026-11-05.json) |
+
+Times are CTest's reported elapsed values; the Linux wrapper separately recorded
+342.607 s and a 0.216 s no-op incremental build. No CTest suite was skipped.
+The Linux tools suite internally skips its Windows-only junction unittest;
+Windows's report suite skips the Linux-only `/dev/full` unittest. The report
+suite has seven tests and covers JSON/count accuracy, nonexecution, flags,
+protected inputs/hard links/metadata, and write/flush failures. Linux's plugin
+passed **seven FileCheck pipelines and 85 executions**, including v1 effects,
+v2 successful constants, retained failing calls and real source/IR roundtrips.
+Windows uses the shared pass internally; a dynamic Windows plugin remains outside
+the recorded host configuration.
+
+The existing language/runtime/editor/package suites also passed, including
+135 optimizer comparisons and the default ten-program independent oracle
+(40 outputs and ten native builds per native host). No new parser campaign or
+extended 300-program campaign was run for 0.5; those 0.4 records remain below.
+
+### Failed Linux candidate and test-only correction
+
+The [earlier clean `083b232` candidate](validation/linux-candidate-0.5.0-2026-11-05.json)
+passed 32/33 Linux suites. Its cleanup test raced between checking
+`/proc/PID/stat` existence and reading it after the child was reaped, raising
+`ProcessLookupError`. The correction reads directly while handling both
+`FileNotFoundError` and `ProcessLookupError`. It changes the Python test only,
+not C++ compiler/runtime behavior. The corrected freeze was rerun on both hosts;
+the failed candidate is not counted as the final successful result.
+
+### Instrumented semantic/optimizer exploration
+
+The [clean final campaign](validation/semantic-fuzzer-0.5.0-2026-11-05.json)
+completed **11,228 libFuzzer executions**, seed `20261106`, with no findings,
+artifacts, sanitizer reports or warnings. All nine implementation units were
+compiled with coverage/ASan/UBSan, without linking an uninstrumented core.
+Four bounded source families cover scalar/stack arithmetic, branches/loops,
+aliased arrays and generic records/aliases. Original, optimized and twice-
+optimized IR must match an independent full-output oracle and release their
+managed heap. LLVM backend code is not instrumented by this target.
+
+The run used the default 8 MiB stack, leak detection, eight-byte maximum inputs,
+a 120-second requested budget, five-second input timeout and 1,024-MiB RSS limit.
+LibFuzzer reported **121 seconds**; the wrapper observed **112.623 seconds**.
+Both observations remain in the record rather than becoming one precise timing
+claim. Instrumentation reported counter 6,141, feature count 9,856 and peak RSS
+496 MiB; these are not source coverage percentages. Final corpus size was
+72 inputs/334 bytes. Identical instrumented inputs allowed a verified no-op
+build; the archived source post-check remained exact.
+[Harness and limits](fuzzing.md)
+
+### Identities, benchmark and local artifacts
+
+| Compiler | SHA-256 |
+|---|---|
+| Windows native | `168cf46b6278694f49209fe83d7089aff34ce0cf3e189a1e73f1168a0d875b20` |
+| Windows reference | `b049a738f0c69cfc3f6ee280d17106e7e9956a50b9bcc81362f537d34c5cebfe` |
+| Linux native | `c47cb6a04da5e52a314a21c3a184e4763c3adcc7b2dc49e405434e249dc37ae7` |
+
+The [quiet Windows benchmark](benchmarks/windows-0.5.0-2026-11-05.json) used
+that native binary and clean revision after host/package work finished. Every
+output matched in three process-inclusive samples per configuration. O0/O2
+medians were **28.050/29.861 ms** for the loop and **18.180/18.361 ms** for
+Fibonacci(20). These measurements establish no general speedup.
+
+| Local package | Bytes | SHA-256 / record |
+|---|---:|---|
+| `pikaflow-0.5.0-windows-x64-8ec3986.zip` | 18,240,019 | `30380167d908aee20b58773fb47433c09c9c7e91ade745e93b44fc83afe01e40`; [Windows](validation/windows-package-0.5.0-2026-11-05.json) |
+| `pikaflow-0.5.0-linux-x86_64-8ec3986.tar.gz` | 25,268,883 | `d2140ae9c189f55928e364c82372cd0324cc9e53f8eef26571b73897bd20bed1`; [Linux](validation/linux-package-0.5.0-2026-11-05.json) |
+
+Extracted packages passed the optimization lab and report proof (50 to 48
+instructions, one common expression reused, two dead results removed), alongside
+showcase, records, tools and project cases. Linux additionally ran the installed
+v2 plugin through `opt`/`lli`; installation's RUNPATH change accounts for its
+different installed plugin hash. These local archives retain host-library/SDK
+requirements and are not published universal installers. No remote CI run is
+claimed. Raw records/logs remain under the corresponding ignored
+`out/*0.5-corrected/` paths.
+
+## Historical 0.4.0 clean release validation
 
 The final frozen implementation is **`1cfd6aab929c0c608061159900270981c2b3d12c`**.
 Windows, Linux and the final sanitizer run captured clean source (`dirty: false`)

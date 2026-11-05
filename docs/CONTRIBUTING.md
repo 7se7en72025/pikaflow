@@ -15,6 +15,7 @@ build/native/pikaflow.exe dump-tokens examples/hello.pf
 build/native/pikaflow.exe dump-ast examples/hello.pf
 build/native/pikaflow.exe dump-ir examples/hello.pf
 build/native/pikaflow.exe dump-ir examples/hello.pf -O2
+build/native/pikaflow.exe opt-report examples/optimization_lab/main.pf
 build/native/pikaflow.exe symbols examples/modules/qualified.pf
 build/native/pikaflow.exe emit-ir examples/hello.pf -O0 -o build/hello-O0.ll
 build/native/pikaflow.exe emit-ir examples/hello.pf -O2 -o build/hello-O2.ll
@@ -37,6 +38,8 @@ of independent execution paths before studying optimization differences.
 | How do source names retain identity through shadows, captures and generics? | Optional compiler semantic source pass and AST name locations | [Semantic index tests](../tests/test_semantic_symbols.py), [editor tests](../tests/test_editor.py) |
 | What does our own IR guarantee before LLVM sees it? | [ir.hpp](../include/pikaflow/ir.hpp), [ir.cpp](../src/ir.cpp) | [Malformed IR tests](../tests/ir_tests.cpp) |
 | How do constants, value identities and live results drive our own optimization? | [optimizer.cpp](../src/optimizer.cpp), [optimizer.hpp](../include/pikaflow/optimizer.hpp) | [Optimizer unit tests](../tests/optimizer_tests.cpp), [cross-mode optimizer tests](../tests/test_optimization.py), [pass description](optimization.md) |
+| How can optimization be inspected without executing a source program? | CLI report serialization and protected text output in [main.cpp](../src/main.cpp) | [Report CLI tests](../tests/test_opt_report.py), [optimization lab](../examples/optimization_lab/README.md) |
+| How do instrumented semantic inputs drive compiler/optimizer coverage? | [Semantic harness](../tests/fuzz_semantic.cpp) | [Instrumentation, four families and oracle contract](fuzzing.md) |
 | How do records and aliases preserve type/field identity? | Compiler type expansion, nominal registry and source field resolution | [Record tests](../tests/test_records.py), [alias tests](../tests/test_type_aliases.py), [record project](../examples/record_project/README.md) |
 | How does the same LLVM pass run in the compiler and `opt`? | [Shared pass](../src/llvm/CheckedArithmeticPass.cpp), [plugin entry](../src/llvm/PassPlugin.cpp) | [Plugin contract](llvm-pass-plugin.md), [FileCheck fixtures](../tests/llvm/checked_simplify.ll), Linux `opt`/`lli`/`llc` tests |
 | How can we execute without relying on LLVM lowering? | [interpreter.cpp](../src/interpreter.cpp) | [Interpreter tests](../tests/interpreter_tests.cpp), [arithmetic differential tests](../tests/fuzz_frontend.py) |
@@ -72,8 +75,10 @@ python tests/fuzz_programs.py build/native/pikaflow.exe --cases 10 --seed 202611
 On a matching Linux LLVM 24 plugin host, build `pikaflow_checked_passes` and run
 the [documented `opt` pipeline](llvm-pass-plugin.md). Read the producer contract
 before marking a runtime helper; an incorrect attribute can authorize an invalid
-transformation even when LLVM verification succeeds. Keep a checked-trap and an
-observable-effect counterexample beside each new identity.
+transformation even when LLVM verification succeeds. v1 promises only safe
+identities; v2 additionally promises exact, effect-free successful arithmetic
+and authorizes checked APInt constant folds. Retain overflow/division failures
+and legacy effectful nonidentity cases in the tests.
 
 Sanitizer resource checks should retain ordinary host stack limits. The 0.4
 candidate's valid generic-chain failure required reducing expression-dispatch

@@ -1,5 +1,22 @@
 # Implementation status
 
+PikaFlow **0.5.0** adds `opt-report FILE [-o FILE]`, shared LLVM checked-constant
+folding with a backward-compatible v2/v1 producer contract, and a genuinely
+coverage-guided semantic/compiler/optimizer harness. The
+[optimization lab](../examples/optimization_lab/README.md) shows real CSE/DCE
+counts; reports analyze verified IR without executing source or requiring LLVM.
+
+Corrected clean `8ec3986` passed **31/31 Windows native** (201.89 s), **27/27
+Windows reference** (54.58 s) and **33/33 Linux native** (342.55 s) CTest suites.
+The final instrumented semantic campaign passed **11,228 executions**, with no
+findings/artifacts, and both extracted packages passed their lab/report checks.
+The earlier Linux candidate's `/proc` cleanup-test race and test-only correction
+remain explicit in [validation.md](validation.md). The fresh benchmark preserves
+three output-verified process samples per configuration; no speedup is claimed.
+The 0.4 parser and 300-program campaigns below remain historical evidence.
+
+## Historical 0.4 release
+
 PikaFlow **0.4.0** delivers nominal generic records and mutable named fields,
 transparent generic aliases, local scalar common expressions and CFG dead-result
 removal, project tests/assertions, semantic tokens/type hints, and a shared LLVM

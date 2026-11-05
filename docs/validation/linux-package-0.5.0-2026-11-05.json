@@ -1,0 +1,358 @@
+{
+  "source_commit": "8ec3986fe9bf606e383e1c0c06bb8c3436bf4d49",
+  "archive_source_sha256": "3ba8f6ffc0cebf8ad899f3e5556da0f18eb905734a3bb23681182eb7912d8104",
+  "scope": "Local Linux x86-64 install package and extracted smoke tests; no release publication",
+  "started_utc": "2026-11-05T00:02:55.172709+00:00",
+  "checks": [
+    {
+      "label": "cmake_install",
+      "command": [
+        "cmake",
+        "--install",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/llvm-constants-validation/build",
+        "--prefix",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64"
+      ],
+      "exit_code": 0,
+      "stdout": "-- Install configuration: \"Release\"\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/lib/pikaflow_checked_passes.so\n-- Set non-toolchain portion of runtime path of \"/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/lib/pikaflow_checked_passes.so\" to \"$ORIGIN/../lib\"\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/lib/pikaflow/plugins/pikaflow_checked_passes.so\n-- Set non-toolchain portion of runtime path of \"/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/lib/pikaflow/plugins/pikaflow_checked_passes.so\" to \"$ORIGIN/../lib\"\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/bin/pikaflow\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/lib/libpikaflow_runtime.a\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/stdlib\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/stdlib/numeric.pf\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/stdlib/sequences.pf\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/stdlib/strings.pf\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/stdlib/testing.pf\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/editor.py\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/editor_features.py\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/formatter.py\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/git_sources.py\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/lsp.py\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/packages.py\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/pikaflow.py\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/process_jobs.py\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/project_tests.py\n-- Installing: /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/__pycache__\n",
+      "stderr": "",
+      "seconds": 4.62
+    },
+    {
+      "label": "compiler_dependencies",
+      "command": [
+        "ldd",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/bin/pikaflow"
+      ],
+      "exit_code": 0,
+      "stdout": "\tlinux-vdso.so.1 (0x00007fff533f3000)\n\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007d7dfd1c9000)\n\tlibzstd.so.1 => /lib/x86_64-linux-gnu/libzstd.so.1 (0x00007d7dfd10f000)\n\tlibstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007d7dfce00000)\n\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007d7dfcd17000)\n\tlibgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007d7dfd0e1000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007d7dfca00000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007d7e005fb000)\n",
+      "stderr": "",
+      "seconds": 0.039
+    },
+    {
+      "label": "plugin_dependencies",
+      "command": [
+        "ldd",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-stage/pikaflow-0.5.0-linux-x86_64/lib/pikaflow/plugins/pikaflow_checked_passes.so"
+      ],
+      "exit_code": 0,
+      "stdout": "\tlinux-vdso.so.1 (0x00007ffec71fb000)\n\tlibLLVM.so.24.0 => /lib/x86_64-linux-gnu/libLLVM.so.24.0 (0x000074759c600000)\n\tlibstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x000074759c200000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x000074759be00000)\n\tlibffi.so.8 => /lib/x86_64-linux-gnu/libffi.so.8 (0x00007475a5a00000)\n\tlibedit.so.2 => /lib/x86_64-linux-gnu/libedit.so.2 (0x000074759c5c6000)\n\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x000074759c4dd000)\n\tlibz3.so.4 => /lib/x86_64-linux-gnu/libz3.so.4 (0x000074759ae00000)\n\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007475a59e2000)\n\tlibzstd.so.1 => /lib/x86_64-linux-gnu/libzstd.so.1 (0x000074759c146000)\n\tlibxml2.so.2 => /lib/x86_64-linux-gnu/libxml2.so.2 (0x000074759ac1e000)\n\tlibgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x000074759c4af000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007475a5a1c000)\n\tlibtinfo.so.6 => /lib/x86_64-linux-gnu/libtinfo.so.6 (0x000074759c112000)\n\tlibbsd.so.0 => /lib/x86_64-linux-gnu/libbsd.so.0 (0x000074759c499000)\n\tlibicuuc.so.74 => /lib/x86_64-linux-gnu/libicuuc.so.74 (0x000074759aa00000)\n\tliblzma.so.5 => /lib/x86_64-linux-gnu/liblzma.so.5 (0x000074759c0e0000)\n\tlibmd.so.0 => /lib/x86_64-linux-gnu/libmd.so.0 (0x000074759c48a000)\n\tlibicudata.so.74 => /lib/x86_64-linux-gnu/libicudata.so.74 (0x0000747598c00000)\n",
+      "stderr": "",
+      "seconds": 0.045
+    },
+    {
+      "label": "installed_version",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/bin/pikaflow",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "PikaFlow 0.5.0; LLVM enabled; x86_64-pc-linux-gnu\n",
+      "stderr": "",
+      "seconds": 0.074
+    },
+    {
+      "label": "showcase_interpreter",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/bin/pikaflow",
+        "interpret",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/showcase/main.pf"
+      ],
+      "exit_code": 0,
+      "stdout": "43\n36\nnegative seed\n",
+      "stderr": "",
+      "seconds": 0.122
+    },
+    {
+      "label": "showcase_jit_O2",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/bin/pikaflow",
+        "run",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/showcase/main.pf",
+        "-O2"
+      ],
+      "exit_code": 0,
+      "stdout": "43\n36\nnegative seed\n",
+      "stderr": "",
+      "seconds": 0.34
+    },
+    {
+      "label": "showcase_build_O2",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/bin/pikaflow",
+        "build",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/showcase/main.pf",
+        "-O2",
+        "-o",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/showcase"
+      ],
+      "exit_code": 0,
+      "stdout": "Built /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/showcase\n",
+      "stderr": "",
+      "seconds": 0.695
+    },
+    {
+      "label": "showcase_native_O2",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/showcase"
+      ],
+      "exit_code": 0,
+      "stdout": "43\n36\nnegative seed\n",
+      "stderr": "",
+      "seconds": 0.008
+    },
+    {
+      "label": "optimization_lab_interpreter",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/bin/pikaflow",
+        "interpret",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/optimization_lab/main.pf"
+      ],
+      "exit_code": 0,
+      "stdout": "84\n48\n0\n",
+      "stderr": "",
+      "seconds": 0.115
+    },
+    {
+      "label": "optimization_lab_jit_O2",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/bin/pikaflow",
+        "run",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/optimization_lab/main.pf",
+        "-O2"
+      ],
+      "exit_code": 0,
+      "stdout": "84\n48\n0\n",
+      "stderr": "",
+      "seconds": 0.27
+    },
+    {
+      "label": "optimization_lab_build_O2",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/bin/pikaflow",
+        "build",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/optimization_lab/main.pf",
+        "-O2",
+        "-o",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/optimization-lab"
+      ],
+      "exit_code": 0,
+      "stdout": "Built /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/optimization-lab\n",
+      "stderr": "",
+      "seconds": 0.549
+    },
+    {
+      "label": "optimization_lab_native_O2",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/optimization-lab"
+      ],
+      "exit_code": 0,
+      "stdout": "84\n48\n0\n",
+      "stderr": "",
+      "seconds": 0.007
+    },
+    {
+      "label": "optimization_report",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/bin/pikaflow",
+        "opt-report",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/optimization_lab/main.pf"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"schema_version\":1,\"source\":\"/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/optimization_lab/main.pf\",\"before\":{\"functions\":3,\"instructions\":50},\"after\":{\"functions\":3,\"instructions\":48},\"statistics\":{\"constants_folded\":0,\"branches_folded\":0,\"unreachable_removed\":0,\"functions_skipped\":0,\"common_expressions_reused\":1,\"dead_results_removed\":2,\"liveness_skipped\":0}}\n",
+      "stderr": "",
+      "seconds": 0.095
+    },
+    {
+      "label": "record_project_jit_O2",
+      "command": [
+        "/usr/bin/python3",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/pikaflow.py",
+        "run",
+        "--project",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/record_project",
+        "-O2"
+      ],
+      "exit_code": 0,
+      "stdout": "42\n43\n52\n36\n",
+      "stderr": "",
+      "seconds": 1.082
+    },
+    {
+      "label": "record_project_build_O2",
+      "command": [
+        "/usr/bin/python3",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/pikaflow.py",
+        "build",
+        "--project",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/record_project",
+        "-O2",
+        "-o",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/records"
+      ],
+      "exit_code": 0,
+      "stdout": "Built /mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/records\n",
+      "stderr": "",
+      "seconds": 1.394
+    },
+    {
+      "label": "record_project_native_O2",
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/records"
+      ],
+      "exit_code": 0,
+      "stdout": "42\n43\n52\n36\n",
+      "stderr": "",
+      "seconds": 0.007
+    },
+    {
+      "label": "project_tests_interpret",
+      "command": [
+        "/usr/bin/python3",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/pikaflow.py",
+        "test",
+        "--project",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/record_project",
+        "--backend",
+        "interpret",
+        "-O2",
+        "--jobs",
+        "2",
+        "--json-report",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/interpret-tests.json",
+        "--junit",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/interpret-tests.xml"
+      ],
+      "exit_code": 0,
+      "stdout": "PASSED tests/test_model.pf::test_counter\nPASSED tests/test_model.pf::test_generic_record\nPASSED tests/test_model.pf::test_task_snapshot\n3 passed, 0 failed, 0 collection errors\n",
+      "stderr": "",
+      "seconds": 2.883
+    },
+    {
+      "label": "project_tests_jit",
+      "command": [
+        "/usr/bin/python3",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/pikaflow.py",
+        "test",
+        "--project",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/record_project",
+        "--backend",
+        "jit",
+        "-O2",
+        "--jobs",
+        "2",
+        "--json-report",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/jit-tests.json",
+        "--junit",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/jit-tests.xml"
+      ],
+      "exit_code": 0,
+      "stdout": "PASSED tests/test_model.pf::test_counter\nPASSED tests/test_model.pf::test_generic_record\nPASSED tests/test_model.pf::test_task_snapshot\n3 passed, 0 failed, 0 collection errors\n",
+      "stderr": "",
+      "seconds": 3.192
+    },
+    {
+      "label": "project_tests_native",
+      "command": [
+        "/usr/bin/python3",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/tools/pikaflow.py",
+        "test",
+        "--project",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/record_project",
+        "--backend",
+        "native",
+        "-O2",
+        "--jobs",
+        "2",
+        "--json-report",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/native-tests.json",
+        "--junit",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/native-tests.xml"
+      ],
+      "exit_code": 0,
+      "stdout": "PASSED tests/test_model.pf::test_counter\nPASSED tests/test_model.pf::test_generic_record\nPASSED tests/test_model.pf::test_task_snapshot\n3 passed, 0 failed, 0 collection errors\n",
+      "stderr": "",
+      "seconds": 3.548
+    },
+    {
+      "label": "installed_plugin_opt",
+      "command": [
+        "/usr/lib/llvm-24/bin/opt",
+        "-load-pass-plugin",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/lib/pikaflow/plugins/pikaflow_checked_passes.so",
+        "-passes=pikaflow-checked-simplify",
+        "-verify-each",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/plugin.ll",
+        "-o",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/plugin-optimized.ll"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 0.029
+    },
+    {
+      "label": "installed_plugin_execution",
+      "command": [
+        "/usr/lib/llvm-24/bin/lli",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-probes/plugin-optimized.ll"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 0.029
+    }
+  ],
+  "seconds": 45.077,
+  "build_plugin_sha256": "cc41feff91a340291f627683050cdaa2ce8e149b8dffac6f63879e95377d3683",
+  "installed_plugin_sha256": "c4fc729f8845024014c9b68558d86947d2c45314317aa99873b8c12787caaa37",
+  "plugin_install_adjusted_runpath": true,
+  "package_path": "/mnt/c/Users/RAIYYAN/pikaflow/out/dist/pikaflow-0.5.0-linux-x86_64-8ec3986.tar.gz",
+  "package_bytes": 25268883,
+  "package_sha256": "d2140ae9c189f55928e364c82372cd0324cc9e53f8eef26571b73897bd20bed1",
+  "extracted_files_match": true,
+  "installed_optimization_report": {
+    "schema_version": 1,
+    "source": "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/package-extracted verification \u00e5/pikaflow-0.5.0-linux-x86_64/share/pikaflow/examples/optimization_lab/main.pf",
+    "before": {
+      "functions": 3,
+      "instructions": 50
+    },
+    "after": {
+      "functions": 3,
+      "instructions": 48
+    },
+    "statistics": {
+      "constants_folded": 0,
+      "branches_folded": 0,
+      "unreachable_removed": 0,
+      "functions_skipped": 0,
+      "common_expressions_reused": 1,
+      "dead_results_removed": 2,
+      "liveness_skipped": 0
+    }
+  },
+  "installed_project_tests": {
+    "interpret": {
+      "passed": 3,
+      "failed": 0
+    },
+    "jit": {
+      "passed": 3,
+      "failed": 0
+    },
+    "native": {
+      "passed": 3,
+      "failed": 0
+    }
+  },
+  "installed_plugin_constant_fold": "v2: 20 + 22 -> 42",
+  "compiler_sha256": "c47cb6a04da5e52a314a21c3a184e4763c3adcc7b2dc49e405434e249dc37ae7",
+  "plugin_sha256": "c4fc729f8845024014c9b68558d86947d2c45314317aa99873b8c12787caaa37",
+  "installed_files_postcheck": true,
+  "build_artifacts_postcheck": true,
+  "source_files_postcheck": true,
+  "passed": true,
+  "finished_utc": "2026-11-05T00:03:43.212193+00:00"
+}

@@ -1,0 +1,492 @@
+{
+  "commit": "8ec3986fe9bf606e383e1c0c06bb8c3436bf4d49",
+  "dirty": false,
+  "capture_head": "8ec3986fe9bf606e383e1c0c06bb8c3436bf4d49",
+  "capture_worktree_status": "",
+  "archive_git_comment": "8ec3986fe9bf606e383e1c0c06bb8c3436bf4d49",
+  "archive_sha256": "3ba8f6ffc0cebf8ad899f3e5556da0f18eb905734a3bb23681182eb7912d8104",
+  "source_file_count": 179,
+  "source_files_manifest_sha256": "dea0852985e5d70024ccaa73881b4692cb246361b83a0924a5c9c3a055967efc",
+  "source_directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/llvm-constants-validation/source",
+  "build_directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/llvm-constants-validation/build",
+  "updated_files": [
+    "docs/PROJECT_PLAN.md",
+    "tests/test_project_tests.py"
+  ],
+  "byte_identical_files_with_preserved_mtime": 177,
+  "removed_generated_cache_directories": [
+    "scripts/__pycache__",
+    "tests/__pycache__",
+    "tools/__pycache__"
+  ],
+  "previous_candidate_commit": "083b232543aa382d040061942b8567eed02fdd57",
+  "previous_candidate_scope": "FAILED083candidate: project_tests /proc exists/read TOCTOU; final successor required",
+  "previous_candidate_manifest_sha256": "7bffee6b4f1be33ff2111385d5e55f96e109d01e5fd0654c270a3f8cd252d858",
+  "previous_candidate_binary_sha256": "c47cb6a04da5e52a314a21c3a184e4763c3adcc7b2dc49e405434e249dc37ae7",
+  "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "configuration": "Release, LLVM24 enabled, Linux shared pass plugin enabled, BUILD_TESTING enabled, incremental isolated archive snapshot",
+  "started_utc": "2026-11-04T23:56:27.078956+00:00",
+  "build_parallel": 1,
+  "test_parallel": 1,
+  "toolchains": {
+    "compiler": {
+      "command": [
+        "/usr/bin/g++",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "stderr": ""
+    },
+    "compiler_target": {
+      "command": [
+        "/usr/bin/g++",
+        "-dumpmachine"
+      ],
+      "exit_code": 0,
+      "stdout": "x86_64-linux-gnu\n",
+      "stderr": ""
+    },
+    "cmake": {
+      "command": [
+        "cmake",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "cmake version 3.28.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "stderr": ""
+    },
+    "ninja": {
+      "command": [
+        "ninja",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "1.11.1\n",
+      "stderr": ""
+    },
+    "python": {
+      "command": [
+        "python3",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Python 3.12.3\n",
+      "stderr": ""
+    },
+    "git": {
+      "command": [
+        "git",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "git version 2.43.0\n",
+      "stderr": ""
+    },
+    "llvm": {
+      "command": [
+        "/usr/lib/llvm-24/bin/llvm-config",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "24.0.0\n",
+      "stderr": ""
+    },
+    "llvm_target": {
+      "command": [
+        "/usr/lib/llvm-24/bin/llvm-config",
+        "--host-target"
+      ],
+      "exit_code": 0,
+      "stdout": "x86_64-pc-linux-gnu\n",
+      "stderr": ""
+    },
+    "debugger": {
+      "command": [
+        "gdb",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "GNU gdb (Ubuntu 15.1-1ubuntu1~24.04.1) 15.1\nCopyright (C) 2024 Free Software Foundation, Inc.\nLicense GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\nThis is free software: you are free to change and redistribute it.\nThere is NO WARRANTY, to the extent permitted by law.\n",
+      "stderr": ""
+    },
+    "llvm_shared_mode": {
+      "command": [
+        "/usr/lib/llvm-24/bin/llvm-config",
+        "--shared-mode"
+      ],
+      "exit_code": 0,
+      "stdout": "shared\n",
+      "stderr": ""
+    },
+    "opt": {
+      "command": [
+        "/usr/lib/llvm-24/bin/opt",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Ubuntu LLVM version 24.0.0\n  Optimized build.\n  Default target: x86_64-pc-linux-gnu\n  Host CPU: znver3\n",
+      "stderr": ""
+    },
+    "lli": {
+      "command": [
+        "/usr/lib/llvm-24/bin/lli",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Ubuntu LLVM version 24.0.0\n  Optimized build.\n",
+      "stderr": ""
+    },
+    "llc": {
+      "command": [
+        "/usr/lib/llvm-24/bin/llc",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Ubuntu LLVM version 24.0.0\n  Optimized build.\n  Default target: x86_64-pc-linux-gnu\n  Host CPU: znver3\n\n  Registered Targets:\n    aarch64     - AArch64 (little endian)\n    aarch64_32  - AArch64 (little endian ILP32)\n    aarch64_be  - AArch64 (big endian)\n    amdgcn      - legacy name for amdgpu\n    amdgpu      - AMDGPU gfx6+\n    arm         - ARM\n    arm64       - ARM64 (little endian)\n    arm64_32    - ARM64 (little endian ILP32)\n    armeb       - ARM (big endian)\n    avr         - Atmel AVR Microcontroller\n    bpf         - BPF (host endian)\n    bpfeb       - BPF (big endian)\n    bpfel       - BPF (little endian)\n    dxil        - DirectX Intermediate Language\n    hexagon     - Hexagon\n    lanai       - Lanai\n    loongarch32 - 32-bit LoongArch\n    loongarch64 - 64-bit LoongArch\n    m68k        - Motorola 68000 family\n    mips        - MIPS (32-bit big endian)\n    mips64      - MIPS (64-bit big endian)\n    mips64el    - MIPS (64-bit little endian)\n    mipsel      - MIPS (32-bit little endian)\n    msp430      - MSP430 [experimental]\n    nvptx       - NVIDIA PTX 32-bit\n    nvptx64     - NVIDIA PTX 64-bit\n    ppc32       - PowerPC 32\n    ppc32le     - PowerPC 32 LE\n    ppc64       - PowerPC 64\n    ppc64le     - PowerPC 64 LE\n    r600        - AMD GPUs HD2XXX-HD6XXX\n    riscv32     - 32-bit RISC-V\n    riscv32be   - 32-bit big endian RISC-V\n    riscv64     - 64-bit RISC-V\n    riscv64be   - 64-bit big endian RISC-V\n    sparc       - Sparc\n    sparcel     - Sparc LE\n    sparcv9     - Sparc V9\n    spirv       - SPIR-V Logical\n    spirv32     - SPIR-V 32-bit\n    spirv64     - SPIR-V 64-bit\n    systemz     - SystemZ\n    thumb       - Thumb\n    thumbeb     - Thumb (big endian)\n    ve          - VE\n    wasm32      - WebAssembly 32-bit\n    wasm64      - WebAssembly 64-bit\n    x86         - 32-bit X86: Pentium-Pro and above\n    x86-64      - 64-bit X86: EM64T and AMD64\n    xcore       - XCore\n    xtensa      - Xtensa 32\n",
+      "stderr": ""
+    },
+    "filecheck": {
+      "command": [
+        "/usr/lib/llvm-24/bin/FileCheck",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Ubuntu LLVM version 24.0.0\n  Optimized build.\n",
+      "stderr": ""
+    },
+    "libc": {
+      "command": [
+        "ldd",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "ldd (Ubuntu GLIBC 2.39-0ubuntu8.9) 2.39\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\nWritten by Roland McGrath and Ulrich Drepper.\n",
+      "stderr": ""
+    }
+  },
+  "commands": [
+    [
+      "cmake",
+      "-S",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/llvm-constants-validation/source",
+      "-B",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/llvm-constants-validation/build",
+      "-G",
+      "Ninja",
+      "-DCMAKE_BUILD_TYPE=Release",
+      "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+      "-DPIKAFLOW_ENABLE_LLVM=ON",
+      "-DPIKAFLOW_BUILD_LLVM_PLUGIN=ON",
+      "-DBUILD_TESTING=ON",
+      "-DLLVM_DIR=/usr/lib/llvm-24/lib/cmake/llvm"
+    ],
+    [
+      "cmake",
+      "--build",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/llvm-constants-validation/build",
+      "--parallel",
+      "1"
+    ],
+    [
+      "ctest",
+      "--test-dir",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/llvm-constants-validation/build",
+      "--output-on-failure",
+      "--parallel",
+      "1",
+      "--output-junit",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/linux-validation/0.5-corrected/ctest-junit.xml",
+      "--no-tests=error"
+    ]
+  ],
+  "stages": [
+    {
+      "name": "configure",
+      "exit_code": 0,
+      "seconds": 6.17,
+      "log": "configure.log",
+      "log_sha256": "e0d41219114ae28ed216c8c900427b062f1adb20af4b7b0644e59a55ebcca8a4"
+    },
+    {
+      "name": "build",
+      "exit_code": 0,
+      "seconds": 0.216,
+      "log": "build.log",
+      "log_sha256": "8c35b1682f73592d30612d7b0fabdb384fcfff35cb5a076cb48b85b1368aa794"
+    },
+    {
+      "name": "ctest",
+      "exit_code": 0,
+      "seconds": 342.607,
+      "log": "ctest.log",
+      "log_sha256": "be807d2cbb8d3e28d327bda311e205c2ab904ce5954f350309afee3994617e9b"
+    }
+  ],
+  "wall_seconds": 352.309,
+  "registered_test_count": 33,
+  "registered_tests": [
+    "c_abi_reference",
+    "llvm_backend",
+    "runtime",
+    "structured_concurrency",
+    "frontend",
+    "typed_ir",
+    "ir_optimizer",
+    "interpreter",
+    "llvm_pass_plugin",
+    "runtime_failures",
+    "compiler",
+    "contextual_types",
+    "language_extensions",
+    "developer_tools",
+    "namespaces_assignments",
+    "records",
+    "type_aliases",
+    "semantic_programs",
+    "project_tests",
+    "optimization_semantics",
+    "optimization_report",
+    "git_packages",
+    "editor_workflows",
+    "editor_features",
+    "semantic_symbols",
+    "task_failures",
+    "tasks_cli",
+    "source_debugger",
+    "differential_arithmetic",
+    "benchmark_report",
+    "installed_layout",
+    "c_abi_generated",
+    "native_environment"
+  ],
+  "binary_sha256": "c47cb6a04da5e52a314a21c3a184e4763c3adcc7b2dc49e405434e249dc37ae7",
+  "runtime_library_sha256": "60e7b4042cc37d4b27fe0336a063abeb73f6708dd7ce4a04d3d1c991c7f97a57",
+  "plugin_sha256": "cc41feff91a340291f627683050cdaa2ce8e149b8dffac6f63879e95377d3683",
+  "binary_version": {
+    "command": [
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/llvm-constants-validation/build/pikaflow",
+      "--version"
+    ],
+    "exit_code": 0,
+    "stdout": "PikaFlow 0.5.0; LLVM enabled; x86_64-pc-linux-gnu\n",
+    "stderr": ""
+  },
+  "cmake_cache_sha256": "15bb057ab01bb088a0b990b6d5d3d59f9c94c4e14da91c6f97a2b82de974b9de",
+  "compile_commands_sha256": "05592671d9822287047862549d8c2c0badd9b3902055fe5ba5c4f69a9bb4e046",
+  "last_test_log_sha256": "7650df49af7601973b7e3e04f814eeba197397866fa2bad1aeeb72bc9eaf23ff",
+  "tests": [
+    {
+      "name": "c_abi_reference",
+      "seconds": 0.00801451,
+      "status": "passed"
+    },
+    {
+      "name": "llvm_backend",
+      "seconds": 0.513678,
+      "status": "passed"
+    },
+    {
+      "name": "runtime",
+      "seconds": 0.0383014,
+      "status": "passed"
+    },
+    {
+      "name": "structured_concurrency",
+      "seconds": 0.0303976,
+      "status": "passed"
+    },
+    {
+      "name": "frontend",
+      "seconds": 0.0211974,
+      "status": "passed"
+    },
+    {
+      "name": "typed_ir",
+      "seconds": 0.0182142,
+      "status": "passed"
+    },
+    {
+      "name": "ir_optimizer",
+      "seconds": 0.0348069,
+      "status": "passed"
+    },
+    {
+      "name": "interpreter",
+      "seconds": 0.0112607,
+      "status": "passed"
+    },
+    {
+      "name": "llvm_pass_plugin",
+      "seconds": 4.12204,
+      "status": "passed"
+    },
+    {
+      "name": "runtime_failures",
+      "seconds": 0.365015,
+      "status": "passed"
+    },
+    {
+      "name": "compiler",
+      "seconds": 42.1142,
+      "status": "passed"
+    },
+    {
+      "name": "contextual_types",
+      "seconds": 0.681523,
+      "status": "passed"
+    },
+    {
+      "name": "language_extensions",
+      "seconds": 38.6657,
+      "status": "passed"
+    },
+    {
+      "name": "developer_tools",
+      "seconds": 15.0639,
+      "status": "passed"
+    },
+    {
+      "name": "namespaces_assignments",
+      "seconds": 17.125,
+      "status": "passed"
+    },
+    {
+      "name": "records",
+      "seconds": 15.751,
+      "status": "passed"
+    },
+    {
+      "name": "type_aliases",
+      "seconds": 23.5827,
+      "status": "passed"
+    },
+    {
+      "name": "semantic_programs",
+      "seconds": 12.5364,
+      "status": "passed"
+    },
+    {
+      "name": "project_tests",
+      "seconds": 32.6129,
+      "status": "passed"
+    },
+    {
+      "name": "optimization_semantics",
+      "seconds": 41.4169,
+      "status": "passed"
+    },
+    {
+      "name": "optimization_report",
+      "seconds": 2.32631,
+      "status": "passed"
+    },
+    {
+      "name": "git_packages",
+      "seconds": 3.35923,
+      "status": "passed"
+    },
+    {
+      "name": "editor_workflows",
+      "seconds": 10.2816,
+      "status": "passed"
+    },
+    {
+      "name": "editor_features",
+      "seconds": 1.86032,
+      "status": "passed"
+    },
+    {
+      "name": "semantic_symbols",
+      "seconds": 0.683423,
+      "status": "passed"
+    },
+    {
+      "name": "task_failures",
+      "seconds": 0.11736,
+      "status": "passed"
+    },
+    {
+      "name": "tasks_cli",
+      "seconds": 13.2573,
+      "status": "passed"
+    },
+    {
+      "name": "source_debugger",
+      "seconds": 1.12364,
+      "status": "passed"
+    },
+    {
+      "name": "differential_arithmetic",
+      "seconds": 3.84797,
+      "status": "passed"
+    },
+    {
+      "name": "benchmark_report",
+      "seconds": 0.244719,
+      "status": "passed"
+    },
+    {
+      "name": "installed_layout",
+      "seconds": 3.12417,
+      "status": "passed"
+    },
+    {
+      "name": "c_abi_generated",
+      "seconds": 56.3429,
+      "status": "passed"
+    },
+    {
+      "name": "native_environment",
+      "seconds": 1.06389,
+      "status": "passed"
+    }
+  ],
+  "test_outputs": {
+    "c_abi_reference": "C ABI reference fixture passed\n",
+    "llvm_backend": "LLVM backend tests passed\n",
+    "runtime": "runtime tests passed\n",
+    "structured_concurrency": "Structured concurrency runtime tests passed\n",
+    "frontend": "frontend tests passed\n",
+    "typed_ir": "Typed IR verification tests passed\n",
+    "ir_optimizer": "Typed IR optimization tests passed\n",
+    "interpreter": "interpreter tests passed\n",
+    "llvm_pass_plugin": "LLVM plugin: 7 FileCheck pipelines and 85 execution checks passed; v1 effects, v2 constants/fatal locations and real PikaFlow IR roundtrip verified\n",
+    "runtime_failures": "47 runtime failure cases passed\n",
+    "compiler": "217 compiler integration checks passed (LLVM enabled)\n",
+    "contextual_types": "Contextual type and callable namespace regressions passed (6 programs)\n",
+    "language_extensions": "139 language extension checks passed (LLVM enabled)\n",
+    "developer_tools": "............s...\n----------------------------------------------------------------------\nRan 16 tests in 14.586s\n\nOK (skipped=1)\n",
+    "namespaces_assignments": "61 namespace/assignment checks passed (LLVM enabled)\n",
+    "records": "90 record checks passed (LLVM enabled)\n",
+    "type_aliases": "116 type alias checks and 8 C wire alias executions/traps passed (LLVM enabled)\n",
+    "semantic_programs": "{\"executions\": {\"interpreter\": 10, \"jit_O0\": 10, \"jit_O2\": 10, \"native_O0\": 5, \"native_O2\": 5}, \"native_builds\": 10, \"programs\": 10, \"seed\": 20261105, \"templates\": {\"array_loops\": 2, \"closure_cells\": 2, \"generic_record_aliases\": 2, \"stack_words_pipeline\": 2, \"task_snapshots_gc\": 2}}\n",
+    "project_tests": "..............\n----------------------------------------------------------------------\nRan 14 tests in 32.253s\n\nOK\n",
+    "optimization_semantics": "135 reference/JIT/native optimizer comparisons passed; typed IR, LLVM IR and assembly effects verified\n",
+    "optimization_report": ".......\n----------------------------------------------------------------------\nRan 7 tests in 2.190s\n\nOK\n",
+    "git_packages": "...........\n----------------------------------------------------------------------\nRan 11 tests in 3.145s\n\nOK\n",
+    "editor_workflows": ".......................\n----------------------------------------------------------------------\nRan 23 tests in 10.019s\n\nOK\n",
+    "editor_features": "........\n----------------------------------------------------------------------\nRan 8 tests in 1.596s\n\nOK\n",
+    "semantic_symbols": "Semantic symbol positions, qualification, scopes, captures, templates and rename isolation passed\n",
+    "task_failures": "10 structured concurrency failure cases passed\n",
+    "tasks_cli": "50 task/pointer execution checks and 4 rejected programs passed\n",
+    "source_debugger": "locals: source breakpoint, backtrace, watches and next passed\ncapture: source breakpoint, backtrace, watches and next passed\n",
+    "differential_arithmetic": "30 arithmetic differential programs passed (seed=20261104)\n",
+    "benchmark_report": "...\n----------------------------------------------------------------------\nRan 3 tests in 0.013s\n\nOK\n",
+    "installed_layout": "Installed/relocated stdlib, tasks, developer tools, native linking and runtime preference passed\n",
+    "c_abi_generated": "120 C ABI JIT/native checks, 40 located range failures and 3 rejected callbacks passed\n",
+    "native_environment": "Native environment, Unicode output, protected sidecars and cleanup checks passed\n"
+  },
+  "passed": 33,
+  "failed": 0,
+  "skipped": 0,
+  "ctest_junit_sha256": "e98ec596ebc10d028de73adee40c4300860df7774f6c852fb1393d759dac369f",
+  "source_changes_after_tests": [],
+  "source_matches_archive_after_tests": true,
+  "source_files_post_manifest_sha256": "dea0852985e5d70024ccaa73881b4692cb246361b83a0924a5c9c3a055967efc",
+  "exit_code": 0,
+  "finished_utc": "2026-11-05T00:02:51.857042+00:00",
+  "ctest_reported_seconds": 342.55,
+  "ctest_wrapper_seconds": 342.607,
+  "binary_identical_to_previous_candidate": true
+}

@@ -9,16 +9,15 @@ The project draws inspiration from [Pikapika](https://github.com/7se7en72025/pik
 and [Goof](https://github.com/sneaky-potato/goof). Its implementation and language
 rules are developed here rather than merging the two projects' source code.
 
-**Status:** PikaFlow 0.4 adds nominal records with named mutable fields,
-transparent type aliases, bounded scalar CSE/dead-result optimization, project
-tests and assertions, semantic coloring/type hints, and a shared LLVM pass with
-a Linux `opt` plugin. Existing generics, recursive ADTs, Result propagation,
-isolated threaded tasks, C interop and pinned Git packages remain supported.
-Clean `1cfd6aa` passed **30/30 Windows native**, **26/26 Windows reference** and
-**32/32 Linux native** suites, plus a clean ASan/UBSan campaign and independent
-generated-program checks. The [validation record](docs/validation.md) identifies
-exact source/toolchains, the corrected sanitizer candidate and historical results.
-See [feature scope](docs/FEATURES.md) for the supported boundaries.
+**Status:** PikaFlow 0.5 adds a nonexecuting JSON optimizer report, safe LLVM
+checked-constant folding under an explicit v2 contract, and a coverage-guided
+semantic/optimizer harness with instrumented compiler/runtime code. Records,
+aliases, structured/stack programming, tasks, C interop, project tests and editor
+features remain supported. Clean corrected `8ec3986` passed **31/31 Windows
+native**, **27/27 Windows reference** and **33/33 Linux native** suites, plus
+11,228 bounded semantic-fuzzer executions with no finding. The
+[validation record](docs/validation.md) preserves exact identities, the earlier
+Linux test-race failure and historical releases. [Supported scope](docs/FEATURES.md)
 
 ## A small hybrid program
 
@@ -165,9 +164,13 @@ The following commands use the Windows LLVM-enabled binary; on Linux use
 | `dump-ast FILE` | Parsed syntax tree |
 | `dump-ir FILE -O0/-O2` | Original/optimized PikaFlow typed IR, before LLVM lowering |
 | `symbols FILE` | Compiler-resolved source definitions, references and types as JSON |
+| `opt-report FILE` | Verified original/optimized typed-IR counts and optimization counters as JSON, without executing the program |
 | `emit-ir FILE -O2` | Verified LLVM IR after the selected optimization pipeline |
 | `dump-asm FILE -O2` | Assembly for the host target |
 
+`opt-report` accepts only optional `-o FILE` and always analyzes the full typed-IR
+pipeline; it rejects every `-O` flag. The
+[optimization lab](examples/optimization_lab/README.md) demonstrates its counts.
 Text inspection commands accept `-o FILE`. LLVM modes accept `-O0` through `-O3`;
 `--debug` requests debug information for emission. Debugger usability is checked
 separately from IR or metadata emission. Output paths that refer to a loaded
@@ -245,13 +248,14 @@ The integration suite detects whether LLVM is enabled. LLVM builds add JIT and
 native output comparisons at `-O0`/`-O2`, object/IR checks, and C ABI tests.
 Bounded generated-program checks complement the parser's malformed-input tests;
 they are not a coverage-guided fuzz campaign.
-The separate [Clang libFuzzer target](docs/fuzzing.md) completed 37,183 parser
-executions without a reported finding; its exact parser inputs match the final
-archive. An independent [program oracle](docs/program-testing.md) also checked
-300 seeded programs through 910 interpreter/JIT/native output comparisons.
-Final native suites include 90 record, 116 type-alias, 135 optimizer execution,
-23 editor workflow and 8 semantic decoration checks on each host, alongside
-[host-specific counts and identities](docs/validation.md).
+The new [semantic/optimizer libFuzzer target](docs/fuzzing.md) completed 11,228
+executions across four bounded valid-source families with an independent output
+oracle. All nine implementation units carry coverage/ASan/UBSan instrumentation;
+the LLVM backend is outside that target. The separate parser target and seeded
+program oracle retain their own scopes. Final host suites include optimizer
+reports, 135 optimizer execution comparisons and the default ten-program oracle;
+Linux's shared pass additionally passed seven FileCheck pipelines and 85
+execution checks. [Exact counts and identities](docs/validation.md).
 
 Benchmarks verify results before recording timings, retain repeated measurements,
 and record the compiler binary identity, checkout metadata, machine, source, and

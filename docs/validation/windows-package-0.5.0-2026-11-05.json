@@ -1,0 +1,14 @@
+{
+  "path": "C:\\Users\\RAIYYAN\\pikaflow\\out\\dist\\pikaflow-0.5.0-windows-x64-8ec3986.zip",
+  "bytes": 18240019,
+  "sha256": "30380167d908aee20b58773fb47433c09c9c7e91ade745e93b44fc83afe01e40",
+  "source_commit": "8ec3986fe9bf606e383e1c0c06bb8c3436bf4d49",
+  "compiler_sha256": "168cf46b6278694f49209fe83d7089aff34ce0cf3e189a1e73f1168a0d875b20",
+  "version": "PikaFlow 0.5.0; LLVM enabled; x86_64-pc-windows-msvc",
+  "extracted_showcase_namespaces_interpreter_jit": "passed",
+  "installed_package_tools": "passed",
+  "installed_record_demo": "passed",
+  "installed_record_native_cases": 3,
+  "installed_optimization_lab_report": "passed",
+  "installed_compound_formatter": "passed"
+}
