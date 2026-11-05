@@ -2,12 +2,12 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 05:57 IST.
+**Last updated:** 2026-11-05 05:59 IST.
 
 **Status:** verified 0.5.0 remains a historical delivery below. The user
 renewed overnight-work authorization; a 0.6 compiler-optimization milestone is
 active. Scalar-cell forwarding, LLVM remarks and captured-cell fuzz checks are
-being implemented and will require a new frozen validation before delivery.
+implemented; clean frozen validation and packaging now precede delivery.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -61,6 +61,17 @@ required even when forwarding is conservatively skipped.
   No sanitizer reports; all 187 captured candidate files match afterward. Epoch
   invalidation keeps barrier resets independent of total register count. These
   focused proofs precede the final clean whole-host freeze.
+
+
+- 05:59: LLVM remarks pass focused Linux backend/plugin validation: seven
+  FileCheck pipelines, 91 executions, standard passed/missed/filter/serialized
+  configurations, four exact source-located YAML records and byte-identical IR
+  with remark flags on/off. Default output stays quiet. Five-family fuzzer
+  source/CMake/new closure seed/docs match the ASan-tested candidate byte for
+  byte. All features are implemented. The final code commit freezes them for
+  full Windows/Linux, clean focused sanitizer suites, a 120-second semantic
+  campaign, extracted packages and a quiet benchmark. Further feature additions
+  stop during this validation stage.
 
 ## 0.5 compiler-engineering milestone - 2026-11-05
 

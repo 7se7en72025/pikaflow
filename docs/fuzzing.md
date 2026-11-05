@@ -330,7 +330,7 @@ elements. Arithmetic stays below `2^35`; Remainder uses the fixed nonzero
 divisor two. There are no foreign calls, raw pointers, task threads, recursion or
 input-controlled source identifiers.
 
-The four families cover:
+The five families cover:
 
 - Safe scalar arithmetic, duplicate structured loads separated by mutation,
   deliberately dead pure arithmetic, and a typed word with the same register
@@ -338,6 +338,16 @@ The four families cover:
 - Branch joins, mutable cells, a bounded `while`, and a bounded `for` loop.
 - Aliased array reads/writes, mutation across collection and full array output.
 - Nominal generic records, transparent aliases, field mutation and collection.
+- Captured mutable cells shared by reader/writer closures, a callable alias,
+  an opaque function-parameter call barrier, collection inside and between
+  calls, and bounded loop updates. Parent reads before/after calls must observe
+  the correct captured-cell writes; each input prints at most 24 integers.
+
+The first byte selects modulo five. Existing committed seed selectors zero
+through three retain their original families; `newclosures.bin` selects the
+fifth family. Source/model versions still matter when replaying older mutated
+corpora. Closure updates use additive bounded deltas rather than repeatedly
+multiplying the large captured value, retaining the stated arithmetic limit.
 
 Each input compiles once. The original, optimized and twice-optimized programs
 are verified and interpreted. Every run must return unit status zero **and**
@@ -346,11 +356,14 @@ Results are never compared through process exit-code truncation. Stdout capture
 restores the C++ stream buffer during exception unwinding. Collection after each
 execution must return the managed heap to its pre-execution baseline.
 
-Initialization checks nine independently specified golden outcomes. It also
+Initialization checks twelve independently specified golden outcomes, including
+zero, branch and negative-update captured-cell cases. It also
 changes a verified IR constant from `4294967296` to zero: both programs return
 unit status zero, but the full-output oracle must reject the mutation. A separate
-fixture requires nonzero constant-folding, common-expression and dead-result
-statistics, preventing a smoke run that never exercises these optimizer paths.
+fixture requires nonzero constant-folding, common-expression, dead-result and
+`cellLoadsForwarded` statistics, preventing a smoke run that never exercises
+these optimizer paths. The call/GC closure family independently guards against
+forwarding a stale value across a captured-cell write in another function.
 
 Generated programs are expected to compile and run. Unexpected exceptions and
 output/heap mismatches abort with the generated source and expected/actual result
@@ -377,7 +390,7 @@ command, log and artifact hashes are retained under ignored
 that bypasses normal exit handlers or every libFuzzer version.
 
 
-### 0.5.0 clean semantic campaign
+### Historical 0.5.0 clean semantic campaign (four families)
 
 The [final record](validation/semantic-fuzzer-0.5.0-2026-11-05.json) captures clean
 `8ec3986fe9bf606e383e1c0c06bb8c3436bf4d49`, archive SHA-256
@@ -397,8 +410,9 @@ the archive after the campaign. Binary SHA-256 is
 
 Final counters were 6,141 coverage counters and 9,856 features, 72 retained
 in-memory inputs/334 bytes, and peak RSS 496 MiB; 73 corpus files were on disk.
-These are exploration counters, not a semantic-coverage percentage. The four
-families, full-output checks and exclusions described above still apply. Original
+These are exploration counters, not a semantic-coverage percentage. That record
+exercised the original four families; captured-closure coverage was added later.
+Its full-output checks and recorded exclusions remain unchanged. Original
 logs, corpus, hashes and artifacts directory remain under
 `out/semantic-fuzzer-0.5-corrected/`. The earlier `083b232` semantic run also
 passed; its overall Linux candidate failed a Python cleanup-test observation

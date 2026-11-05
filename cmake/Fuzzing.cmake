@@ -34,6 +34,7 @@ if(PIKAFLOW_BUILD_SEMANTIC_FUZZER)
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzz_semantic_corpus/arithmetic.bin"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzz_semantic_corpus/cfg.bin"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzz_semantic_corpus/arrays.bin"
-            "${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzz_semantic_corpus/records.bin")
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzz_semantic_corpus/records.bin"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzz_semantic_corpus/newclosures.bin")
     endif()
 endif()
