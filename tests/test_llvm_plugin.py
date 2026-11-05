@@ -1,10 +1,40 @@
 """Exercise the real LLVM 24 plugin with opt, FileCheck, lli and native linking."""
 from __future__ import annotations
+import json
 import pathlib
 import re
 import subprocess
 import sys
 import tempfile
+
+
+def remark_records(text):
+    """Read the bounded scalar/inline-location subset emitted by our LLVM test."""
+    if len(text) > 65536:
+        raise AssertionError("unexpectedly large optimization record")
+    def scalar(value):
+        value = value.strip()
+        if value.startswith("'") and value.endswith("'"):
+            return value[1:-1].replace("''", "'")
+        if value.startswith('"') and value.endswith('"'):
+            return json.loads(value)
+        return value
+    records = []
+    for kind, body in re.findall(r"^--- !(Passed|Missed)\s*\n(.*?)^\.\.\.\s*$", text, re.M | re.S):
+        record = {"kind": kind}
+        for key in ("Pass", "Name", "Function"):
+            match = re.search(r"^" + key + r":\s*(.+)$", body, re.M)
+            if not match:
+                raise AssertionError(f"missing {key} in optimization record: {body}")
+            record[key] = scalar(match.group(1))
+        location = re.search(r"^DebugLoc:\s*\{\s*File:\s*(.*?),\s*Line:\s*(\d+),\s*Column:\s*(\d+)\s*\}$", body, re.M)
+        if not location:
+            raise AssertionError(f"missing source location in optimization record: {body}")
+        record.update(file=scalar(location.group(1)), line=int(location.group(2)), column=int(location.group(3)))
+        record["args"] = {key: scalar(value) for key, value in
+            re.findall(r"^\s*-\s*(Operation|Contract|Replacement|Reason):\s*(.*?)\s*$", body, re.M)}
+        records.append(record)
+    return records
 
 
 def main() -> int:
@@ -131,8 +161,69 @@ def main() -> int:
             run([driver, str(object_path), runtime, "-o", str(executable), "-lm", "-ldl", "-pthread"])
             run([str(executable)], expected_output=expected)
             execution_runs += 1
+        remark_fixture = fixtures / "checked_remarks.ll"
+        pass_filter = "^pikaflow-checked-simplify$"
+        passed_flag = "-pass-remarks=" + pass_filter
+        missed_flag = "-pass-remarks-missed=" + pass_filter
+
+        def remarks(name, flags, pipeline="pikaflow-checked-simplify"):
+            destination = directory / (name + ".ll")
+            result = run([opt, "-load-pass-plugin", plugin, "-passes=" + pipeline, "-verify-each",
+                          "-S", str(remark_fixture), "-o", str(destination)] + flags)
+            return destination, result.stderr
+
+        quiet, diagnostics = remarks("remarks-quiet", [])
+        if diagnostics:
+            raise AssertionError("pass emitted diagnostics by default: " + diagnostics)
+        records_path = directory / "remarks.yaml"
+        serialization = ["-pass-remarks-output=" + str(records_path), "-pass-remarks-format=yaml",
+                         "-pass-remarks-filter=" + pass_filter]
+        enabled, diagnostics = remarks("remarks-enabled", [passed_flag, missed_flag] + serialization)
+        expected_records = {
+            "identity": ("Passed", "IdentityFold", "pf_checked_sub", "v1", 11),
+            "constant": ("Passed", "ConstantFold", "pf_checked_add", "v2", 21),
+            "overflow": ("Missed", "CheckedFailure", "pf_checked_add", "v2", 31),
+            "zero": ("Missed", "CheckedFailure", "pf_checked_div", "v2", 41),
+        }
+        records = remark_records(records_path.read_text(encoding="utf-8"))
+        if len(records) != 4 or {record["Function"] for record in records} != set(expected_records):
+            raise AssertionError(f"unexpected remarks, including a skipped call or function: {records}")
+        for record in records:
+            kind, name, operation, contract, line = expected_records[record["Function"]]
+            if ((record["kind"], record["Name"], record["args"]["Operation"], record["args"]["Contract"], record["line"])
+                    != (kind, name, operation, contract, line) or record["column"] != 7
+                    or not record["file"].endswith("remarks.pf") or record["Pass"] != "pikaflow-checked-simplify"):
+                raise AssertionError(f"incorrect structured remark: {record}")
+            if not re.search(r"remarks\.pf:" + str(line) + r":7:.*" + operation + r".*" + contract, diagnostics):
+                raise AssertionError(f"missing source-located stderr remark: {record}\n{diagnostics}")
+        by_function = {record["Function"]: record for record in records}
+        if (by_function["overflow"]["args"]["Reason"] != "signed overflow"
+                or by_function["zero"]["args"]["Reason"] != "zero divisor"
+                or by_function["constant"]["args"]["Replacement"] != "42"
+                or by_function["identity"]["args"]["Replacement"] != "x"):
+            raise AssertionError(f"incorrect remark values: {records}")
+        for name, flags, folded, retained in (
+                ("passed-only", [passed_flag], 2, 0), ("missed-only", [missed_flag], 0, 2),
+                ("filtered", ["-pass-remarks=^unrelated$", "-pass-remarks-missed=^unrelated$"], 0, 0),
+                ("serialized-only", serialization, 0, 0)):
+            module, text = remarks(name, flags)
+            if text.count("folded ") != folded or text.count("retained ") != retained or module.read_bytes() != quiet.read_bytes():
+                raise AssertionError(f"remark flags changed diagnostics or IR unexpectedly: {name}\n{text}")
+        if enabled.read_bytes() != quiet.read_bytes() or remark_records(records_path.read_text(encoding="utf-8")) != records:
+            raise AssertionError("remark enablement changed IR or serialized-only records")
+        skipped_records = directory / "remarks-not-run.yaml"
+        _, text = remarks("remarks-not-run", [passed_flag, missed_flag,
+            "-pass-remarks-output=" + str(skipped_records), "-pass-remarks-filter=" + pass_filter], "verify")
+        if text or remark_records(skipped_records.read_text(encoding="utf-8")):
+            raise AssertionError("loading the plugin emitted remarks without running its pass")
+        for module in (quiet, enabled):
+            for entry, diagnostic in (("main", None), ("overflow", "integer addition overflow"),
+                                      ("zero", "integer division by zero")):
+                run([lli, "-O0", "--dlopen=" + str(runtime_shared), "--entry-function=" + entry, str(module)],
+                    expected_exit=0 if diagnostic is None else 1, expected_error=diagnostic)
+                execution_runs += 1
     print(f"LLVM plugin: {filecheck_runs} FileCheck pipelines and {execution_runs} execution checks passed; "
-          "v1 effects, v2 constants/fatal locations and real PikaFlow IR roundtrip verified")
+          "v1 effects, v2 constants/fatal locations, real PikaFlow IR, standard stderr/YAML remarks verified")
     return 0
 
 

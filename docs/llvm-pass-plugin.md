@@ -94,6 +94,52 @@ helper names. As an optional pass it respects `optnone`. It reports preserved
 analyses conservatively after changing a function; `-verify-each` checks resulting
 IR in the regression suite.
 
+## Standard optimization remarks
+
+The shared pass uses LLVM 24's `OptimizationRemarkEmitterAnalysis`, registered by
+the normal `PassBuilder` analysis setup. It is silent by default. Use LLVM's
+standard `opt` switches to request diagnostics or a YAML optimization record:
+
+```sh
+/usr/lib/llvm-24/bin/opt \
+  -load-pass-plugin build/plugin/pikaflow_checked_passes.so \
+  -passes=pikaflow-checked-simplify -verify-each \
+  '-pass-remarks=^pikaflow-checked-simplify$' \
+  '-pass-remarks-missed=^pikaflow-checked-simplify$' \
+  -pass-remarks-output=checked.yaml -pass-remarks-format=yaml \
+  '-pass-remarks-filter=^pikaflow-checked-simplify$' \
+  -S input.ll -o output.ll
+```
+
+`-pass-remarks` selects successful stderr diagnostics; `-pass-remarks-missed`
+selects retained known failures. The output/format/filter options select LLVM's
+serialized records independently: a YAML file can be produced while stderr stays
+quiet. These are LLVM tool options; no extra PikaFlow CLI flags are introduced.
+
+| Kind and name | Meaning | Named arguments |
+| --- | --- | --- |
+| Passed `IdentityFold` | An authorized identity was removed | `Operation`, `Contract`, `Replacement` |
+| Passed `ConstantFold` | A successful v2 two-literal call was folded | `Operation`, `Contract`, `Replacement` |
+| Missed `CheckedFailure` | A known fatal v2 two-literal call was deliberately retained | `Operation`, `Contract`, `Reason` |
+
+`Operation` is the helper name, such as `pf_checked_add`; `Contract` is `v1` or
+`v2`. Replacement values use LLVM's diagnostic rendering. Reasons are `signed
+overflow` or `zero divisor`, derived from the same safe APInt checks that control
+folding. Constant folding is considered before identities, so a v2 literal
+`42 + 0` reports `ConstantFold`, while dynamic `x + 0` reports `IdentityFold`.
+
+Remarks copy the original call's debug location before erasure. With `!dbg`, the
+stderr diagnostic and YAML `DebugLoc` identify its source file, line and column;
+without debug information a source position is unavailable. Unknown operations,
+unrecognized contracts, invalid signatures, poison/undef, guarded call forms and
+`optnone` functions produce no pass remarks. In particular, a v1 nonidentity is
+not called a known failure merely because its operands would overflow under v2.
+
+Remark construction is lazy through LLVM's emitter. Enabling remarks does not
+change the transformation, generate extra code, or replace a retained runtime
+failure with a compile-time error. The fixture tests compare optimized IR bytes
+with diagnostics enabled and disabled, then execute both outputs.
+
 ## Verification
 
 `ctest --test-dir build/plugin -R '^llvm_pass_plugin$' --output-on-failure` runs
@@ -111,7 +157,14 @@ the real plugin through `opt`, `FileCheck`, `lli`, and `llc`. The test includes:
 - A PikaFlow interpreter reference and an actual `emit-ir -O0` module transformed
   by the plugin, compiled by `llc`, linked against the real runtime, and executed
   before and after transformation.
+- Seven standard-remark configurations check default silence, passed/missed
+  filtering, YAML-only output, pass-selection guards and enabled/disabled IR
+  equality. Four YAML records are checked for exact function, kind, argument and
+  source-position fields using a bounded standard-library parser for this
+  fixture's scalar subset; no general YAML parser is claimed. Six additional
+  `lli` executions compare successful and fatal behavior with remarks on/off.
 
-The focused Linux LLVM 24 test has 85 execution checks. This verifies the plugin
+The focused Linux LLVM 24 test has 91 execution checks, including the existing
+85 arithmetic/runtime checks. This verifies the plugin
 and shared backend pass on that toolchain; it does not establish compatibility
 with other LLVM major versions or Windows plugin hosts.
