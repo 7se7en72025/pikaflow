@@ -2,12 +2,12 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 05:59 IST.
+**Last updated:** 2026-11-05 06:20 IST.
 
-**Status:** verified 0.5.0 remains a historical delivery below. The user
-renewed overnight-work authorization; a 0.6 compiler-optimization milestone is
-active. Scalar-cell forwarding, LLVM remarks and captured-cell fuzz checks are
-implemented; clean frozen validation and packaging now precede delivery.
+**Status:** PikaFlow 0.6.0 is implemented and verified. Frozen `e70e7aa`
+passes Windows native/reference, Linux native, clean sanitizer and five-family
+semantic-fuzzer checks, and extracted-package verification. Final closeout
+commits contain documentation/evidence only; older deliveries remain below.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -72,6 +72,78 @@ required even when forwarding is conservatively skipped.
   full Windows/Linux, clean focused sanitizer suites, a 120-second semantic
   campaign, extracted packages and a quiet benchmark. Further feature additions
   stop during this validation stage.
+
+
+- 06:05:37: frozen Windows native **31/31** (245.04 s) and reference **27/27**
+  (78.05 s) suites finish, with matching source and no CTest skips. New source
+  optimizer regressions total 160 native comparisons / 32 reference comparisons.
+  The Windows ZIP is extracted and verifies schema 2, all eight counters, exact
+  lab counts 52 to 48 / CSE 2 / dead results 4 / cell loads 8, examples and tools.
+- 06:08:41: the clean canonical archive finishes a real Clang ASan/UBSan build
+  (242.370 s, 19 TU compilations / 24 Ninja steps), then four focused suites
+  (6.26 s CTest) and **7,294** semantic-fuzzer executions, seed 20261107. The
+  exported line endings differ from the dirty candidate, so actual affected
+  sources are rebuilt rather than relabeling old binaries. All 188 archived
+  source hashes match afterward; no findings, warnings, artifacts or reports.
+  Fuzzer instrumentation covers eight implementation files plus its harness;
+  separate flags prove all nine core/runtime/CLI production units instrumented.
+- 06:12:29: Linux **33/33** passes in 428.08 s (wrapper 428.138 s), after build
+  227.058 s. All 188 source files match. The actual plugin passes seven FileCheck
+  pipelines / 91 executions and standard remarks/YAML checks. No suite skips;
+  the tools unittest retains its internal Windows-junction-only skip.
+- 06:14:41: the Linux tarball extraction verifies showcase/lab in all modes,
+  exact schema-2 optimization counts, records, three project cases per backend,
+  installed passed/missed remarks and YAML locations, default quiet output,
+  byte-identical IR with remark flags and success/located-failure execution.
+  Source/build/installed-file post-checks pass. Install RUNPATH changes the plugin
+  bytes; build and installed hashes remain distinct and the installed file is tested.
+- 06:15:12: after all owned processes stop, a clean `e70e7aa` benchmark captures
+  three output-verified process-inclusive samples. O0/O2 medians: checked loop
+  27.516/24.878 ms; Fibonacci(20) 16.542/16.444 ms. These small noisy measurements
+  establish no general performance multiplier or cross-language advantage.
+
+
+- 06:20: seven current documents and six exact evidence records are committed
+  and pushed as `7c62b3d`. All six JSON copies preserve original fields/values;
+  297 local Markdown links pass. The root closes this timing record and the
+  canonical five-family campaign paragraph. Only documentation/evidence differ
+  from the frozen implementation; final Git clean/remote verification follows.
+
+### 0.6.0 verified closeout
+
+The tested implementation is **`e70e7aa79006637a4f1c6e464b7b1d4c12b8acf1`**.
+Windows, Linux and clean sanitizer/fuzzer captures share archive SHA-256
+`29a816f2fe64586c2e009d1fae88b5efab8092f6f780928008d17f8a4b725539`.
+All scoped features and verification milestones are complete. Subsequent
+closeout commits alter documentation/evidence only.
+
+| Completed deliverable | Durable evidence |
+|---|---|
+| Fresh scalar-cell forwarding with alias/version/epoch guards | [Optimization contract](optimization.md), [Linux native suites](validation/linux-0.6.0-2026-11-05.json) |
+| Explicit schema 2 / eighth optimizer statistic | [Lab](../examples/optimization_lab/README.md), [Windows record](validation/windows-0.6.0-2026-11-05.json) |
+| Standard source-located LLVM passed/missed remarks and YAML | [Plugin contract](llvm-pass-plugin.md), [installed plugin proof](validation/linux-package-0.6.0-2026-11-05.json) |
+| Captured-cell call/GC exploration and focused sanitizer checks | [Five-family scope](fuzzing.md), [clean campaign](validation/semantic-fuzzer-0.6.0-2026-11-05.json) |
+| Extracted local Windows/Linux packages | [Windows proof](validation/windows-package-0.6.0-2026-11-05.json), [Linux proof](validation/linux-package-0.6.0-2026-11-05.json) |
+| Quiet correctness-checked timing | [Benchmark](benchmarks/windows-0.6.0-2026-11-05.json) |
+
+Local `out/dist/` artifacts:
+
+- `pikaflow-0.6.0-windows-x64-e70e7aa.zip`: 18,242,211 bytes; SHA-256
+  `dd1a1d27d3eb41eb10ec0e44c4056928ffce7162bf216aca607e78ababef72ca`.
+- `pikaflow-0.6.0-linux-x86_64-e70e7aa.tar.gz`: 25,311,845 bytes; SHA-256
+  `90bc3043e219c0e50aa00a8b1852744ee34a00e136ca3999497a544c43372b37`.
+
+Initial estimates remain visible. The logged plan-to-benchmark interval is about
+27 minutes with parallel agents and earlier baseline inspection, not person-hours
+or a promise for future compiler work. The handoff uses focused documentation/evidence commits with source and artifact
+identities verified; no scoped implementation or testing milestone remains.
+
+Forwarding is limited to fresh local i64/bool cells within a basic block; it is
+not general heap/escape/interprocedural analysis or GC-root liveness. Allocation,
+stores, debug roots and first checked traps remain. Remarks use standard LLVM
+`opt` controls, with the dynamic plugin verified on Linux LLVM 24. Sanitizers
+cover the bounded core/CLI/fuzzer scope, not LLVM backend code; no clean TSan or
+all-program correctness claim is made. Packages retain local SDK/library needs.
 
 ## 0.5 compiler-engineering milestone - 2026-11-05
 

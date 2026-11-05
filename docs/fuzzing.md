@@ -417,3 +417,31 @@ logs, corpus, hashes and artifacts directory remain under
 `out/semantic-fuzzer-0.5-corrected/`. The earlier `083b232` semantic run also
 passed; its overall Linux candidate failed a Python cleanup-test observation
 race, separately retained in the [validation history](validation.md).
+
+
+### 0.6.0 clean five-family campaign
+
+The [final record](validation/semantic-fuzzer-0.6.0-2026-11-05.json) uses clean
+`e70e7aa79006637a4f1c6e464b7b1d4c12b8acf1`, archive SHA-256
+`29a816f2fe64586c2e009d1fae88b5efab8092f6f780928008d17f8a4b725539`.
+Canonical exported source bytes required a real rebuild: 19 translation-unit
+compilations / 24 Ninja steps in 242.370 seconds. The record preserves the earlier
+dirty candidate separately. All 188 archived source files matched after testing.
+
+Four focused ASan/UBSan suites passed in 6.26 seconds: IR optimizer units,
+32 source comparisons, seven schema-2 report tests, and five fixed seeds with
+twelve goldens/full-output mutation/path-counter self-checks. Flag checks cover
+nine fuzzer target translation units (eight implementation files and its harness)
+and, separately, all nine core/runtime/CLI production units. The fuzzer does not
+link an uninstrumented core library. The ordinary 8 MiB stack and leak detection
+remain enabled. LLVM backend code is outside this instrumentation.
+
+The five-family campaign, seed `20261107`, completed **7,294 executions**, exit 0,
+with no findings, warnings, crash artifacts or sanitizer reports. Its requested
+budget was 120 seconds; libFuzzer reported 121 seconds and the wrapper measured
+114.081 seconds. Both are preserved. Final counters were 6,695 coverage counters,
+12,528 features, 94 retained inputs/517 bytes, and peak RSS 502 MiB; 97 corpus
+files were on disk. These are bounded exploration counters, not a percentage of
+language/optimizer semantics covered. The five-family limits and exclusions above
+still apply. Logs, binaries, commands, corpus and hash records remain under
+`out/semantic-fuzzer-0.6-final/`.
