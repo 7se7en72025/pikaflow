@@ -375,3 +375,31 @@ exited", and saved that exact byte as a crash reproducer. The probe source,
 command, log and artifact hashes are retained under ignored
 `out/semantic-fuzzer-exit-probe/`. This observation does not cover termination
 that bypasses normal exit handlers or every libFuzzer version.
+
+
+### 0.5.0 clean semantic campaign
+
+The [final record](validation/semantic-fuzzer-0.5.0-2026-11-05.json) captures clean
+`8ec3986fe9bf606e383e1c0c06bb8c3436bf4d49`, archive SHA-256
+`3ba8f6ffc0cebf8ad899f3e5556da0f18eb905734a3bb23681182eb7912d8104`.
+Seed `20261106` and a requested 120-second budget produced **11,228 executions**,
+exit 0, with no findings, warnings, sanitizer reports or crash artifacts. The
+record preserves libFuzzer's reported 121 seconds and the wrapper's measured
+112.623 seconds as separate observations. ASan/UBSan, leak detection and the
+ordinary 8 MiB stack limit were enabled.
+
+All nine target implementation units carry coverage and sanitizer flags; no
+uninstrumented core/runtime library is linked. Their raw inputs were byte-equal
+to the earlier instrumented build, so the final build correctly performed no
+compilation. Fresh seed/self-check replay passed. All 179 source files matched
+the archive after the campaign. Binary SHA-256 is
+`00a4e3bb404a657808d06db035992e00c31e665d764fda6ba29cf1dcd3d13f29`.
+
+Final counters were 6,141 coverage counters and 9,856 features, 72 retained
+in-memory inputs/334 bytes, and peak RSS 496 MiB; 73 corpus files were on disk.
+These are exploration counters, not a semantic-coverage percentage. The four
+families, full-output checks and exclusions described above still apply. Original
+logs, corpus, hashes and artifacts directory remain under
+`out/semantic-fuzzer-0.5-corrected/`. The earlier `083b232` semantic run also
+passed; its overall Linux candidate failed a Python cleanup-test observation
+race, separately retained in the [validation history](validation.md).

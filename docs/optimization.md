@@ -11,7 +11,7 @@ The pipeline is:
 typed IR -> verify -> constant/CFG propagation -> local scalar CSE
          -> scalar liveness/dead-result removal -> verify
          -> LLVM lowering -> LLVM verifier -> LLVM optimization pipeline
-         -> checked-identity LLVM pass -> LLVM verifier -> JIT/object/assembly
+         -> checked-arithmetic LLVM pass -> LLVM verifier -> JIT/object/assembly
 ```
 
 The public API is `optimizeIR(program, &statistics)` in
@@ -187,8 +187,10 @@ arithmetic and no conditional branch. Its unreachable `print(999)` arm is gone.
 The baseline LLVM IR/assembly calls `pf_checked_mul`; the optimized version
 does not. This effect happens in typed IR before LLVM sees the checked runtime
 calls. Normal LLVM passes then optimize the lowered register slots and CFG.
-The separate checked-identity LLVM pass still handles safe identities involving
-unknown values, such as checked `x + 0` or `x * 1`.
+The separate [checked-arithmetic LLVM pass](llvm-pass-plugin.md) handles safe
+identities involving unknown values, such as checked `x + 0` or `x * 1`. Its v2
+producer contract also permits successful literal signed-i64 folding with APInt
+overflow checks; the older v1 contract remains identity-only.
 
 The optimization makes no general speed claim. Source-location updates and
 reachable runtime effects remain observable work, and performance depends on

@@ -2,12 +2,12 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 05:25 IST.
+**Last updated:** 2026-11-05 05:37 IST.
 
-**Status:** verified 0.4.0 is preserved below. The user requested continued
-overnight work; a new compiler-engineering milestone is active. It adds bounded
-coverage-guided semantic testing, stronger contract-checked LLVM simplification
-and inspectable typed-IR optimization reports. Unverified work is not delivery.
+**Status:** PikaFlow 0.5.0 is implemented and verified. Corrected frozen
+`8ec3986` passes Windows native/reference, Linux native, semantic libFuzzer and
+extracted-package checks. Final documentation records follow the tested source;
+the failed 0.5 test-race candidate and historical 0.4/0.3.1 deliveries remain below.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -24,7 +24,7 @@ Windows x64/Linux x86-64 native and interpreter checks. Each feature needs valid
 examples, negative diagnostics, relevant edge cases, and cross-mode execution
 where applicable. Preserve explicit unsafe boundaries and source-file protection.
 
-## Next compiler-engineering milestone ? 2026-11-05
+## 0.5 compiler-engineering milestone ? 2026-11-05
 
 The user renewed authorization to continue while the PC stays on. Work resumes
 from clean pushed `200484b`, retaining 0.4.0 artifacts and evidence. Ponytail
@@ -92,6 +92,79 @@ No production behavior is considered verified by the earlier 0.4.0 suite alone.
   all pass. This changes the Python regression fixture only, not compiler,
   runtime, optimizer or fuzzer semantics. A corrected clean freeze and final
   host/campaign reruns follow in new `0.5-corrected` evidence directories.
+
+
+- 05:28:36: corrected clean semantic campaign passes **11,228 executions**, seed
+  20261106, with ASan/UBSan/leak checks on the default 8 MiB stack. All nine
+  implementation units are instrumented; all 179 archived files match afterward.
+  No findings, warnings, artifacts or sanitizer report files are present. Exact
+  source-byte identity permits a no-op build; fixed-seed self-checks run freshly.
+- 05:30:33: corrected Windows native **31/31** (201.89 s) and reference **27/27**
+  (54.58 s) suites finish with no CTest skips or source drift. The new Windows
+  ZIP passes extracted lab/report, showcase, formatter, packages and three native
+  project cases; the lab reports 50 to 48 instructions, CSE 1 and dead results 2.
+- 05:32:52: corrected Linux **33/33** passes in 342.55 s (wrapper 342.607 s),
+  including all 14 project-runner tests, seven report tests, real GDB and the
+  v2 plugin's seven FileCheck pipelines/85 executions. All 179 source hashes
+  match. One Windows-only junction unittest skips internally; no suite skips.
+- 05:33:43: Linux tarball extraction passes showcase/lab in interpreter, JIT
+  and native modes, optimization JSON, records, three project cases in each
+  backend and installed v2 plugin constant folding followed by execution.
+  Source/build/installed-file post-checks pass. Build/installed plugin hashes
+  differ only by the recorded install RUNPATH adjustment; the installed file
+  itself is tested.
+- 05:34:11: after all owned build/test/package processes stop, the three-sample
+  benchmark is captured from clean `8ec3986`, matching its native compiler hash.
+  Every reference, warmup and timed output matches. Process-inclusive O0/O2
+  medians: loop 28.050/29.861 ms, Fibonacci(20) 18.180/18.361 ms. These noisy small
+  samples establish no general speedup or advantage over another language.
+
+
+- 05:37: final documentation/evidence is committed as `60e38b1`. Seven JSON
+  copies preserve every captured field/value; all 268 local Markdown links pass.
+  Root closes the timestamped plan, records the semantic campaign and aligns the
+  design/optimizer descriptions with v2 and legacy v1. Only documentation and
+  evidence differ from the verified implementation.
+
+### 0.5.0 verified closeout
+
+The tested implementation is **`8ec3986fe9bf606e383e1c0c06bb8c3436bf4d49`**;
+Windows, Linux and semantic captures share archive SHA-256
+`3ba8f6ffc0cebf8ad899f3e5556da0f18eb905734a3bb23681182eb7912d8104`.
+Later closeout commits change documentation/evidence only. The initial `083b232`
+Linux failure remains inspectable in the
+[failed-candidate record](validation/linux-candidate-0.5.0-2026-11-05.json).
+Its fix changes regression-fixture process observation, not production C++.
+
+| Completed deliverable | Evidence |
+|---|---|
+| Nonexecuting, source-protected aggregate `opt-report` and lab | [Report contract](optimization.md), [lab](../examples/optimization_lab/README.md) |
+| APInt safe constant folding under v2, v1 identity-only compatibility | [Plugin contract](llvm-pass-plugin.md), [Linux record](validation/linux-0.5.0-2026-11-05.json) |
+| Four-family instrumented semantic optimizer exploration | [Fuzzing scope](fuzzing.md), [clean campaign](validation/semantic-fuzzer-0.5.0-2026-11-05.json) |
+| Frozen Windows native/reference suites | [Windows record](validation/windows-0.5.0-2026-11-05.json) |
+| Extracted Windows/Linux packages | [Windows proof](validation/windows-package-0.5.0-2026-11-05.json), [Linux proof](validation/linux-package-0.5.0-2026-11-05.json) |
+| Correctness-checked native timing | [Benchmark](benchmarks/windows-0.5.0-2026-11-05.json) |
+
+Local artifacts under ignored `out/dist/`:
+
+- `pikaflow-0.5.0-windows-x64-8ec3986.zip`: 18,240,019 bytes; SHA-256
+  `30380167d908aee20b58773fb47433c09c9c7e91ade745e93b44fc83afe01e40`.
+- `pikaflow-0.5.0-linux-x86_64-8ec3986.tar.gz`: 25,268,883 bytes; SHA-256
+  `d2140ae9c189f55928e364c82372cd0324cc9e53f8eef26571b73897bd20bed1`.
+
+The recorded plan-to-benchmark interval is about 31 minutes with parallel agents,
+including the discovered Linux test race and corrected reruns. Preliminary
+inspection preceded that log entry; elapsed time is not person-hours. Original
+estimates stay visible. All scoped implementation and verification milestones
+are complete; final documentation/evidence commits form the durable handoff.
+
+The semantic generator is bounded to four families, eight bytes and small safe
+loops/graphs. It does not instrument LLVM backend/CLI paths, threads or unsafe
+foreign calls. Native suites and the real plugin test those separately. x64,
+bounded C ABI and local toolchain requirements remain; a clean TSan run and
+universal absence of bugs are not claimed. Local packages are verified builds,
+not universal installers. Future work requires a new scoped feature or reproduced
+bug rather than an unverified completion checkbox.
 
 ## 0.4 expansion — 2026-11-05
 

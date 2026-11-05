@@ -196,10 +196,12 @@ LLVM's optimization pipeline remains a separate stage.
 [Optimization details](optimization.md)
 
 The backend and Linux standalone plugin share one checked-arithmetic LLVM pass.
-The plugin transforms only exact helper signatures carrying the explicit
-`pikaflow.checked-arithmetic=v1` producer contract. Names alone are insufficient:
-the producer promises the identity inputs have no other effects or failures.
-The Linux `opt` tests include invalid contracts and effectful unmarked helpers.
+The plugin transforms only exact helper signatures carrying an explicit
+`pikaflow.checked-arithmetic` producer contract. Its `v2` contract permits safe
+literal signed-i64 folding and identities without extra successful-call effects;
+legacy `v1` permits only identity rewrites. Failing calls remain. Names alone
+are insufficient. Linux `opt` tests cover boundaries, failures, invalid contracts
+and effectful unmarked/legacy helpers.
 [Plugin contract](llvm-pass-plugin.md)
 Compiler errors retain filename/line/column and a source caret. Parser recovery
 collects up to 20 independent top-level errors. Semantic function-body checking
