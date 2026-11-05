@@ -2,7 +2,7 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 23:15 IST.
+**Last updated:** 2026-11-05 23:48 IST.
 
 **Status:** the 0.6 language/tooling contract remains complete. The user's
 renewed completion request starts a bounded 0.6.1 verification closeout, focused
@@ -60,6 +60,39 @@ prove all programs correct; scope and any actual findings remain explicit.
   backend/native-environment focused checks pass 2/2 in 4.18 s. All source/profile
   work is ready. This commit freezes a clean verification candidate; no full
   instrumented-backend pass is claimed until its actual matrix finishes.
+
+- 2026-11-05 23:41: clean candidate `482bf7c` passes the normal Windows
+  matrix (31/31 native, 27/27 interpreter). Its instrumented Linux build succeeds
+  with all 21 project compilation commands checked, but the fail-fast backend
+  pair fails before the full matrix. The probe driver mishandles a private
+  report directory containing spaces; quoting both `log_path` values is verified
+  against the actual probe binary. The backend reports ASan use-after-poison in
+  LLVM allocator-backed IR construction. Upstream documents this annotation/ODR
+  incompatibility between instrumented LLVM-header clients and an uninstrumented
+  SDK. The full 33-suite sanitizer matrix was deliberately not started; this is
+  a failed candidate, not a clean sanitizer result.
+  Original archive, reports, JUnit, logs and binaries remain in
+  `out/backend-sanitizer-0.6.1-final/` (198 files, archive SHA-256
+  `e797617c0408803f2a26effe242e8c18d29b254fc5ce0ee8c46952182b8a157e`).
+  Correction: build LLVM 24 itself with the same Clang 18 and upstream
+  `LLVM_USE_SANITIZER=Address;Undefined`, reject incompatible SDKs early, then
+  rerun a new clean candidate. No report suppression or allocator-check disabling
+  is accepted. The dependency build adds time beyond the initial estimate;
+  completion depends on actual build and test results.
+
+- 2026-11-05 23:48: corrected SDK guard and SAN-only shared-library linking
+  are implemented. Eleven bounded configuration checks cover real installed-SDK
+  rejection, core-only and normal-release acceptance, matching/mismatched cache
+  controls, missing metadata, and the actual matching LLVM build-tree config.
+  Generated link rules select the shared LLVM target, and the installed developer
+  compiler retains its external SDK RPATH. This is configuration proof; actual
+  linking, execution and installation remain to be verified by the full matrix.
+  The native Windows BuildOnly configuration still passes with no rebuild needed.
+  Matching LLVM source `0247623` is building on WSL ext4 with upstream sanitizer
+  settings, two compile jobs and one link job (2,067 planned actions). LLVM's
+  default UBSan exclusions/ignorelist are retained and documented; PikaFlow's own
+  sanitizer flags have no such global exclusions. The corrected clean candidate
+  will use fresh evidence directories, preserving the earlier failed run.
 
 ## 0.6 optimization and observability milestone - 2026-11-05
 

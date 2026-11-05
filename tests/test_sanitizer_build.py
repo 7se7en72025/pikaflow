@@ -74,8 +74,8 @@ def check_probes(probe: str, directory: pathlib.Path) -> None:
         private = directory / mode
         private.mkdir()
         environment = os.environ.copy()
-        environment["ASAN_OPTIONS"] = "detect_leaks=1:halt_on_error=1:log_path=" + str(private / "asan")
-        environment["UBSAN_OPTIONS"] = "halt_on_error=1:print_stacktrace=1:log_path=" + str(private / "ubsan")
+        environment["ASAN_OPTIONS"] = 'detect_leaks=1:halt_on_error=1:log_path="' + str(private / "asan") + '"'
+        environment["UBSAN_OPTIONS"] = 'halt_on_error=1:print_stacktrace=1:log_path="' + str(private / "ubsan") + '"'
         result = execute([probe, mode], env=environment, cwd=private)
         report_files = [path for path in sorted(private.iterdir()) if path.is_file()]
         reports = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in report_files)
@@ -135,7 +135,8 @@ def main() -> int:
     print(f"Sanitizer flags verified on {count} project C/C++ compile commands; actual ASan/UBSan probes passed")
     print("Instrumented project code exercised through interpreter" +
           (", LLVM lowering/JIT and native-O2 runtime linking" if native else " (LLVM disabled)"))
-    print("Prebuilt LLVM and generated JIT/native instructions are outside the full-instrumentation claim")
+    print("Native mode requires a matching sanitized LLVM SDK; generated JIT/native instructions "
+          "and system libraries are outside the blanket-instrumentation claim")
     return 0
 
 
