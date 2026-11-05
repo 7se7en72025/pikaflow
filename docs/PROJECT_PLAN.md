@@ -2,12 +2,12 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 05:37 IST.
+**Last updated:** 2026-11-05 05:49 IST.
 
-**Status:** PikaFlow 0.5.0 is implemented and verified. Corrected frozen
-`8ec3986` passes Windows native/reference, Linux native, semantic libFuzzer and
-extracted-package checks. Final documentation records follow the tested source;
-the failed 0.5 test-race candidate and historical 0.4/0.3.1 deliveries remain below.
+**Status:** verified 0.5.0 remains a historical delivery below. The user
+renewed overnight-work authorization; a 0.6 compiler-optimization milestone is
+active. Scalar-cell forwarding, LLVM remarks and captured-cell fuzz checks are
+being implemented and will require a new frozen validation before delivery.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -24,7 +24,34 @@ Windows x64/Linux x86-64 native and interpreter checks. Each feature needs valid
 examples, negative diagnostics, relevant edge cases, and cross-mode execution
 where applicable. Preserve explicit unsafe boundaries and source-file protection.
 
-## 0.5 compiler-engineering milestone ? 2026-11-05
+## 0.6 optimization and observability milestone - 2026-11-05
+
+Work resumes from clean pushed `bcba3b3` (113 commits), preserving 0.5 artifacts
+and failure/correction evidence. Ponytail remains active. Three agents own
+optimizer, LLVM remarks and semantic-fuzzer work; root owns shared CLI/schema,
+version, example, integration and this timing log.
+
+| Deliverable | Acceptance | Owner | Initial estimate |
+|---|---|---|---|
+| Bounded scalar-cell forwarding | Forward only provably current i64/bool values; preserve allocations/stores/debug roots/traps; handle register reuse/aliases and invalidate at calls/unknown effects/CFG boundaries; actual structured-code CSE and unit/native/sanitizer proofs | Frontend | 45-90 min |
+| LLVM optimization remarks | Standard ORE passed/missed remarks and filtered YAML, accurate source locations and named values; quiet by default; no IR/execution semantic change | LLVM backend | 20-45 min |
+| Captured-cell semantic exploration | Fifth bounded family with nested closures, mutable capture aliases, call barriers and GC; independent full-output goldens and instrumented clean campaign | Runtime | 30-60 min |
+| CLI and complete delivery | Schema 2 exposes cell_loads_forwarded without silently changing schema 1; meaningful lab, frozen host suites, local packages, quiet benchmark and durable evidence | Root | 30-60 min after integration |
+
+This is a bounded local optimization, not general heap alias analysis or GC-root
+liveness. Estimates are planning ranges with parallel work. The pass must improve
+inspectable IR before any performance claim is considered; correctness remains
+required even when forwarding is conservatively skipped.
+
+### Live log (IST)
+
+- 05:49: clean baseline inspected; owners assigned. LLVM remarks use the standard
+  analysis/emitter rather than new project-specific compiler flags. Report schema
+  advances to 2 for the new eighth optimizer counter; original field names and
+  aggregate count meanings remain. A fifth fuzzer family checks captured writes
+  across indirect/top-level calls. Designs are reviewed before integration.
+
+## 0.5 compiler-engineering milestone - 2026-11-05
 
 The user renewed authorization to continue while the PC stays on. Work resumes
 from clean pushed `200484b`, retaining 0.4.0 artifacts and evidence. Ponytail
@@ -34,10 +61,10 @@ does not independently restart an ended agent session.
 
 | Deliverable | Acceptance | Owner | Initial estimate |
 |---|---|---|---|
-| Coverage-guided semantic optimizer fuzzing | Byte-driven bounded valid programs with independent expected outcomes; instrument actual compiler/optimizer/interpreter code with libFuzzer/ASan/UBSan; deterministic seeds/replay and clean recorded campaign | Frontend | 45?90 min |
-| Safe constant LLVM checked arithmetic | APInt-based signed i64 safe folds; preserve all checked failures and argument effects; strengthen producer contract without widening old v1 promises; real FileCheck and execution regressions | LLVM backend | 30?60 min |
-| Typed-IR optimization report | Nonexecuting JSON command exposing before/after sizes and existing statistics; LLVM-off support; protect source/import/output aliases and diagnose write errors | Runtime/tooling | 20?45 min |
-| Integration and delivery | Focused and full host checks on a new freeze, new example/docs, preserved source/binary identities and updated local packages | Root | 30?60 min after integration |
+| Coverage-guided semantic optimizer fuzzing | Byte-driven bounded valid programs with independent expected outcomes; instrument actual compiler/optimizer/interpreter code with libFuzzer/ASan/UBSan; deterministic seeds/replay and clean recorded campaign | Frontend | 45-90 min |
+| Safe constant LLVM checked arithmetic | APInt-based signed i64 safe folds; preserve all checked failures and argument effects; strengthen producer contract without widening old v1 promises; real FileCheck and execution regressions | LLVM backend | 30-60 min |
+| Typed-IR optimization report | Nonexecuting JSON command exposing before/after sizes and existing statistics; LLVM-off support; protect source/import/output aliases and diagnose write errors | Runtime/tooling | 20-45 min |
+| Integration and delivery | Focused and full host checks on a new freeze, new example/docs, preserved source/binary identities and updated local packages | Root | 30-60 min after integration |
 
 Estimates are elapsed planning ranges with parallel work, not promises. This is
 one coherent next milestone, not an unlimited list of unrelated language syntax.
