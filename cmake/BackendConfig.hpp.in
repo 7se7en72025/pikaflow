@@ -1,2 +1,3 @@
 #pragma once
+#cmakedefine01 PF_SANITIZERS_ENABLED
 #define PF_MSVC_LIBRARY_DIRS "@PF_MSVC_LIBRARY_DIRS@"

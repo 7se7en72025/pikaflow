@@ -1,5 +1,6 @@
 """Exercise source breakpoints, stepping, backtraces and cell watches with GDB."""
 from __future__ import annotations
+import os
 import pathlib
 import re
 import shutil
@@ -45,7 +46,14 @@ fun main() -> unit:
                                    capture_output=True, text=True, timeout=90)
             if built.returncode:
                 raise AssertionError(built.stdout + built.stderr)
-            commands = ["set pagination off", "set confirm off", f"break {path.name}:{line}", "run", "bt",
+            commands = ["set pagination off", "set confirm off"]
+            if os.environ.get("PIKAFLOW_SANITIZED_DEBUGGER") == "1":
+                # LSan cannot inspect a process already traced by GDB; other
+                # compiler children keep the original sanitizer environment.
+                options = os.environ.get("ASAN_OPTIONS", "")
+                options += (":" if options else "") + "detect_leaks=0"
+                commands.append("set environment ASAN_OPTIONS " + options)
+            commands += [f"break {path.name}:{line}", "run", "bt",
                         "info args", "info locals", "next", "continue"]
             arguments = [debugger, "-q", "-batch"]
             for command in commands:

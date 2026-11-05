@@ -2,12 +2,12 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 06:20 IST.
+**Last updated:** 2026-11-05 23:15 IST.
 
-**Status:** PikaFlow 0.6.0 is implemented and verified. Frozen `e70e7aa`
-passes Windows native/reference, Linux native, clean sanitizer and five-family
-semantic-fuzzer checks, and extracted-package verification. Final closeout
-commits contain documentation/evidence only; older deliveries remain below.
+**Status:** the 0.6 language/tooling contract remains complete. The user's
+renewed completion request starts a bounded 0.6.1 verification closeout, focused
+on instrumenting our LLVM backend and native runtime linkage. No new language
+features are planned. Clean full-profile results are required before delivery.
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -23,6 +23,43 @@ working examples, editor/project tools, a reproducible installation, and passing
 Windows x64/Linux x86-64 native and interpreter checks. Each feature needs valid
 examples, negative diagnostics, relevant edge cases, and cross-mode execution
 where applicable. Preserve explicit unsafe boundaries and source-file protection.
+
+## 0.6.1 completion and sanitizer validation - 2026-11-05
+
+Work resumes from clean pushed `b544434` (119 commits). This patch closes the
+remaining **project-owned backend C++** sanitizer gap rather than inventing more
+syntax. Prebuilt LLVM/system libraries and generated IR are distinct boundaries,
+not implementation tasks silently counted as complete. Ponytail remains active.
+
+| Deliverable | Acceptance | Owner | Initial estimate |
+|---|---|---|---|
+| Reproducible host sanitizer profile | Linux/Clang-only CMake ASan+UBSan flags, runtime availability checks, compile database, supported/unsupported configuration checks; default builds unchanged | Root | 20-40 min |
+| Native sanitizer runtime bridge | Compiler-generated executables link matching sanitizer runtimes; installed layout and external fixtures work; no fabricated blanket JIT/IR instrumentation claim | LLVM backend | 20-40 min |
+| Instrumentation proof | Deliberate address/undefined probes fail as expected in private report directories; actual flags verified for all project TUs; normal combined source runs through interpret/JIT/native | Frontend | 20-40 min |
+| Complete matrix and handoff | Full LLVM-enabled sanitizer suites plus normal Windows/Linux, exact source/binary evidence, installed packages and quiet benchmark; investigate real failures | Runtime + root | 45-90 min after integration |
+
+The standalone plugin stays in the normal Linux release matrix; its shared pass
+is sanitized inside the compiler in this profile. GDB alone disables leak
+inspection for its traced inferior, preserving compiler-child leak checks and
+other sanitizer options. This is not a global suppression. Sanitizers do not
+prove all programs correct; scope and any actual findings remain explicit.
+
+### Live log (IST, dates included across midnight)
+
+- 2026-11-05 23:11: current complete scope inspected. Version 0.6.1 adds no new
+  source-language feature. CMake compile/link availability checks pass with the
+  installed Clang 18 runtimes and LLVM 24 SDK; Windows release BuildOnly passes.
+  Backend native-link/GDB changes and intentional probe tests are ready. Next:
+  focused release checks, clean candidate commit, then full sanitizer matrix.
+
+
+- 2026-11-05 23:15: Linux Clang ASan/UBSan compile/link availability succeeds;
+  GCC is rejected by the intended native-Clang guard. The generated sanitizer
+  profile contains 33 CTests: standalone plugin omitted, positive sanitizer proof
+  added, and the GDB inferior-only environment policy present. Normal Windows
+  backend/native-environment focused checks pass 2/2 in 4.18 s. All source/profile
+  work is ready. This commit freezes a clean verification candidate; no full
+  instrumented-backend pass is claimed until its actual matrix finishes.
 
 ## 0.6 optimization and observability milestone - 2026-11-05
 

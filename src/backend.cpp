@@ -1003,6 +1003,9 @@ void buildExecutable(const Program& program,const std::string& output,const std:
         if(debug) arguments.push_back("-g");
 #ifndef _WIN32
         arguments.push_back("-lm"); arguments.push_back("-ldl"); arguments.push_back("-pthread");
+#if PF_SANITIZERS_ENABLED
+        arguments.push_back("-fsanitize=address,undefined");
+#endif
 #endif
     }
     arguments.insert(arguments.end(),extraLibraries.begin(),extraLibraries.end());

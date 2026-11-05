@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.24)
-project(PikaFlow VERSION 0.6.0 LANGUAGES C CXX)
+project(PikaFlow VERSION 0.6.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 option(PIKAFLOW_ENABLE_LLVM "Build LLVM native and JIT backends" ON)
 option(PIKAFLOW_BUILD_LLVM_PLUGIN "Build the standalone LLVM pass plugin when supported" ON)
+include(cmake/Sanitizers.cmake)
 include(CTest)
 find_package(Threads REQUIRED)
 
@@ -61,7 +62,7 @@ if(PIKAFLOW_ENABLE_LLVM)
     target_link_libraries(pikaflow_backend PUBLIC pikaflow_core ${PIKAFLOW_LLVM_LIBRARIES})
     target_link_libraries(pikaflow PRIVATE pikaflow_backend)
     target_compile_definitions(pikaflow PRIVATE PF_HAS_LLVM=1)
-    if(PIKAFLOW_BUILD_LLVM_PLUGIN AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND
+    if(PIKAFLOW_BUILD_LLVM_PLUGIN AND NOT PIKAFLOW_ENABLE_SANITIZERS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND
        LLVM_ENABLE_PLUGINS AND LLVM_LINK_LLVM_DYLIB AND TARGET LLVM)
         list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
         include(AddLLVM)
@@ -73,7 +74,11 @@ if(PIKAFLOW_ENABLE_LLVM)
         target_compile_definitions(pikaflow_checked_passes PRIVATE PF_PLUGIN_VERSION="${PROJECT_VERSION}")
         install(TARGETS pikaflow_checked_passes LIBRARY DESTINATION lib/pikaflow/plugins)
     elseif(PIKAFLOW_BUILD_LLVM_PLUGIN)
-        message(STATUS "Standalone LLVM pass plugin unavailable in this LLVM configuration; compiler pass remains enabled")
+        if(PIKAFLOW_ENABLE_SANITIZERS)
+            message(STATUS "Standalone plugin disabled for the unsanitized opt host; its shared pass is instrumented in the compiler")
+        else()
+            message(STATUS "Standalone LLVM pass plugin unavailable in this LLVM configuration; compiler pass remains enabled")
+        endif()
     endif()
 endif()
 
@@ -261,6 +266,16 @@ if(BUILD_TESTING)
         endif()
         add_test(NAME native_environment COMMAND "${Python3_EXECUTABLE}"
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_environment.py" ${PIKAFLOW_NATIVE_ENV_ARGS})
+    endif()
+    if(PIKAFLOW_ENABLE_SANITIZERS AND Python3_FOUND)
+        add_executable(pikaflow_sanitizer_probe tests/sanitizer_probe.cpp)
+        add_test(NAME sanitizer_build COMMAND "${Python3_EXECUTABLE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_sanitizer_build.py"
+            "$<TARGET_FILE:pikaflow>" "$<TARGET_FILE:pikaflow_sanitizer_probe>"
+            "${CMAKE_CURRENT_BINARY_DIR}")
+    endif()
+    if(PIKAFLOW_ENABLE_SANITIZERS AND TEST source_debugger)
+        set_tests_properties(source_debugger PROPERTIES ENVIRONMENT "PIKAFLOW_SANITIZED_DEBUGGER=1")
     endif()
 endif()
 
