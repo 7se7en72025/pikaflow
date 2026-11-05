@@ -9,13 +9,14 @@ The project draws inspiration from [Pikapika](https://github.com/7se7en72025/pik
 and [Goof](https://github.com/sneaky-potato/goof). Its implementation and language
 rules are developed here rather than merging the two projects' source code.
 
-**Status:** PikaFlow 0.6 adds bounded scalar-cell load forwarding, schema-2
-optimizer reports and standard LLVM passed/missed optimization remarks. Its
-instrumented semantic harness now covers captured mutable cells and closures.
-Clean `e70e7aa` passed **31/31 Windows native**, **27/27 Windows reference** and
-**33/33 Linux native** suites, four focused sanitizer suites and **7,294** bounded
-semantic-fuzzer executions with no finding. The [validation record](docs/validation.md)
-preserves exact identities and historical releases. [Supported scope](docs/FEATURES.md)
+**Status:** PikaFlow 0.6.1 adds a supported Linux/Clang ASan+UBSan developer
+profile for the project's C/C++ backend, shared LLVM pass, runtime, CLI and tests,
+using a matching sanitized LLVM build-tree SDK. Its source-language contract is
+unchanged. Clean `e03a541` passed **31/31 Windows native**, **27/27 Windows
+reference** and **33/33 Linux Release** suites. The full matched-SDK sanitizer profile passed **33/33 suites** (595.96 s), with no unexpected reports.
+See the [sanitizer profile](docs/sanitizers.md), [validation record](docs/validation.md)
+and [supported scope](docs/FEATURES.md). Generated program instructions and system
+libraries are outside the blanket-instrumentation claim.
 
 ## A small hybrid program
 
@@ -240,6 +241,17 @@ See [C interoperability](docs/ffi.md) for exact signatures, ownership, `--load`,
 
 ## Tests and measurement
 
+The optional [Linux/Clang sanitizer profile](docs/sanitizers.md) instruments our
+host C/C++ sources, including backend/shared-pass code. It requires LLVM 24 built
+with matching Clang drivers and upstream `Address;Undefined`, checked from its
+build-tree cache; installed or unsanitized SDKs fail closed. Core-only sanitizer
+builds remain available without LLVM. Positive ASan/UBSan probes keep expected
+reports private, while ordinary compiler/runtime children retain leak detection.
+Only a GDB-traced inferior disables LSan; its compiler keeps leak detection on.
+The full matched-SDK sanitizer profile passed **33/33 suites** (595.96 s), with no unexpected reports. The recorded SDK build covers its selected
+shared-library dependency closure, not LLVM `check-all` or every optional tool.
+
+
 ```powershell
 ctest --test-dir build/interpreter --output-on-failure
 python tests/test_cli.py build/interpreter/pikaflow.exe
@@ -253,11 +265,12 @@ The integration suite detects whether LLVM is enabled. LLVM builds add JIT and
 native output comparisons at `-O0`/`-O2`, object/IR checks, and C ABI tests.
 Bounded generated-program checks complement the parser's malformed-input tests;
 they are not a coverage-guided fuzz campaign.
-The [semantic/optimizer libFuzzer target](docs/fuzzing.md) completed 7,294
+The historical 0.6 [semantic/optimizer libFuzzer target](docs/fuzzing.md) completed 7,294
 executions across five bounded valid-source families with an independent full-output
 oracle. Its nine target translation units (the harness plus eight implementation
 files) carry coverage/ASan/UBSan instrumentation; the LLVM backend is outside that
-target. Four fresh focused sanitizer suites also passed. The separate parser
+target. Its four focused sanitizer suites passed at that 0.6 freeze; no fresh
+0.6.1 fuzzer campaign was run. The separate parser
 target and seeded program oracle retain their own scopes. Final native host
 suites include schema-2 reports, 160 optimizer execution comparisons and the
 default ten-program oracle. Linux's shared pass passed seven FileCheck pipelines,

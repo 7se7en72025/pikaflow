@@ -1,0 +1,1289 @@
+{
+  "source_commit": "482bf7c5534b17ea837994e56ea447101deeee10",
+  "dirty": false,
+  "candidate": false,
+  "archive_sha256": "e797617c0408803f2a26effe242e8c18d29b254fc5ce0ee8c46952182b8a157e",
+  "source_file_count": 198,
+  "snapshot": {
+    "source_commit": "482bf7c5534b17ea837994e56ea447101deeee10",
+    "dirty": false,
+    "candidate": false,
+    "capture_head": "482bf7c5534b17ea837994e56ea447101deeee10",
+    "capture_worktree_status": "",
+    "captured_utc": "2026-11-05T17:46:22.683325+00:00",
+    "archive_kind": "exact git archive",
+    "archive_sha256": "e797617c0408803f2a26effe242e8c18d29b254fc5ce0ee8c46952182b8a157e",
+    "source_file_count": 198,
+    "source_files": {
+      ".clang-format": "3c3d140e3bc89210b2dc7468a07bb536a77125f6a9b947203fe24b6499ab99d3",
+      ".github/workflows/ci.yml": "a7b21ebad4f6c7acf977761c3f010917e0a1c62001bb65b478732eddd18732f1",
+      ".gitignore": "18480ab46d922814f2d08ed103167db633dfaee04d7f2ebce79800f89d981380",
+      "CMakeLists.txt": "1ba6b1de2f031807e466499803604ff741b4b40e11d94840cd0cba5a03a86b69",
+      "README.md": "e359ee645f0c68f755a9b9c7c2c866b7207064d078b26e834b344582e41b4b6f",
+      "cmake/BackendConfig.hpp.in": "4a79bf67dbbcf73f9861492a7d6d671e5b4c7a8aeed4a1c5cdec83c140898d61",
+      "cmake/Fuzzing.cmake": "fbffce546120c0aa82ce56d1c2e94bacc9f3e8b4282541004fe098752ce16f87",
+      "cmake/Sanitizers.cmake": "e256fe54b48c7582b1c97c6e108f4d4f8f7de08d9337a0d1a63c0e9e7b5df37b",
+      "docs/CONTRIBUTING.md": "b761d652cde7e727c8a4327ac157c2ed610b6fcfc421d104599b048fa25a8b72",
+      "docs/FEATURES.md": "f59873f3ef664ec6f1d0aaed00346e2c56904c1c83288c1d3e6ec5369800e6fe",
+      "docs/PROJECT_PLAN.md": "8829fae8120db6387266b323b177de06e08ac3f458de239fcaeb2e0f156c1431",
+      "docs/STATUS.md": "3aa8848f8c63bfb2e13a76da736c004dec05cc93599318494aaa4de158fb10f3",
+      "docs/benchmarking.md": "22d4b97c2a48a68b012a5c705513f0afa482d7ee0109311b79fcc25cb3b97743",
+      "docs/benchmarks/windows-0.2-2026-11-04.json": "a7165e61b85ba739e9adf6d576f44a642d2f69a554872e494708b1fa56cb4d2d",
+      "docs/benchmarks/windows-0.3-2026-11-04.json": "f78d35e7dc9df43a328f5c417bf591c6c9a338324fcec1cbd8bb85a538d1e8ad",
+      "docs/benchmarks/windows-0.3.1-2026-11-05.json": "7fe80f2f56182f6a26a93c876d67233446d4900065c720f0e866866b770f506e",
+      "docs/benchmarks/windows-0.4.0-2026-11-05.json": "82bf8035981011abb9dab966b614cfff265fcec47f40e087e3f37e3ee7d5f861",
+      "docs/benchmarks/windows-0.5.0-2026-11-05.json": "b534a0f0ffd61caff8a2f4b49d0113169a0ed03e7f6e06d88c09fa2242cd13cb",
+      "docs/benchmarks/windows-0.6.0-2026-11-05.json": "7789c352ec317185135f5e5c0cda11d5164d2531d81dfdb7e107035e0648a96c",
+      "docs/benchmarks/windows-2026-11-04.json": "7645b02a00ea39501a027a023806c6b91d149e9c58d4bd0e536eacb6ebd38c4c",
+      "docs/design.md": "f0062261bc78516aa8bca857843b836bcc80f25849f19e359da72ccac448ded0",
+      "docs/editor.md": "f2203760631ebd58a1d7b11e23963b19b51d0bb80c704ba4ce1413a28641c4a5",
+      "docs/ffi.md": "5ed807a5959afeb9a1c1ffe9ff9155666029c4c4bc9bdaaa6be5d6c4321c117f",
+      "docs/fuzzing.md": "b7d523095e415a75de3d9ed9151c1d1aa164d89ba548f72dd6168bb809b64080",
+      "docs/language-extensions.md": "3080b5cdd104c810a36078ac46e3e4182e197d3f573394f0e0dd0e467d3bc146",
+      "docs/language.md": "6d9b4bd8e24957315b49660d5daa8b94a2d98a5190d9fc4b720069df3fe42eab",
+      "docs/llvm-pass-plugin.md": "d690d22fb9e017732160dde922f38a479177178da674955379c65d4eaabf3876",
+      "docs/optimization.md": "e44e10a69a480daf00dcbae36db71787af491addf3c486ff95521e136f6a0670",
+      "docs/program-testing.md": "e6b362c768dc6928e20a734b0ec0e7bf2dce879c016b975fec33dba240e9e471",
+      "docs/runtime.md": "5e9feb2ca308406a4e5c94f7f30de3958d259ed5ed97ae5f3a244e6cc27e86bc",
+      "docs/sanitizers.md": "420fa353fceffb8835a748c80fab937311ecef34370941c2c10d322ab978ad33",
+      "docs/testing.md": "5c032807b57e219caf4c95e740e24a951868590360a5b17501ee541ca1a19a71",
+      "docs/tooling.md": "05388c266d24653bce22d6b3045e170fef6719b8c3258e7f9857c58bec135b09",
+      "docs/validation.md": "fb2a3b13e985fdbf2accf8703bccd3cac3821cd61af1734e8f867dfa52f63b13",
+      "docs/validation/focused-sanitizers-0.3.1-2026-11-05.json": "077c3bf2aa49f0e71deb0e49d4ba3a40dff0983299372632736db3ee25312bbe",
+      "docs/validation/install-windows-2026-11-04.json": "94a5b6c8d5f355d1d7465cc90b2ecc8718cecdc593c281f60ff0da7d88a97304",
+      "docs/validation/linux-0.2-2026-11-04.json": "c527173efa39d2474d9ad7a990bf5593dcee9b0641bbb1b9f50801ddf11ab37a",
+      "docs/validation/linux-0.3-2026-11-04.json": "4c2b0d1269f457061ec70d9535c42221a54a2bb63892278b8a4f5948878f7424",
+      "docs/validation/linux-0.3.1-2026-11-05.json": "4eb4fde634cdab11286f451e508f94ed2eeaccafa1ddedf450034240d514cd2a",
+      "docs/validation/linux-0.4.0-2026-11-05.json": "fbcd14e9f2d6abf1ca9fa6863b686fedc60be0449474b223a20d57a978409fb3",
+      "docs/validation/linux-0.5.0-2026-11-05.json": "0a7040019823257d8598dcefdbfd53eb906578d84bee18d671c669382f396524",
+      "docs/validation/linux-0.6.0-2026-11-05.json": "d3f81946a3108de8018ca0c3315bc4dfff65553977369aaa4c9737f334f1f1dc",
+      "docs/validation/linux-2026-11-04.json": "7d7daae792a9b894037538aa1e1b8709ad8101d13457ebe4ba0da6dadb0f7328",
+      "docs/validation/linux-candidate-0.5.0-2026-11-05.json": "7bffee6b4f1be33ff2111385d5e55f96e109d01e5fd0654c270a3f8cd252d858",
+      "docs/validation/linux-package-0.4.0-2026-11-05.json": "e62e0593e538e89f0fc6cb18659b00ff2c045cea065be0fc756c5b58927183ce",
+      "docs/validation/linux-package-0.5.0-2026-11-05.json": "c6a2b29b580bd891d5f75fa9cd8bfeb9a77be3676f1cda2ba63aff64cfa47adb",
+      "docs/validation/linux-package-0.6.0-2026-11-05.json": "bf664217063b4415316e558b28e901c47a8a177c575a1ffed49604a5583dcd22",
+      "docs/validation/parser-0.3.1-2026-11-05.json": "20cf2f8db6486360d4ff704cf501b75086fdc62686a30ed4fac5a3694245293d",
+      "docs/validation/parser-0.4.0-2026-11-05.json": "305a00530e5057cbafb91922a2bf67ad9e43d699b69438cdabbd7c16dadbce30",
+      "docs/validation/parser-input-equivalence-0.4.0-2026-11-05.json": "a0a813b76124f2365977cf067ffb5faa770eeb3576f5854eca7fccf81449319c",
+      "docs/validation/programs-0.4.0-2026-11-05.json": "d9f392c441160197e7a1c668c9e9c8822bbc0ef8417a452b89708af60c0dd181",
+      "docs/validation/sanitizer-0.4.0-2026-11-05.json": "cb17d03deaac7766cd9151f191bcfe165c2f1ee0dad51bfe95ea490a760d5f5a",
+      "docs/validation/sanitizer-candidate-0.4.0-2026-11-05.json": "0b1c91b361c862cc36873d49c76411bf705544f914a691fe05f0385361d0fe48",
+      "docs/validation/sanitizer-post-checks-0.4.0-2026-11-05.json": "b6d01b8430f9a3f83e88c40264ef264cc1a5859da058f904aaed15c43be8f9de",
+      "docs/validation/semantic-fuzzer-0.5.0-2026-11-05.json": "88010b4c9a9473d244bfe7d222a9f06c1be1e5b4ad4b6241cd3f9ae2f43072f6",
+      "docs/validation/semantic-fuzzer-0.6.0-2026-11-05.json": "acd35a15b9f942c37930313d8653fe91c990db9336456be9d5451aa1e1a35b16",
+      "docs/validation/windows-0.2-2026-11-04.json": "37e45e453ff83ba75a837183d57fa230b5446b1dcf7e561886d6770a71848dbb",
+      "docs/validation/windows-0.3-2026-11-04.json": "9f9237332c65ff60e2ef3575e6315577bee9e8d170921a971264ea0d0e01f577",
+      "docs/validation/windows-0.3.1-2026-11-05.json": "97b31b939a8a78a1e50780954677c564155f8d19d29b9f041a47ce8e1ddfae4a",
+      "docs/validation/windows-0.4.0-2026-11-05.json": "f5944e3f7af028a3f18ab64e84f258a4e8d3ebc42a84024dfe87ccff11b4a02d",
+      "docs/validation/windows-0.5.0-2026-11-05.json": "3705d13019dfaff9a72ce636020b27bef9c557baa677b88e31ed4ab765f0ab9a",
+      "docs/validation/windows-0.6.0-2026-11-05.json": "6ea9733782f2ed73b32d1ab3c9825f483bd84427b8b8e5e73264b161fc5d854e",
+      "docs/validation/windows-package-0.3-2026-11-04.json": "78c3224156c542f6dfafb1479d860fbbce831115e737a9f71f0025239a44f582",
+      "docs/validation/windows-package-0.3.1-2026-11-05.json": "a14b90e66d2c7cc78f1f750f99e9ed2c8ccf23475aa13ee3ca505b91132c2a6a",
+      "docs/validation/windows-package-0.4.0-2026-11-05.json": "ef4343817afec631191dfdcadc21135fb245d7c58a4aed4e6967164c2edc0a32",
+      "docs/validation/windows-package-0.5.0-2026-11-05.json": "1027b9db24aff6967901ae017d3c5984242b588c31e85d3f89c1b8402f9df021",
+      "docs/validation/windows-package-0.6.0-2026-11-05.json": "1f3193d69d361deebf1dfe72eaff1803765cbab815058c1ee60b1ed675c7219b",
+      "docs/validation/windows-reference-0.3-2026-11-04.json": "529aa6d79046d71c12f271b7282b0f42199e9948ac6e55d5adb876a92be1dc3e",
+      "examples/arrays.pf": "08f74a3c2cbb544938820fa60b0f606cd6b2b6d84608795344fcf5801ddbf727",
+      "examples/closures.pf": "c862365130b26d2d01befb6e05dc6cddb6f544bdfda9cd98fc3eea6cdb2a4eb4",
+      "examples/control_flow.pf": "4e694bb1b9f2041246ed7e292c83beaa6c49f2bcfa98e409fd27cf946fd79a43",
+      "examples/ffi.pf": "cfa8e942f6f2c94ea117c729cfd8a5213d289bb22ebaa89d3aba1f827e6d9069",
+      "examples/generics_patterns.pf": "19e51a793acf6efefaec843ce7adbbe05523ed1bb65851b648e9e0e48cb0410e",
+      "examples/hello.pf": "e4921ad387f34a6a8e373b03f91327fb5e02cb430fc86b37f53939a71f38599c",
+      "examples/modules/main.pf": "2ef75266339ee8966744f2d71e5609a06ff1d64a174dc3d109a87bbf712b819a",
+      "examples/modules/math.pf": "b68fbc3338f2b4edaec757d26aef4132c0efb283041bce2caf7f43b035077504",
+      "examples/modules/qualified.pf": "23c072f4141e1c5165361b244ce4c01d940755d26433c080dd2b62d7ef12e634",
+      "examples/optimization_lab/README.md": "6a38c023898a5b7afaafca840ab0c923195921e8459aa080401ffb9890cccd20",
+      "examples/optimization_lab/main.pf": "23f32a1714aebf6259769cb7caaa9b3ecc350f9ae30ea081b608aa0afc176804",
+      "examples/packages/app/pika.json": "4ac0949c65fb53b3c5ecb78f37d58d70afcdfbc150157b5b32f928b8ea07dcf7",
+      "examples/packages/app/pika.lock": "49e3d58ecb9ec4bc816e85d2be48f5933c00bf3c75d3f342abf250034fc311bd",
+      "examples/packages/app/src/main.pf": "ce2674daddbba729f13842239aafcca25aadf110cc764b25c1aafc7d0631da5f",
+      "examples/packages/mathkit/lib.pf": "e16cac1bd3cafefa6ab39aedd1b3d15a2ea041b41462bda44b16e5b37e7f6d90",
+      "examples/packages/mathkit/pika.json": "8097e5ed518eaf3a91bf76a0245f9932f8258a617fa78c6632bd682b508b5be8",
+      "examples/patterns.pf": "26adb33682eee4e260c1a589b277f9eaa5041dd653f7fea8260f5e7dc6d258a9",
+      "examples/pointer_offsets.pf": "ef0c9846b97f0def132ac6e48fd8ba99cbc4a7c97cd57ef24d3f3c2e71656b64",
+      "examples/pointers.pf": "b7191f8a86e8fe32c29f241e22c016c112d559c2ec42b9f9cefbf72f3b7bb3d1",
+      "examples/record_project/README.md": "522046f7d17a294eeb7b95d8574c365bb5bb49bcbc10ff359a86446eb149af5a",
+      "examples/record_project/pika.json": "35fa2b710bd714c4aec5bcae2b02e8852da6e9334bef014de7667011849a04d8",
+      "examples/record_project/pika.lock": "4cafe2b0259d19a2dc14f70f14d6d65365592d72cf9a53d1059bf3b365431fdf",
+      "examples/record_project/src/main.pf": "d4435f6e2b31088d892553dd0c45933710a7032881292047544fcdba88f76716",
+      "examples/record_project/src/model.pf": "913ab31f0415fb56a1a46e93be8aa3562c1d10561334e5f9b1a9496fa24809f1",
+      "examples/record_project/tests/test_model.pf": "f859999ce6443ab82978a401745937ba63a249c36687a52a83c8d90b1db9668f",
+      "examples/records.pf": "78545661bfcfa73bf74aaea03080b51a21717181f055ab64a103b833f4f977e7",
+      "examples/recursion.pf": "d8c41fa5ab97bed949bf168963b9ef70edce016475b61c71c380d1c94ad6d382",
+      "examples/recursive_closure.pf": "0259aeb5c79d79284ae36f18eb39ab1888d3945a039bc27f4c328e9c731a8d43",
+      "examples/results.pf": "6ac3f6ae443b07c936a5930a20ee7204dcd9e87d1f113d58c521e1bfd7032fb7",
+      "examples/shared_stack.pf": "b18be1caf10b3ee0a76a50f9c429b90ff3c607521ae2f8af0d493f740c48db65",
+      "examples/showcase/main.pf": "f5b2d084695eab89e1650ba5b3c350e60317027177c702328b965b73c77cfd43",
+      "examples/showcase/tree.pf": "dd481cbf1063a260151dd4024b7cb8ebcafbd177316b426194e9f4452caa7dc2",
+      "examples/stdlib.pf": "615871d04244998775699f392dcf4f5a716051b5f303a54f132779631ffe7c8e",
+      "examples/strings.pf": "d36bd04be916f7030ae33efdd140da0201d3de3dbae6153cd80adf2b098dba23",
+      "examples/tasks.pf": "5233e035ab28f6be1005319420a959cd9693e601fa354f6801f009268d464658",
+      "examples/type_aliases.pf": "eccf50fe43124189cc275cd012d2db973ab3ae7188637b0c74079c944adda49e",
+      "include/pikaflow/backend.hpp": "c0d2fd0aa4dd3e6c36dd120772fe78f637784783f362fc0580c52fdfdd2ddb4e",
+      "include/pikaflow/common.hpp": "421a3562ee8521f4ea9d504463710d3bef5f1b45b10a50603b5b8b174e65c517",
+      "include/pikaflow/frontend.hpp": "8bb884f517d31ee84f7f559da80ca49c4dadd7073378dbbd06916fb96a07968d",
+      "include/pikaflow/ir.hpp": "835d86e323f909d09a8b1c46f98e57fd4a6222796a6dca1297d9defcd623e5e3",
+      "include/pikaflow/optimizer.hpp": "afa1b15079486d70f4428ef437f41a106074b926ce9a071004770d06e20104aa",
+      "include/pikaflow/runtime.h": "1424d412d2455afaf0bc6d85209958238d789f0617e11969887b6f52b9bc9a0c",
+      "scripts/benchmark.py": "df21c4689293441964bb82c8e41819f141abc0f8b0771777007bd2bd29064a19",
+      "scripts/build.ps1": "885e146dcaf78844b650520ea368584326a34f2fb7a50bba3a71b86c2e448371",
+      "src/backend.cpp": "b72fb5d45cf87f058c1c0cc52104bfc5d54502751c720cf4f942dac4276c0aaa",
+      "src/common.cpp": "cad0d2b4b70aecffa791d35324bc52c15b53b25bd92abafb2b99100c9f481a05",
+      "src/compiler.cpp": "c25c67a7d0c778864f5331a8556c4a27e89f7ee92b93b9723c4d2b5329d9a62d",
+      "src/interpreter.cpp": "b3de1d65f30ba5969ee59cf52c50ab55a1f285f7a1e5a227a9b8df17d6f3e51d",
+      "src/ir.cpp": "bb1b0e83b355db6ef9695fd41200966b49f9a53bdd3315f3d6b6da8c23e7b3fa",
+      "src/lexer.cpp": "8437da631c1310b349c6045590ebbfb7f183441dfc1d51be4f18cc8c1f0914b1",
+      "src/llvm/CheckedArithmeticPass.cpp": "baf61a91453b15c016bcea698dae69f67dfd157ca0923462e823839c2550423f",
+      "src/llvm/CheckedArithmeticPass.hpp": "3ac231d10a72038039e4272cc148d96e90df8b6193438ff5c3974526bc95106e",
+      "src/llvm/PassPlugin.cpp": "444caa8b64a665f8033590b05c920084e8133701e6ebe741ced0bdf4e47e228a",
+      "src/main.cpp": "7b99e2d33180245abf86d3d4cf193d3c19f63221ae4a8c88da1f617a02575da1",
+      "src/optimizer.cpp": "4f897dfe55f220a7df567f2e0705b7b21eae92c72d980f8bc5d48cb3f40130ae",
+      "src/parser.cpp": "973b3d13128b8d759e2457d2f7e36f9f2d2138aff6911e3e3437b81e0972951a",
+      "src/runtime.cpp": "a61b6f5ebca6c1c02e8597d79934cb633df7ac716ce99c303a18a2c6a94320e9",
+      "stdlib/README.md": "31186316f156468d58bf101c8d643b7dbc7ee6737ce47be660277490be9bfd82",
+      "stdlib/numeric.pf": "546579e294ec6871dc6eab6b0f9e3046d01929469d2ca36e82d99133302891cc",
+      "stdlib/sequences.pf": "814c4fb194992289f4ff08ef577dd8cce7b7a1158b450030adb6cd012d9892fb",
+      "stdlib/strings.pf": "1eccc6a5f1bd2468ef53f72008a7e15cae8a2e8b2bdf26a939a59ced1f4e955b",
+      "stdlib/testing.pf": "f74b351ff51005201a1129bfd7eb2d8162da73657adbbe51879e9ece4508a749",
+      "tests/backend_tests.cpp": "8ec684fe218895dbe84bb2ed46893a68413bace5ce851cfb8cb19b8b6f2c5ada",
+      "tests/ffi_fixture.c": "fb7573d2f10824c6a6b85ae909c4ab05a8c07b149f90eb6c0220cf26366d2f1b",
+      "tests/ffi_fixture.h": "7778859f2e92a7927a470efca809037b447d48dfda9f505e0acaec7786112de2",
+      "tests/ffi_host_tests.c": "3d302566596ff58f558274fc5ddc5b5b2cc717a7515b2a99d50d36c3f3dfdb93",
+      "tests/frontend_tests.cpp": "c6a8f4706e245586425520eb9ea4fbf82112a2a7ae79446896c554f25c21d1b1",
+      "tests/fuzz_corpus/generics_enums": "1240a3b02aefa0b8d86409940956ed2f3d019d804bae0fd9de3f08549309e366",
+      "tests/fuzz_corpus/hybrid": "186e6e0ce28cd1aa47d4b1a41b1e3537d78eb89a652f551d34099fc893b05196",
+      "tests/fuzz_corpus/patterns": "361c41add5fb9b9f789c02b9c7ae35fad1dbaa2551f9a0222d0e2661a6c1f414",
+      "tests/fuzz_corpus/qualified": "3a7d147778bb8a4b455ecaf8c4268b55ec4df9ae9dab4fdeea5a9ae992eb6f9c",
+      "tests/fuzz_corpus/records_aliases": "7aa08ba2077898a63ee5172d20514c9f3b975d930e13a93d27766332430f9ebe",
+      "tests/fuzz_corpus/strings": "2fb563c0b1b2d0f0b1533131861a9d67da595a39e61e4282d11810a8a6d6d514",
+      "tests/fuzz_corpus/tasks_ffi": "08bde1107937386585172ad19ff6154025fc4d164fcd271669388aef39effb7a",
+      "tests/fuzz_corpus/underscore_patterns": "5790f9a80c8d466c670d5857f120b0d69e291c9c3fa2c3f980a8be229204a6cd",
+      "tests/fuzz_frontend.py": "a648245abd4d5fc23436d3386c42faf6c54d8e53548cac62a04f09a0b6a72bbf",
+      "tests/fuzz_parser.cpp": "6e1ed0990b0a418b5c3bac505418cc72c604e183db5c5e1e49e162e27f5c10ca",
+      "tests/fuzz_programs.py": "acb6b0170f0518fe089b0f661f82d50709a2a772c02289b9500bf8a39daea9e4",
+      "tests/fuzz_semantic.cpp": "6d8c9c119fcaaa0722c2a6e976e0158272dec28ca51d38d50353f0d525be4b67",
+      "tests/fuzz_semantic_corpus/arithmetic.bin": "4dba63aeec85f57ea4e36f59fb5bfdafd4fc693d4e6ba5503eccc4da91a915e4",
+      "tests/fuzz_semantic_corpus/arrays.bin": "0b292b46fccbee9bf24b35656919e7a8f8e86d62e2d02c0e154ebdaf5f793f7c",
+      "tests/fuzz_semantic_corpus/cfg.bin": "890690742399f8b0440cc4a379ba3bc32cf2cc8c6e320fc7ebc0be21e9bfda76",
+      "tests/fuzz_semantic_corpus/newclosures.bin": "747d4d7948961ec95c4b416ccfee06a82b11292d1df98755a498c235e00c8047",
+      "tests/fuzz_semantic_corpus/records.bin": "dedf141227bef63ae79dbe1d35e512712952009fa2734bf0b582802899fd9c69",
+      "tests/interpreter_tests.cpp": "862daf2782fccb85ea25e5cdef200ee4ea3fa411a267ce8e02890f3f74bbcd46",
+      "tests/ir_tests.cpp": "7690960a4c27d4d47165b73c8d241111f48de53ce2213785421e1f0ddb80c355",
+      "tests/llvm/checked_constants.ll": "47ffa179f6b537f813acbc4fc9d94f660b2464eb79be6312e7065d09369aaf48",
+      "tests/llvm/checked_execution.ll": "99698c6f8f54ef453f7c7ac53cb0934c2b52ec2505eb3c0480daaca1cf4b98c5",
+      "tests/llvm/checked_invalid_contract.ll": "ed7aab4583f52d108bbec5f08476cbff4d299577ba908fed345d1a781312c882",
+      "tests/llvm/checked_legacy_effects.ll": "910afdb8011d30037720d86609d37f315d1feaf000591a028a1298cfdf94091a",
+      "tests/llvm/checked_remarks.ll": "d19900eda61ba0427f2340a4271ae7c3456347be6f88faefa1095b0f69928a0e",
+      "tests/llvm/checked_simplify.ll": "2ce728a86b9390215f2f148dbec7cb21f42b3b2e960cc95566e8ccb989c87543",
+      "tests/llvm/checked_untrusted.ll": "4eb13032067ed0171ceca9735cb4c3826bf902a968a152a8c0ab7141b8deeaf1",
+      "tests/optimizer_tests.cpp": "bf5cd76a3782db03fc744d0711d196f22a8e534d1b9f552abcc909262140d79f",
+      "tests/runtime_failures.py": "d3d64f789464d0e05ad8f243459ed8ca708c14c09c854acbc924b5e22a253050",
+      "tests/runtime_tests.cpp": "25a30a42f6d07261933be666a6d8d6384e140b63eaa75efb8b2de0f8e94aaf05",
+      "tests/sanitizer_probe.cpp": "9f70f5b1e2b70eab80468616ec5a2f3f9479cb85f61693100add779af46deac6",
+      "tests/task_failures.py": "caa8ec9bf1c43b076acde2071d81126cd203b73cc9d0279a082eeca595d6be8a",
+      "tests/task_tests.cpp": "ace8ab83dd92a18ff1c6194bf158c7ee9f3ef8a619679461cc524b0d2dc2df9a",
+      "tests/test_benchmark.py": "6f4759b0078ead01e58df16ae42c7c8c13fa0526c37cb4b713f0853a9e3cad42",
+      "tests/test_cli.py": "ff7145e23e5736e658bc7be68d79ff8c92c9727e6d1b8dcda1bc8262dcd5506a",
+      "tests/test_contextual_types.py": "41fc22bc4b8daa291c63ab6eb4396cf5030c870581c640263ba044bee0eadbde",
+      "tests/test_debugger.py": "60bac4d4317e16147909a845c37c6aeb10f582e7c737ddbe9d6aa61e8e5cd3c2",
+      "tests/test_editor.py": "e182bb91574397013e07d7a5bfc46524f080b719201bec16bd9425a5bed5bce4",
+      "tests/test_editor_features.py": "1a3b70ee193c0a12b647ef0b1060fd901b316d30d4f83cd6d21cf4e6d812ab32",
+      "tests/test_ffi.py": "a18cf4b372b11089579d275afb389f868c652fad30eee0ef157c187b671c2cec",
+      "tests/test_install.py": "32cc2cec4758bed17b6be4f6327da3e219340e9e2f10607b274ccd09a721bde6",
+      "tests/test_language_extensions.py": "b5ecc628e728aafbdbab9b0823c44ae3386e652fdd23959262550980068d7ec3",
+      "tests/test_llvm_plugin.py": "64c3c4cb543d2d4c0c99597935e6e837f04ec3be80c89077bd51559ba58ac269",
+      "tests/test_namespaces_assignments.py": "1926951e81e8cf6526708c2f146ac4b2e27a10c821a790908265f732d036e00c",
+      "tests/test_native_environment.py": "7c6fb23cb19b3c8f5a82aac5f44a8f1778d63e0024b9a75005bdc56bbc35104d",
+      "tests/test_opt_report.py": "a811d9d8900ff217c2420ef5c3c2bd326df15124101526c50a90eb030ec92876",
+      "tests/test_optimization.py": "e74480d46aae941601c6ff49d2748cbdfbe782f122808168b0a2d3697ef9c8cf",
+      "tests/test_packages.py": "af9a552410cc7abfc4e0973436fa93c81540ebae8b8fde1c095a1c46f4543971",
+      "tests/test_project_tests.py": "560301b70516104b01f8a4b326da04183a55a2d4f4db719b3eb421ca18799a0b",
+      "tests/test_records.py": "f84e09b1d589c9fe6584504783e4c6d9a2c249e6921ef5f46fcbb0b1c3e011c5",
+      "tests/test_sanitizer_build.py": "8571990f09150b0c3b9ef1118434a2503f7c311af867ccebe1c12056956952e1",
+      "tests/test_semantic_symbols.py": "4190a500c303a181c7d8091d36c1e34a0304590b87a3d9652796db838fe16c84",
+      "tests/test_tasks.py": "c8fe7ae54e97d3c5e877e3c2935f3ffb6b281e2b4e345c7677f9ae7f025a8537",
+      "tests/test_tools.py": "06b69353f8844850af3a86f132ff1bc3ce5652da6310798eb68ec199d82632bd",
+      "tests/test_type_aliases.py": "2bc2223b122d4196da67704a37080fb1a5c3ab887a240bd6cf3ff7304d703e47",
+      "tools/editor.py": "e75887af72e32e97c7a048677c4ed7cbccf4c49ffb5f6454babf149e63ac13e1",
+      "tools/editor_features.py": "f0ef70568b4d734d6254ddb9363020556b5ac16b62a08153092d1b074327847d",
+      "tools/formatter.py": "13f6a17f1e2716b1614fe13c8a718823702dec237f6b6d1e901ed83a55b5ba59",
+      "tools/git_sources.py": "9888749b090a33f54455571dc9822017188707f8dc5b4f06c6c29831b1d6ebbf",
+      "tools/lsp.py": "42c451be8eea3c5793b69b61d3e8ce7a687545d40541bf46f54c170c8d37140c",
+      "tools/packages.py": "b49148595dbba79f6d60b493255add5abfd78a489c6c6f92010f98921dc3db83",
+      "tools/pikaflow.py": "a0c1b653862d5fdeadcf9130885b70cdd640707f898a2535d3108ec87d6b3d4b",
+      "tools/process_jobs.py": "028822a08abdf442acca38ae691bb7486b33e9c0593d3cea5656160dc011a4f8",
+      "tools/project_tests.py": "6fa12b9c86df313570b049161b8b2c8469889d5cdb093b016cf4eaf39070dd35"
+    }
+  },
+  "source_directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source",
+  "build_directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+  "started_utc": "2026-11-05T17:47:02.935738+00:00",
+  "scope": "Project-owned C/C++ including LLVM backend/shared pass/core/runtime/main/tests under ASan+UBSan; prebuilt LLVM/system libraries and generated JIT/native instructions are not instrumented",
+  "stack_limit_bytes": 8388608,
+  "build_parallel": 1,
+  "test_parallel": 1,
+  "environment": {
+    "ASAN_OPTIONS": "detect_leaks=1:abort_on_error=1:log_path=/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/real-reports/asan",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1:log_path=/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/real-reports/ubsan",
+    "ASAN_SYMBOLIZER_PATH": "/usr/lib/llvm-24/bin/llvm-symbolizer",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "leak_detection": true,
+  "standalone_plugin": false,
+  "prebuilt_llvm_instrumented": false,
+  "generated_instructions_instrumented": false,
+  "debugger_leak_detection_scope": "Only GDB inferior disables LeakSanitizer via PIKAFLOW_SANITIZED_DEBUGGER=1; compiler children and other tests retain detect_leaks=1",
+  "stages": [
+    {
+      "name": "configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+        "-G",
+        "Ninja",
+        "-DCMAKE_C_COMPILER=clang-18",
+        "-DCMAKE_CXX_COMPILER=clang++-18",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DPIKAFLOW_ENABLE_LLVM=ON",
+        "-DPIKAFLOW_ENABLE_SANITIZERS=ON",
+        "-DPIKAFLOW_BUILD_LLVM_PLUGIN=OFF",
+        "-DPIKAFLOW_BUILD_FUZZER=OFF",
+        "-DPIKAFLOW_BUILD_SEMANTIC_FUZZER=OFF",
+        "-DBUILD_TESTING=ON",
+        "-DLLVM_DIR=/usr/lib/llvm-24/lib/cmake/llvm"
+      ],
+      "exit_code": 0,
+      "seconds": 24.341,
+      "log": "configure.log",
+      "log_sha256": "aecf2507a41d8eb6d798caf621bab3f6f05bd0c625bc815b076f5436304ff67a"
+    },
+    {
+      "name": "build",
+      "command": [
+        "cmake",
+        "--build",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+        "--parallel",
+        "1",
+        "--verbose"
+      ],
+      "exit_code": 0,
+      "seconds": 407.248,
+      "log": "build.log",
+      "log_sha256": "343d36f711e42b951c484e95904b53d8b009624796ccaea69de5f16c85ffe92e"
+    },
+    {
+      "name": "focused",
+      "command": [
+        "ctest",
+        "--test-dir",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+        "--output-on-failure",
+        "--parallel",
+        "1",
+        "-R",
+        "^(sanitizer_build|llvm_backend)$",
+        "--output-junit",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/focused-junit.xml",
+        "--no-tests=error"
+      ],
+      "exit_code": 8,
+      "seconds": 2.477,
+      "log": "focused.log",
+      "log_sha256": "ef9c6dcbdeacec676e7b29445252c20952de1f26818f029968f211515995ca29"
+    }
+  ],
+  "expected_probes": [],
+  "full_suite_executed": false,
+  "exit_code": 1,
+  "archive_update": {
+    "updated": [],
+    "added": [
+      ".clang-format",
+      ".github/workflows/ci.yml",
+      ".gitignore",
+      "CMakeLists.txt",
+      "README.md",
+      "cmake/BackendConfig.hpp.in",
+      "cmake/Fuzzing.cmake",
+      "cmake/Sanitizers.cmake",
+      "docs/CONTRIBUTING.md",
+      "docs/FEATURES.md",
+      "docs/PROJECT_PLAN.md",
+      "docs/STATUS.md",
+      "docs/benchmarking.md",
+      "docs/benchmarks/windows-0.2-2026-11-04.json",
+      "docs/benchmarks/windows-0.3-2026-11-04.json",
+      "docs/benchmarks/windows-0.3.1-2026-11-05.json",
+      "docs/benchmarks/windows-0.4.0-2026-11-05.json",
+      "docs/benchmarks/windows-0.5.0-2026-11-05.json",
+      "docs/benchmarks/windows-0.6.0-2026-11-05.json",
+      "docs/benchmarks/windows-2026-11-04.json",
+      "docs/design.md",
+      "docs/editor.md",
+      "docs/ffi.md",
+      "docs/fuzzing.md",
+      "docs/language-extensions.md",
+      "docs/language.md",
+      "docs/llvm-pass-plugin.md",
+      "docs/optimization.md",
+      "docs/program-testing.md",
+      "docs/runtime.md",
+      "docs/sanitizers.md",
+      "docs/testing.md",
+      "docs/tooling.md",
+      "docs/validation.md",
+      "docs/validation/focused-sanitizers-0.3.1-2026-11-05.json",
+      "docs/validation/install-windows-2026-11-04.json",
+      "docs/validation/linux-0.2-2026-11-04.json",
+      "docs/validation/linux-0.3-2026-11-04.json",
+      "docs/validation/linux-0.3.1-2026-11-05.json",
+      "docs/validation/linux-0.4.0-2026-11-05.json",
+      "docs/validation/linux-0.5.0-2026-11-05.json",
+      "docs/validation/linux-0.6.0-2026-11-05.json",
+      "docs/validation/linux-2026-11-04.json",
+      "docs/validation/linux-candidate-0.5.0-2026-11-05.json",
+      "docs/validation/linux-package-0.4.0-2026-11-05.json",
+      "docs/validation/linux-package-0.5.0-2026-11-05.json",
+      "docs/validation/linux-package-0.6.0-2026-11-05.json",
+      "docs/validation/parser-0.3.1-2026-11-05.json",
+      "docs/validation/parser-0.4.0-2026-11-05.json",
+      "docs/validation/parser-input-equivalence-0.4.0-2026-11-05.json",
+      "docs/validation/programs-0.4.0-2026-11-05.json",
+      "docs/validation/sanitizer-0.4.0-2026-11-05.json",
+      "docs/validation/sanitizer-candidate-0.4.0-2026-11-05.json",
+      "docs/validation/sanitizer-post-checks-0.4.0-2026-11-05.json",
+      "docs/validation/semantic-fuzzer-0.5.0-2026-11-05.json",
+      "docs/validation/semantic-fuzzer-0.6.0-2026-11-05.json",
+      "docs/validation/windows-0.2-2026-11-04.json",
+      "docs/validation/windows-0.3-2026-11-04.json",
+      "docs/validation/windows-0.3.1-2026-11-05.json",
+      "docs/validation/windows-0.4.0-2026-11-05.json",
+      "docs/validation/windows-0.5.0-2026-11-05.json",
+      "docs/validation/windows-0.6.0-2026-11-05.json",
+      "docs/validation/windows-package-0.3-2026-11-04.json",
+      "docs/validation/windows-package-0.3.1-2026-11-05.json",
+      "docs/validation/windows-package-0.4.0-2026-11-05.json",
+      "docs/validation/windows-package-0.5.0-2026-11-05.json",
+      "docs/validation/windows-package-0.6.0-2026-11-05.json",
+      "docs/validation/windows-reference-0.3-2026-11-04.json",
+      "examples/arrays.pf",
+      "examples/closures.pf",
+      "examples/control_flow.pf",
+      "examples/ffi.pf",
+      "examples/generics_patterns.pf",
+      "examples/hello.pf",
+      "examples/modules/main.pf",
+      "examples/modules/math.pf",
+      "examples/modules/qualified.pf",
+      "examples/optimization_lab/README.md",
+      "examples/optimization_lab/main.pf",
+      "examples/packages/app/pika.json",
+      "examples/packages/app/pika.lock",
+      "examples/packages/app/src/main.pf",
+      "examples/packages/mathkit/lib.pf",
+      "examples/packages/mathkit/pika.json",
+      "examples/patterns.pf",
+      "examples/pointer_offsets.pf",
+      "examples/pointers.pf",
+      "examples/record_project/README.md",
+      "examples/record_project/pika.json",
+      "examples/record_project/pika.lock",
+      "examples/record_project/src/main.pf",
+      "examples/record_project/src/model.pf",
+      "examples/record_project/tests/test_model.pf",
+      "examples/records.pf",
+      "examples/recursion.pf",
+      "examples/recursive_closure.pf",
+      "examples/results.pf",
+      "examples/shared_stack.pf",
+      "examples/showcase/main.pf",
+      "examples/showcase/tree.pf",
+      "examples/stdlib.pf",
+      "examples/strings.pf",
+      "examples/tasks.pf",
+      "examples/type_aliases.pf",
+      "include/pikaflow/backend.hpp",
+      "include/pikaflow/common.hpp",
+      "include/pikaflow/frontend.hpp",
+      "include/pikaflow/ir.hpp",
+      "include/pikaflow/optimizer.hpp",
+      "include/pikaflow/runtime.h",
+      "scripts/benchmark.py",
+      "scripts/build.ps1",
+      "src/backend.cpp",
+      "src/common.cpp",
+      "src/compiler.cpp",
+      "src/interpreter.cpp",
+      "src/ir.cpp",
+      "src/lexer.cpp",
+      "src/llvm/CheckedArithmeticPass.cpp",
+      "src/llvm/CheckedArithmeticPass.hpp",
+      "src/llvm/PassPlugin.cpp",
+      "src/main.cpp",
+      "src/optimizer.cpp",
+      "src/parser.cpp",
+      "src/runtime.cpp",
+      "stdlib/README.md",
+      "stdlib/numeric.pf",
+      "stdlib/sequences.pf",
+      "stdlib/strings.pf",
+      "stdlib/testing.pf",
+      "tests/backend_tests.cpp",
+      "tests/ffi_fixture.c",
+      "tests/ffi_fixture.h",
+      "tests/ffi_host_tests.c",
+      "tests/frontend_tests.cpp",
+      "tests/fuzz_corpus/generics_enums",
+      "tests/fuzz_corpus/hybrid",
+      "tests/fuzz_corpus/patterns",
+      "tests/fuzz_corpus/qualified",
+      "tests/fuzz_corpus/records_aliases",
+      "tests/fuzz_corpus/strings",
+      "tests/fuzz_corpus/tasks_ffi",
+      "tests/fuzz_corpus/underscore_patterns",
+      "tests/fuzz_frontend.py",
+      "tests/fuzz_parser.cpp",
+      "tests/fuzz_programs.py",
+      "tests/fuzz_semantic.cpp",
+      "tests/fuzz_semantic_corpus/arithmetic.bin",
+      "tests/fuzz_semantic_corpus/arrays.bin",
+      "tests/fuzz_semantic_corpus/cfg.bin",
+      "tests/fuzz_semantic_corpus/newclosures.bin",
+      "tests/fuzz_semantic_corpus/records.bin",
+      "tests/interpreter_tests.cpp",
+      "tests/ir_tests.cpp",
+      "tests/llvm/checked_constants.ll",
+      "tests/llvm/checked_execution.ll",
+      "tests/llvm/checked_invalid_contract.ll",
+      "tests/llvm/checked_legacy_effects.ll",
+      "tests/llvm/checked_remarks.ll",
+      "tests/llvm/checked_simplify.ll",
+      "tests/llvm/checked_untrusted.ll",
+      "tests/optimizer_tests.cpp",
+      "tests/runtime_failures.py",
+      "tests/runtime_tests.cpp",
+      "tests/sanitizer_probe.cpp",
+      "tests/task_failures.py",
+      "tests/task_tests.cpp",
+      "tests/test_benchmark.py",
+      "tests/test_cli.py",
+      "tests/test_contextual_types.py",
+      "tests/test_debugger.py",
+      "tests/test_editor.py",
+      "tests/test_editor_features.py",
+      "tests/test_ffi.py",
+      "tests/test_install.py",
+      "tests/test_language_extensions.py",
+      "tests/test_llvm_plugin.py",
+      "tests/test_namespaces_assignments.py",
+      "tests/test_native_environment.py",
+      "tests/test_opt_report.py",
+      "tests/test_optimization.py",
+      "tests/test_packages.py",
+      "tests/test_project_tests.py",
+      "tests/test_records.py",
+      "tests/test_sanitizer_build.py",
+      "tests/test_semantic_symbols.py",
+      "tests/test_tasks.py",
+      "tests/test_tools.py",
+      "tests/test_type_aliases.py",
+      "tools/editor.py",
+      "tools/editor_features.py",
+      "tools/formatter.py",
+      "tools/git_sources.py",
+      "tools/lsp.py",
+      "tools/packages.py",
+      "tools/pikaflow.py",
+      "tools/process_jobs.py",
+      "tools/project_tests.py"
+    ],
+    "preserved_byte_equal": [],
+    "removed": []
+  },
+  "toolchains": {
+    "clang": {
+      "command": [
+        "clang++-18",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n",
+      "stderr": ""
+    },
+    "cmake": {
+      "command": [
+        "cmake",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "cmake version 3.28.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "stderr": ""
+    },
+    "ninja": {
+      "command": [
+        "ninja",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "1.11.1\n",
+      "stderr": ""
+    },
+    "python": {
+      "command": [
+        "python3",
+        "--version"
+      ],
+      "exit_code": 0,
+      "stdout": "Python 3.12.3\n",
+      "stderr": ""
+    },
+    "system": {
+      "command": [
+        "uname",
+        "-a"
+      ],
+      "exit_code": 0,
+      "stdout": "Linux DESKTOP-6DSNGU7 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux\n",
+      "stderr": ""
+    },
+    "llvm": {
+      "command": [
+        "/usr/lib/llvm-24/bin/llvm-config",
+        "--version",
+        "--host-target",
+        "--shared-mode",
+        "--has-rtti",
+        "--cxxflags"
+      ],
+      "exit_code": 0,
+      "stdout": "24.0.0\nx86_64-pc-linux-gnu\nYES\n-I/usr/lib/llvm-24/include -std=c++17  -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -fno-exceptions\nshared\n",
+      "stderr": ""
+    }
+  },
+  "compiler": "/usr/lib/llvm-18/bin/clang",
+  "compiler_sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+  "symbolizer_sha256": "3a7455769a3ed69075351d52eefc4bc827dd95e49a905d119f541455a96c6821",
+  "instrumented_project_commands": [
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -fPIC -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_runtime.dir/src/runtime.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/runtime.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/runtime.cpp",
+      "output": "CMakeFiles/pikaflow_runtime.dir/src/runtime.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/common.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/common.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/common.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/common.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/lexer.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/lexer.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/lexer.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/lexer.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/parser.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/parser.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/parser.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/parser.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/compiler.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/compiler.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/compiler.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/compiler.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/ir.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/ir.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/ir.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/ir.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/interpreter.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/interpreter.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/interpreter.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/interpreter.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow_core.dir/src/optimizer.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/optimizer.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/optimizer.cpp",
+      "output": "CMakeFiles/pikaflow_core.dir/src/optimizer.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -DPF_COMPILER_DRIVER=\\\"/usr/bin/clang++-18\\\" -DPF_HAS_LLVM=1 -DPF_RUNTIME_LIBRARY=\\\"/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/libpikaflow_runtime.a\\\" -DPF_STDLIB_DIR=\\\"/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/stdlib\\\" -DPF_VERSION=\\\"0.6.1\\\" -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -Wall -Wextra -Wpedantic -o CMakeFiles/pikaflow.dir/src/main.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/main.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/main.cpp",
+      "output": "CMakeFiles/pikaflow.dir/src/main.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/generated -isystem /usr/lib/llvm-24/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/pikaflow_backend.dir/src/backend.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp",
+      "output": "CMakeFiles/pikaflow_backend.dir/src/backend.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/generated -isystem /usr/lib/llvm-24/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -D_GNU_SOURCE -D_GLIBCXX_USE_CXX11_ABI=1 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -o CMakeFiles/pikaflow_backend.dir/src/llvm/CheckedArithmeticPass.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/llvm/CheckedArithmeticPass.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/llvm/CheckedArithmeticPass.cpp",
+      "output": "CMakeFiles/pikaflow_backend.dir/src/llvm/CheckedArithmeticPass.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang-18 -DPF_BUILD_FIXTURE=1 -Dpikaflow_ffi_fixture_EXPORTS -g -std=gnu11 -fPIC -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_ffi_fixture.dir/tests/ffi_fixture.c.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/ffi_fixture.c",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/ffi_fixture.c",
+      "output": "CMakeFiles/pikaflow_ffi_fixture.dir/tests/ffi_fixture.c.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang-18 -g -std=gnu11 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_ffi_host_tests.dir/tests/ffi_host_tests.c.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/ffi_host_tests.c",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/ffi_host_tests.c",
+      "output": "CMakeFiles/pikaflow_ffi_host_tests.dir/tests/ffi_host_tests.c.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -DPF_FFI_FIXTURE=\\\"/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/libpikaflow_ffi_fixture.so\\\" -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_backend_tests.dir/tests/backend_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/backend_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/backend_tests.cpp",
+      "output": "CMakeFiles/pikaflow_backend_tests.dir/tests/backend_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_runtime_tests.dir/tests/runtime_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/runtime_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/runtime_tests.cpp",
+      "output": "CMakeFiles/pikaflow_runtime_tests.dir/tests/runtime_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_task_tests.dir/tests/task_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/task_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/task_tests.cpp",
+      "output": "CMakeFiles/pikaflow_task_tests.dir/tests/task_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_frontend_tests.dir/tests/frontend_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/frontend_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/frontend_tests.cpp",
+      "output": "CMakeFiles/pikaflow_frontend_tests.dir/tests/frontend_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_ir_tests.dir/tests/ir_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/ir_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/ir_tests.cpp",
+      "output": "CMakeFiles/pikaflow_ir_tests.dir/tests/ir_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_optimizer_tests.dir/tests/optimizer_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/optimizer_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/optimizer_tests.cpp",
+      "output": "CMakeFiles/pikaflow_optimizer_tests.dir/tests/optimizer_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -I/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/include -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_interpreter_tests.dir/tests/interpreter_tests.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/interpreter_tests.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/interpreter_tests.cpp",
+      "output": "CMakeFiles/pikaflow_interpreter_tests.dir/tests/interpreter_tests.cpp.o"
+    },
+    {
+      "directory": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build",
+      "command": "/usr/bin/clang++-18 -g -std=c++17 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -o CMakeFiles/pikaflow_sanitizer_probe.dir/tests/sanitizer_probe.cpp.o -c /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/sanitizer_probe.cpp",
+      "file": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/sanitizer_probe.cpp",
+      "output": "CMakeFiles/pikaflow_sanitizer_probe.dir/tests/sanitizer_probe.cpp.o"
+    }
+  ],
+  "instrumented_project_command_count": 21,
+  "instrumented_commands_sha256": "62d9a0d3c1821584b464284b472f2a08954245315bef4d1b125e2546b1931940",
+  "target_commands_sha256": "90e9267bab6715789ddde865dc120fd3d95a36fe4d756223ba397d8a365156e9",
+  "prebuilt_llvm_link_libraries": [
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMX86CodeGen.a",
+      "bytes": 12076600,
+      "sha256": "19fe1e0bebfbe699236a8f3cb501ceb6e9a226f9adbf55522fa361c7a7513e89",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMOrcJIT.a",
+      "bytes": 7887402,
+      "sha256": "a8b1b20cdf6e4c736d203efeef970cece54fe48b2a99f2786e49d09ac951e028",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMPasses.a",
+      "bytes": 7455862,
+      "sha256": "149d929648f1d31d2a3c2b283be51caef3578d3cca709f359a2e873323ea2fcf",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMAsmPrinter.a",
+      "bytes": 2618644,
+      "sha256": "f5950bb1fdb3e45dba228d371443309e6798c791dac9b1ab8d81d716d16889a8",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMCFGuard.a",
+      "bytes": 30936,
+      "sha256": "e9e7424411a5429768b161223cdd895aff446d3875c15bb108b5c74d2b29d25c",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMGlobalISel.a",
+      "bytes": 3567418,
+      "sha256": "046196d03eb1f9b3ff33d8314b7238c73b95c0187d33136200be479cd2a30a94",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMSelectionDAG.a",
+      "bytes": 8110620,
+      "sha256": "ae7e0bf96d6f3bb79623de9d4a27ac49f77a8f2c164b50f19d45b327bd60dae4",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMCoroutines.a",
+      "bytes": 690650,
+      "sha256": "c8d1330a1a716de668af20ce2b270a32859490b408c14a47188fb2a62f5404ac",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMHipStdPar.a",
+      "bytes": 62716,
+      "sha256": "6eb8566b61cdf57fac5aa68154968c536c36391bd40de6da5abee682d9926809",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMipo.a",
+      "bytes": 10243320,
+      "sha256": "3d448ddd0764ab8d17715fc2ffcf80b4bf90f7c9eac484cfb30f5cd980dd76e6",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMInstrumentation.a",
+      "bytes": 3187186,
+      "sha256": "cbc17cd4a369c644db157835ecd019ec7483053eee95f679017b0ce5d8c2a0f5",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMFrontendOpenMP.a",
+      "bytes": 2081082,
+      "sha256": "ecf6f07fdec30202e952883960db292537454ef1b69628094f934cb723c7ef56",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMFrontendOffloading.a",
+      "bytes": 158310,
+      "sha256": "cfabbe30229a8530a3844ca3c85e1853267bb638f997eb2958a3aa79d54f49ee",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMObjectYAML.a",
+      "bytes": 5572650,
+      "sha256": "77c48011c431142b23570a868bc0bd188df4e0af5668122b3efc2eff603ea6e8",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMFrontendAtomic.a",
+      "bytes": 25688,
+      "sha256": "c1e4e2ebe15957a8e9cdbaae8f2987df35ca5980409c2afea32544bc0a6a834e",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMFrontendDirective.a",
+      "bytes": 1520,
+      "sha256": "bab25f39a7db69020a7415811153ae53a92d0132fb976837e7d1d4c1da9e437b",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMLinker.a",
+      "bytes": 198588,
+      "sha256": "bc77bb88ab1da550c99447f17c69bfa764705492b21663a95886b7a1d7fdd257",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMIRPrinter.a",
+      "bytes": 10092,
+      "sha256": "3a29a74907931f89b36257df6ec32c596b04153c8b7bba118ed408e76d119f20",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMVectorize.a",
+      "bytes": 11486130,
+      "sha256": "18f991dbdfc895ad810dc4415b3a58c5278e4f5af35c0804e240b338d5092459",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMSandboxIR.a",
+      "bytes": 1234658,
+      "sha256": "cbc39deada6efd5c395d6390d5adc4b9149c79d98eb2d24c6c285478a21fb1ef",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMWindowsDriver.a",
+      "bytes": 34318,
+      "sha256": "a702bf7aa1ea66bee6e28a8058b3ad1e8ea2e906404d67609a92dc41b2c00b6b",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMExecutionEngine.a",
+      "bytes": 261550,
+      "sha256": "9a9af4c4f6b5063a36342c30787dd53ff21c2b31559f0a9cfc0fdc6f4ca562e4",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMRuntimeDyld.a",
+      "bytes": 1173008,
+      "sha256": "7fa6838525db7b09e78e4d135b46732f60139d6bc3d640166f0045cad6551a3f",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMJITLink.a",
+      "bytes": 4035266,
+      "sha256": "650fa6c0d3cbf0c35928cc7381c721dc775a8d4a62c161d380d388444ec17c62",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMOrcTargetProcess.a",
+      "bytes": 796066,
+      "sha256": "d66e298eb4a7a63374beb5e49a8dddf0ce7e628437316efe61db1d8c33bc3592",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMOrcShared.a",
+      "bytes": 109600,
+      "sha256": "7aabf9ab8c7e948b9077fe77facd8f12a75576dfe5406d115e86522693cce746",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMCodeGen.a",
+      "bytes": 19818598,
+      "sha256": "11b37c200b96c21b941a011e8d646230e1177ed4c01e4ec7d89b3bbc8db580da",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMTarget.a",
+      "bytes": 134304,
+      "sha256": "9beb8662eb75b191f77b6eee9670f71d968d17b04ed272effbba41d396a33d54",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMObjCARCOpts.a",
+      "bytes": 301354,
+      "sha256": "e3fe4ecf1364a9827258f171f96a18b1c4db4404c4f8a581662ac23d497d81e6",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMCGData.a",
+      "bytes": 344436,
+      "sha256": "e5627756f7c969e9d467225cfbfeb1547b7f7eaef7e3fcc402111c0b7ae464f1",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMBitWriter.a",
+      "bytes": 666136,
+      "sha256": "51419a6e3eea61578602302bb226ed43a5f60ff7081004e2abdf09cacff03bb6",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMScalarOpts.a",
+      "bytes": 7955636,
+      "sha256": "cda730c5cbe57077735283a7d251038412518564973f6df31c0d7059355aa042",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMAggressiveInstCombine.a",
+      "bytes": 274314,
+      "sha256": "ff46b758f8e2d06fabab8c6ec3c857c87fbf7147dbe3335e42b884bfe41f28a5",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMInstCombine.a",
+      "bytes": 4597652,
+      "sha256": "9e6b559154661d7b6f2ab47237b784476b868e136f9a1819f58fc7f8d513be5a",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMTransformUtils.a",
+      "bytes": 6724392,
+      "sha256": "f18eb1c1aeafb6af9a788fd4bef0a777002beac70580f9d1c6360b25c6776292",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMAnalysis.a",
+      "bytes": 11921404,
+      "sha256": "cba97701a6212ff342dd92697e143a7f75dd1e2728b9d85fd6d3a8b81f65ca61",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMFrontendHLSL.a",
+      "bytes": 225416,
+      "sha256": "cbc6ee9080be510030b58f03b8c3125b223afa72d6debffabb88639baaa6518a",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMProfileData.a",
+      "bytes": 3393540,
+      "sha256": "738b0197d213970183238e49d9aab3db6590a1e1de75a3c40802f623d8720dc4",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMSymbolize.a",
+      "bytes": 431918,
+      "sha256": "c5ea2d7d423fea1eb6ba23956a34b6b90bc54981a2db45292f46b5f0fe5282a5",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMDebugInfoGSYM.a",
+      "bytes": 2066950,
+      "sha256": "ffa4d71faa803a13465b590cace0b347a37c69deb8c7615862d6761cb35fcaeb",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMDebugInfoDWARF.a",
+      "bytes": 2160908,
+      "sha256": "38c1dfeb40d39123dd5e1972efdd6667ab1df3c3eea63cfb93f2883b128b9d80",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMDebugInfoPDB.a",
+      "bytes": 3150512,
+      "sha256": "489f61fcebb5ecb313464b87b1abf7a2b20f67b23b97a6fa0cd9cbd4fe54543f",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMObject.a",
+      "bytes": 3857804,
+      "sha256": "eb4d017c71d1ba5930382ae334d86fa43e7a52ffd40213e44424e9cbbaa7e453",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMTextAPI.a",
+      "bytes": 775992,
+      "sha256": "9fe235974aec86066fb0786a1ae381ea11f05efbf0cb7f1ca3688bcc6e8373dc",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMIRReader.a",
+      "bytes": 30424,
+      "sha256": "38791d651cbe986380833361f18531314fe04be58ca837c618a5e72385d98606",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMBitReader.a",
+      "bytes": 1067710,
+      "sha256": "c4da9d5607ff7e39d9ffb0ae005057b716cbf6b7667b37aed0b71128c3aeb6a8",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMAsmParser.a",
+      "bytes": 1284658,
+      "sha256": "7063908f922e7f6232e01c52034bbc7cf3fd54025ec7c78c14fb29b561e399fd",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMDebugInfoCodeView.a",
+      "bytes": 1859556,
+      "sha256": "f3f10b76dfcbb77ba72f6b68cd4c2aaeb610f1d014c2d80568cc373e54085e13",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMDebugInfoMSF.a",
+      "bytes": 155394,
+      "sha256": "b131df85bdedd0e9e07945bca0cd4a884452ea5c6ef087c4c1c313574ba89599",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMDebugInfoBTF.a",
+      "bytes": 125828,
+      "sha256": "6fb3ee2606bfbde5325321a8ac184771230911943f80c71895baf9a818305b89",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMX86AsmParser.a",
+      "bytes": 1318140,
+      "sha256": "208f0f2ffc326633d531c83f7316c7e8c620c556f92101483b861a864d9a4f54",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMX86Desc.a",
+      "bytes": 5023662,
+      "sha256": "2593df4aceb4ebb0d38b1696d9db9739d464e67eed1f7385ad243831763b2363",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMCodeGenTypes.a",
+      "bytes": 22578,
+      "sha256": "f36e06b975c89b4ebc78946acdcb60200ef2ec1a7f71eb8f377a0d3d1d94da82",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMMCParser.a",
+      "bytes": 1127078,
+      "sha256": "362cdeac4f957a25e279b9a29e93ee0cd118248d65ed5028dd0acd690004832d",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMX86Disassembler.a",
+      "bytes": 1419326,
+      "sha256": "1e6a956d17ac5ccfe8ee1b0c40654ae8c0e690852e39767487dd141119681776",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMX86Info.a",
+      "bytes": 6988,
+      "sha256": "16c701a14e8312c96a5767ed8a1b158902eb45dad56eb563b720f4000e3ed57f",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMMCDisassembler.a",
+      "bytes": 47782,
+      "sha256": "0c61a98d32c2b659c88806e9dabb86274d3bf8a15be0456790ea7e1e733e5d87",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMMC.a",
+      "bytes": 2975952,
+      "sha256": "dfd89712d038adced57ee998302bf289c8263ccf61180695ce98d16db6c0ef89",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMDebugInfoDWARFLowLevel.a",
+      "bytes": 91124,
+      "sha256": "9db0d32f76925957caddfb9b236b019e1eb76e97c04fbde881abdde18259e167",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMABI.a",
+      "bytes": 192778,
+      "sha256": "425362fe387f466e28180e2c075bfee3c866c47b4d0725491e93dfc6351059a0",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMCore.a",
+      "bytes": 10459098,
+      "sha256": "92aa10a32500ba213ba19a09a6bd22d694511c3521bde3bac41b64533f3247df",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMBinaryFormat.a",
+      "bytes": 547120,
+      "sha256": "d498ba10158fceb56de3727d375640fb50e1fac230b07c7bb58879ef09398f34",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMOption.a",
+      "bytes": 180478,
+      "sha256": "398778a97e72416d04ae86e31a22564b8aaa39a4be971694358da04a1da7fa94",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMRemarks.a",
+      "bytes": 397454,
+      "sha256": "b230a5ef1abf992ef57c24ae64b7d8cffe62be5beb76b1d5725a85cda6823256",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMBitstreamReader.a",
+      "bytes": 57224,
+      "sha256": "e3cb9e87b32e148b8abbab173b76a9f0f034925172f55110041e3eec8002f03d",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMTargetParser.a",
+      "bytes": 973826,
+      "sha256": "7ae70f535bc19318c4272c727be0812d7b8fe43724efc48f5e188e07868e4609",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMSupport.a",
+      "bytes": 6043540,
+      "sha256": "88d6efe66dcd0a05f8644ca1a83f9d3b5824a411642bd8215a455bebb890d0a8",
+      "instrumented": false
+    },
+    {
+      "path": "/usr/lib/llvm-24/lib/libLLVMDemangle.a",
+      "bytes": 812290,
+      "sha256": "38f025a12fdcd77f02e093e255e449348147545ef03f9e1111d438eee822fc4e",
+      "instrumented": false
+    }
+  ],
+  "sanitizer_driver_resolution": {
+    "command": [
+      "clang++-18",
+      "-###",
+      "-fsanitize=address,undefined",
+      "-x",
+      "c++",
+      "-",
+      "-o",
+      "/dev/null"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n \"/usr/lib/llvm-18/bin/clang\" \"-cc1\" \"-triple\" \"x86_64-pc-linux-gnu\" \"-emit-obj\" \"-mrelax-all\" \"-dumpdir\" \"/dev/null-\" \"-disable-free\" \"-clear-ast-before-backend\" \"-disable-llvm-verifier\" \"-discard-value-names\" \"-main-file-name\" \"-\" \"-mrelocation-model\" \"pic\" \"-pic-level\" \"2\" \"-pic-is-pie\" \"-mframe-pointer=all\" \"-fmath-errno\" \"-ffp-contract=on\" \"-fno-rounding-math\" \"-mconstructor-aliases\" \"-funwind-tables=2\" \"-target-cpu\" \"x86-64\" \"-tune-cpu\" \"generic\" \"-debugger-tuning=gdb\" \"-fdebug-compilation-dir=/mnt/c/Users/RAIYYAN/pikaflow\" \"-fcoverage-compilation-dir=/mnt/c/Users/RAIYYAN/pikaflow\" \"-resource-dir\" \"/usr/lib/llvm-18/lib/clang/18\" \"-internal-isystem\" \"/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../include/c++/13\" \"-internal-isystem\" \"/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../include/x86_64-linux-gnu/c++/13\" \"-internal-isystem\" \"/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../include/c++/13/backward\" \"-internal-isystem\" \"/usr/lib/llvm-18/lib/clang/18/include\" \"-internal-isystem\" \"/usr/local/include\" \"-internal-isystem\" \"/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../x86_64-linux-gnu/include\" \"-internal-externc-isystem\" \"/usr/include/x86_64-linux-gnu\" \"-internal-externc-isystem\" \"/include\" \"-internal-externc-isystem\" \"/usr/include\" \"-fdeprecated-macro\" \"-ferror-limit\" \"19\" \"-fsanitize=address,alignment,array-bounds,bool,builtin,enum,float-cast-overflow,function,integer-divide-by-zero,nonnull-attribute,null,pointer-overflow,return,returns-nonnull-attribute,shift-base,shift-exponent,signed-integer-overflow,unreachable,vla-bound,vptr\" \"-fsanitize-recover=alignment,array-bounds,bool,builtin,enum,float-cast-overflow,function,integer-divide-by-zero,nonnull-attribute,null,pointer-overflow,returns-nonnull-attribute,shift-base,shift-exponent,signed-integer-overflow,vla-bound,vptr\" \"-fsanitize-system-ignorelist=/usr/lib/llvm-18/lib/clang/18/share/asan_ignorelist.txt\" \"-fno-sanitize-memory-param-retval\" \"-fsanitize-address-use-after-scope\" \"-fsanitize-address-globals-dead-stripping\" \"-fno-assume-sane-operator-new\" \"-fgnuc-version=4.2.1\" \"-fskip-odr-check-in-gmf\" \"-fcxx-exceptions\" \"-fexceptions\" \"-faddrsig\" \"-D__GCC_HAVE_DWARF2_CFI_ASM=1\" \"-o\" \"/tmp/--4a2340.o\" \"-x\" \"c++\" \"-\"\n \"/usr/bin/ld\" \"-z\" \"relro\" \"--hash-style=gnu\" \"--build-id\" \"--eh-frame-hdr\" \"-m\" \"elf_x86_64\" \"-pie\" \"-dynamic-linker\" \"/lib64/ld-linux-x86-64.so.2\" \"-o\" \"/dev/null\" \"/lib/x86_64-linux-gnu/Scrt1.o\" \"/lib/x86_64-linux-gnu/crti.o\" \"/usr/bin/../lib/gcc/x86_64-linux-gnu/13/crtbeginS.o\" \"-L/usr/bin/../lib/gcc/x86_64-linux-gnu/13\" \"-L/usr/bin/../lib/gcc/x86_64-linux-gnu/13/../../../../lib64\" \"-L/lib/x86_64-linux-gnu\" \"-L/lib/../lib64\" \"-L/usr/lib/x86_64-linux-gnu\" \"-L/usr/lib/../lib64\" \"-L/lib\" \"-L/usr/lib\" \"--whole-archive\" \"/usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan_static-x86_64.a\" \"--no-whole-archive\" \"--whole-archive\" \"/usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan-x86_64.a\" \"--no-whole-archive\" \"--dynamic-list=/usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan-x86_64.a.syms\" \"--whole-archive\" \"/usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan_cxx-x86_64.a\" \"--no-whole-archive\" \"--dynamic-list=/usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan_cxx-x86_64.a.syms\" \"/tmp/--4a2340.o\" \"-lstdc++\" \"-lm\" \"--no-as-needed\" \"-lpthread\" \"-lrt\" \"-lm\" \"-ldl\" \"-lresolv\" \"-lgcc_s\" \"-lgcc\" \"-lc\" \"-lgcc_s\" \"-lgcc\" \"/usr/bin/../lib/gcc/x86_64-linux-gnu/13/crtendS.o\" \"/lib/x86_64-linux-gnu/crtn.o\"\n"
+  },
+  "resolved_clang_runtime_libraries": [
+    {
+      "path": "/usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan-x86_64.a",
+      "bytes": 3636114,
+      "sha256": "37ea3a5edfaf96ae66d716f129e5dccb4b47721439e6b8ce86d4f14da8680b93"
+    },
+    {
+      "path": "/usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan_cxx-x86_64.a",
+      "bytes": 36504,
+      "sha256": "5bb749926ac337f61bcff47d02ccf29b78efacd905c3d11332d59f608fc6fb6f"
+    },
+    {
+      "path": "/usr/lib/llvm-18/lib/clang/18/lib/linux/libclang_rt.asan_static-x86_64.a",
+      "bytes": 65742,
+      "sha256": "ee79ead74348205b0420e14026085c556b0a905dbd89b277c4fdc8790aae2fa1"
+    }
+  ],
+  "backend_config": {
+    "path": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/generated/pikaflow/backend_config.hpp",
+    "sha256": "3962e25a75ffd34616b159b5f379aa12b061130b16646d39a299d630d4577b52",
+    "contents": "#pragma once\n#define PF_SANITIZERS_ENABLED 1\n#define PF_MSVC_LIBRARY_DIRS \"\"\n"
+  },
+  "registered_test_count": 33,
+  "registered_tests": [
+    "c_abi_reference",
+    "llvm_backend",
+    "runtime",
+    "structured_concurrency",
+    "frontend",
+    "typed_ir",
+    "ir_optimizer",
+    "interpreter",
+    "runtime_failures",
+    "compiler",
+    "contextual_types",
+    "language_extensions",
+    "developer_tools",
+    "namespaces_assignments",
+    "records",
+    "type_aliases",
+    "semantic_programs",
+    "project_tests",
+    "optimization_semantics",
+    "optimization_report",
+    "git_packages",
+    "editor_workflows",
+    "editor_features",
+    "semantic_symbols",
+    "task_failures",
+    "tasks_cli",
+    "source_debugger",
+    "differential_arithmetic",
+    "benchmark_report",
+    "installed_layout",
+    "c_abi_generated",
+    "native_environment",
+    "sanitizer_build"
+  ],
+  "debugger_test_properties": [
+    {
+      "backtrace": 53,
+      "command": [
+        "/usr/bin/python3",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/test_debugger.py",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/pikaflow",
+        "/usr/bin/gdb"
+      ],
+      "name": "source_debugger",
+      "properties": [
+        {
+          "name": "ENVIRONMENT",
+          "value": [
+            "PIKAFLOW_SANITIZED_DEBUGGER=1"
+          ]
+        },
+        {
+          "name": "WORKING_DIRECTORY",
+          "value": "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build"
+        }
+      ]
+    }
+  ],
+  "focused_exit_code": 8,
+  "full_suite_not_run_reason": "Fail-fast backend/sanitizer bridge checks failed",
+  "orchestration_error": "RuntimeError('Fail-fast backend/sanitizer bridge checks failed')",
+  "orchestration_traceback": "Traceback (most recent call last):\n  File \"/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/run_validation.py\", line 121, in <module>\n    raise RuntimeError(record['full_suite_not_run_reason'])\nRuntimeError: Fail-fast backend/sanitizer bridge checks failed\n",
+  "source_files_after_count": 198,
+  "source_files_after_sha256": "da4b121e618a75c3aad012dcc71519725628ec7de7e0caa8af08c4c543925565",
+  "source_changes_after_tests": [],
+  "source_new_files_after_tests": [],
+  "source_matches_archive_after_tests": true,
+  "log_findings": [],
+  "binaries": {
+    "pikaflow": {
+      "bytes": 83259408,
+      "sha256": "2b2a1bb2e9433a0435d6c4b7a4be8b90c4333e9c9c70215963641f8eb03b8f93"
+    },
+    "pikaflow_backend_tests": {
+      "bytes": 75239376,
+      "sha256": "511bab8329b024498090c061537a12419fb86b0b6d6d9237e21e2847540a078e"
+    },
+    "pikaflow_sanitizer_probe": {
+      "bytes": 1680928,
+      "sha256": "0c09251136aaf2a515acaf5cb50c368bb4ce1cb1e9cf996baf12be8f4e785258"
+    },
+    "libpikaflow_runtime.a": {
+      "bytes": 1340176,
+      "sha256": "a0e47eddbe3aa31d795f06f8f1e3870190c5975f5f2587c24ecde29864ca1ef3"
+    },
+    "libpikaflow_ffi_fixture.so": {
+      "bytes": 61800,
+      "sha256": "cede1116d629046fe40f34e7938fa14211ab67d5943d46b6a02fa12e321da9ba"
+    }
+  },
+  "CMakeCache.txt_sha256": "54fd32dbdc704b201c9eeb3d550f0d9fabe53a0e6db81d95c67e8c810480fcc3",
+  "compile_commands.json_sha256": "0a49094b19cadba63e1c9753f4c4fb5ec03befc308dad2d3c551bcb3f536a4ae",
+  "binary_sha256": "2b2a1bb2e9433a0435d6c4b7a4be8b90c4333e9c9c70215963641f8eb03b8f93",
+  "binary_dependencies": {
+    "command": [
+      "ldd",
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/pikaflow"
+    ],
+    "exit_code": 0,
+    "stdout": "\tlinux-vdso.so.1 (0x00007ffe1cf79000)\n\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007e80822e1000)\n\tlibz3.so.4 => /lib/x86_64-linux-gnu/libz3.so.4 (0x00007e8081200000)\n\tlibz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007e80822c5000)\n\tlibzstd.so.1 => /lib/x86_64-linux-gnu/libzstd.so.1 (0x00007e808220b000)\n\tlibstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007e8080e00000)\n\tlibresolv.so.2 => /lib/x86_64-linux-gnu/libresolv.so.2 (0x00007e80821f7000)\n\tlibgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007e80821c9000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007e8080a00000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007e808650a000)\n",
+    "stderr": ""
+  },
+  "binary_version": {
+    "command": [
+      "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/pikaflow",
+      "--version"
+    ],
+    "exit_code": 0,
+    "stdout": "PikaFlow 0.6.1; LLVM enabled; x86_64-pc-linux-gnu\n",
+    "stderr": ""
+  },
+  "focused_tests": [
+    {
+      "name": "llvm_backend",
+      "seconds": 1.54456,
+      "status": "failed"
+    },
+    {
+      "name": "sanitizer_build",
+      "seconds": 0.795168,
+      "status": "failed"
+    }
+  ],
+  "focused_passed": 0,
+  "focused_failed": 2,
+  "focused_skipped": 0,
+  "focused_ctest_junit_sha256": "7a3422bc1dbd9fee16d18825c5735bdb3802ced7db350e19d135fd3226ad4ecf",
+  "real_sanitizer_reports": [
+    {
+      "path": "real-reports/ubsan.789",
+      "bytes": 7664,
+      "sha256": "aaf816927614c30c701e8fb3ceea4dd46e5d897c58f3ddc66a76d6916fa6b9c4",
+      "contents": "=================================================================\n==789==ERROR: AddressSanitizer: use-after-poison on address 0x521000003db0 at pc 0x64d612ccdee4 bp 0x7fff2674c2f0 sp 0x7fff2674c2e8\nREAD of size 8 at 0x521000003db0 thread T0\n    #0 0x64d612ccdee3 in llvm::FunctionType::getReturnType() const /usr/lib/llvm-24/include/llvm/IR/DerivedTypes.h:186:40\n    #1 0x64d612ccdee3 in llvm::CallInst::CallInst(llvm::FunctionType*, llvm::Value*, llvm::ArrayRef<llvm::Value*>, llvm::ArrayRef<llvm::OperandBundleDefT<llvm::Value*>>, llvm::Twine const&, llvm::User::AllocInfo, llvm::InsertPosition) /usr/lib/llvm-24/include/llvm/IR/Instructions.h:1761:20\n    #2 0x64d612ccd940 in llvm::CallInst::Create(llvm::FunctionType*, llvm::Value*, llvm::ArrayRef<llvm::Value*>, llvm::ArrayRef<llvm::OperandBundleDefT<llvm::Value*>>, llvm::Twine const&, llvm::InsertPosition) /usr/lib/llvm-24/include/llvm/IR/Instructions.h:1654:9\n    #3 0x64d612cc7fb2 in llvm::IRBuilderBase::CreateCall(llvm::FunctionType*, llvm::Value*, llvm::ArrayRef<llvm::Value*>, llvm::Twine const&, llvm::MDNode*) /usr/lib/llvm-24/include/llvm/IR/IRBuilder.h:2564:20\n    #4 0x64d612ca107a in llvm::IRBuilderBase::CreateCall(llvm::FunctionCallee, llvm::ArrayRef<llvm::Value*>, llvm::Twine const&, llvm::MDNode*) /usr/lib/llvm-24/include/llvm/IR/IRBuilder.h:2604:12\n    #5 0x64d612ca107a in pika::(anonymous namespace)::Emitter::runtime(char const*, llvm::Type*, llvm::ArrayRef<llvm::Type*>, llvm::ArrayRef<llvm::Value*>) /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:155:24\n    #6 0x64d612ca0c4a in pika::(anonymous namespace)::Emitter::sourceLocation(pika::Location const&) /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:189:9\n    #7 0x64d612c9cc86 in pika::(anonymous namespace)::Emitter::emitFunction(pika::Function const&) /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:755:9\n    #8 0x64d612c8d21e in pika::(anonymous namespace)::Emitter::emit() /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:801:47\n    #9 0x64d612c8d21e in pika::(anonymous namespace)::generate(pika::Program const&, unsigned int, bool) /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:834:51\n    #10 0x64d612c911d3 in pika::runJIT(pika::Program const&, unsigned int) /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:894:20\n    #11 0x64d612c5c546 in main /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/backend_tests.cpp:196:17\n    #12 0x7c7a08c2a1c9  (/lib/x86_64-linux-gnu/libc.so.6+0x2a1c9) (BuildId: a4a7992a8e66555c8141ab2a08a8465ff6e0ea65)\n    #13 0x7c7a08c2a28a in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x2a28a) (BuildId: a4a7992a8e66555c8141ab2a08a8465ff6e0ea65)\n    #14 0x64d612b80864 in _start (/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/pikaflow_backend_tests+0x1e2864) (BuildId: 7dbc52e4e7101dd8fbee0a2c3b8f5d3038834023)\n\n0x521000003db0 is located 176 bytes inside of 4096-byte region [0x521000003d00,0x521000004d00)\nallocated by thread T0 here:\n    #0 0x64d612c5a356 in operator new(unsigned long, std::align_val_t, std::nothrow_t const&) (/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/pikaflow_backend_tests+0x2bc356) (BuildId: 7dbc52e4e7101dd8fbee0a2c3b8f5d3038834023)\n    #1 0x64d61513ae13 in llvm::allocate_buffer(unsigned long, unsigned long) (/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/pikaflow_backend_tests+0x279ce13) (BuildId: 7dbc52e4e7101dd8fbee0a2c3b8f5d3038834023)\n    #2 0x64d612ccfb07 in llvm::MallocAllocator::Allocate(unsigned long, unsigned long) /usr/lib/llvm-24/include/llvm/Support/AllocatorBase.h:93:12\n    #3 0x64d612ccfb07 in llvm::BumpPtrAllocatorImpl<llvm::MallocAllocator, 4096ul, 4096ul, 128ul, 8ul>::StartNewSlab() /usr/lib/llvm-24/include/llvm/Support/Allocator.h:355:42\n    #4 0x64d612ccfb07 in llvm::BumpPtrAllocatorImpl<llvm::MallocAllocator, 4096ul, 4096ul, 128ul, 8ul>::AllocateSlow(unsigned long, unsigned long, llvm::Align) /usr/lib/llvm-24/include/llvm/Support/Allocator.h:214:5\n    #5 0x64d61500b925 in llvm::PointerType::get(llvm::LLVMContext&, unsigned int) (/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/pikaflow_backend_tests+0x266d925) (BuildId: 7dbc52e4e7101dd8fbee0a2c3b8f5d3038834023)\n    #6 0x64d612c9a4cd in llvm::PointerType::getUnqual(llvm::LLVMContext&) /usr/lib/llvm-24/include/llvm/IR/DerivedTypes.h:767:12\n    #7 0x64d612c9a4cd in pika::(anonymous namespace)::Emitter::ptr() /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:111:32\n    #8 0x64d612c9a4cd in pika::(anonymous namespace)::Emitter::signature(std::vector<pika::Type, std::allocator<pika::Type>> const&, pika::Type const&, bool) /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:159:40\n    #9 0x64d612c8d09b in pika::(anonymous namespace)::Emitter::emit() /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:797:49\n    #10 0x64d612c8d09b in pika::(anonymous namespace)::generate(pika::Program const&, unsigned int, bool) /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:834:51\n    #11 0x64d612c911d3 in pika::runJIT(pika::Program const&, unsigned int) /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/src/backend.cpp:894:20\n    #12 0x64d612c5c546 in main /mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/source/tests/backend_tests.cpp:196:17\n    #13 0x7c7a08c2a1c9  (/lib/x86_64-linux-gnu/libc.so.6+0x2a1c9) (BuildId: a4a7992a8e66555c8141ab2a08a8465ff6e0ea65)\n    #14 0x7c7a08c2a28a in __libc_start_main (/lib/x86_64-linux-gnu/libc.so.6+0x2a28a) (BuildId: a4a7992a8e66555c8141ab2a08a8465ff6e0ea65)\n    #15 0x64d612b80864 in _start (/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/pikaflow_backend_tests+0x1e2864) (BuildId: 7dbc52e4e7101dd8fbee0a2c3b8f5d3038834023)\n\nSUMMARY: AddressSanitizer: use-after-poison /usr/lib/llvm-24/include/llvm/IR/DerivedTypes.h:186:40 in llvm::FunctionType::getReturnType() const\nShadow bytes around the buggy address:\n  0x521000003b00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x521000003b80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x521000003c00: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x521000003c80: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x521000003d00: 00 00 00 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7\n=>0x521000003d80: f7 f7 f7 f7 f7 f7[f7]f7 f7 f7 f7 f7 f7 f7 f7 f7\n  0x521000003e00: f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7\n  0x521000003e80: f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7\n  0x521000003f00: f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7\n  0x521000003f80: f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7\n  0x521000004000: f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7 f7\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07 \n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==789==ABORTING\n"
+    }
+  ],
+  "finished_utc": "2026-11-05T17:54:21.315989+00:00",
+  "maximum_child_rss_kib": 743936,
+  "runner_sha256": "138c1aa8571ea24a7c96f2f1dd8e7ba9185c6ad985232dae9e5f5fd8b95e6509"
+}

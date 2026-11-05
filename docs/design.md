@@ -201,6 +201,17 @@ floating-point operations stay opaque.
 LLVM's optimization pipeline remains a separate stage.
 [Optimization details](optimization.md)
 
+The optional [Linux/Clang sanitizer profile](sanitizers.md) instruments our host
+C/C++ backend, shared pass, runtime, CLI and tests. LLVM-enabled builds require a
+matching upstream `Address;Undefined` build-tree SDK and the same canonical Clang
+drivers; metadata missing from installed SDKs cannot be overridden by a trust
+flag. The shared SDK target supplies its ABI component, and the installed
+compiler retains an RPATH to that external SDK directory. Generated IR receives
+no blanket ASan/UBSan instrumentation. LLVM's upstream `vptr`/`function` exclusions
+and default ignorelist do not become project-wide exclusions. Deliberate probes
+write expected reports privately; real test reports remain separate. Only GDB's
+inferior disables LSan, while compiler children retain leak detection.
+
 The backend and Linux standalone plugin share one checked-arithmetic LLVM pass.
 The plugin transforms only exact helper signatures carrying an explicit
 `pikaflow.checked-arithmetic` producer contract. Its `v2` contract permits safe

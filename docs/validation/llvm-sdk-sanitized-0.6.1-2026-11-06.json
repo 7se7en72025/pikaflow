@@ -1,0 +1,321 @@
+{
+  "source_commit": "0247623ddadb8d078a446a704cc20f0a8c944fc8",
+  "started_utc": "2026-11-05T18:10:49.519618+00:00",
+  "stages": [
+    {
+      "name": "toolchain",
+      "command": [
+        "bash",
+        "-lc",
+        "clang++-18 --version; cmake --version; ninja --version; free -m; df -h /"
+      ],
+      "exit_code": 0,
+      "seconds": 0.074
+    },
+    {
+      "name": "configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/home/raiyyan/llvm24-sanitized-sdk-0247623/source/llvm",
+        "-B",
+        "/home/raiyyan/llvm24-sanitized-sdk-0247623/build",
+        "-G",
+        "Ninja",
+        "-DCMAKE_C_COMPILER=clang-18",
+        "-DCMAKE_CXX_COMPILER=clang++-18",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_C_FLAGS_RELEASE=-O1 -DNDEBUG",
+        "-DCMAKE_CXX_FLAGS_RELEASE=-O1 -DNDEBUG",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLLVM_USE_SANITIZER=Address;Undefined",
+        "-DLLVM_USE_LINKER=lld-18",
+        "-DLLVM_ENABLE_RTTI=ON",
+        "-DLLVM_TARGETS_TO_BUILD=X86",
+        "-DLLVM_ENABLE_PROJECTS=",
+        "-DLLVM_ENABLE_RUNTIMES=",
+        "-DLLVM_INCLUDE_TESTS=OFF",
+        "-DLLVM_INCLUDE_EXAMPLES=OFF",
+        "-DLLVM_INCLUDE_BENCHMARKS=OFF",
+        "-DLLVM_INCLUDE_DOCS=OFF",
+        "-DLLVM_ENABLE_BINDINGS=OFF",
+        "-DLLVM_INCLUDE_UTILS=OFF",
+        "-DLLVM_BUILD_UTILS=OFF",
+        "-DLLVM_BUILD_TOOLS=OFF",
+        "-DLLVM_INCLUDE_TOOLS=ON",
+        "-DLLVM_BUILD_LLVM_DYLIB=ON",
+        "-DLLVM_LINK_LLVM_DYLIB=ON",
+        "-DLLVM_DYLIB_COMPONENTS=core;support;native;nativecodegen;passes;orcjit;executionengine;runtimedyld;jitlink;target;mc;codegen;scalaropts;instcombine;abi",
+        "-DLLVM_PARALLEL_COMPILE_JOBS=2",
+        "-DLLVM_PARALLEL_LINK_JOBS=1",
+        "-DLLVM_ENABLE_Z3_SOLVER=OFF",
+        "-DLLVM_ENABLE_LIBEDIT=OFF",
+        "-DCMAKE_INSTALL_PREFIX=/home/raiyyan/llvm24-sanitized-sdk-0247623/install"
+      ],
+      "exit_code": 1,
+      "seconds": 15.995,
+      "source_staging_failure_missing_required_libc_headers": true
+    },
+    {
+      "name": "toolchain",
+      "command": [
+        "bash",
+        "-lc",
+        "clang++-18 --version; cmake --version; ninja --version; free -m; df -h /"
+      ],
+      "exit_code": 0,
+      "seconds": 0.16
+    },
+    {
+      "name": "configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/home/raiyyan/llvm24-sanitized-sdk-0247623/source/llvm",
+        "-B",
+        "/home/raiyyan/llvm24-sanitized-sdk-0247623/build",
+        "-G",
+        "Ninja",
+        "-DCMAKE_C_COMPILER=clang-18",
+        "-DCMAKE_CXX_COMPILER=clang++-18",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_C_FLAGS_RELEASE=-O1 -DNDEBUG",
+        "-DCMAKE_CXX_FLAGS_RELEASE=-O1 -DNDEBUG",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLLVM_USE_SANITIZER=Address;Undefined",
+        "-DLLVM_USE_LINKER=lld-18",
+        "-DLLVM_ENABLE_RTTI=ON",
+        "-DLLVM_TARGETS_TO_BUILD=X86",
+        "-DLLVM_ENABLE_PROJECTS=",
+        "-DLLVM_ENABLE_RUNTIMES=",
+        "-DLLVM_INCLUDE_TESTS=OFF",
+        "-DLLVM_INCLUDE_EXAMPLES=OFF",
+        "-DLLVM_INCLUDE_BENCHMARKS=OFF",
+        "-DLLVM_INCLUDE_DOCS=OFF",
+        "-DLLVM_ENABLE_BINDINGS=OFF",
+        "-DLLVM_INCLUDE_UTILS=OFF",
+        "-DLLVM_BUILD_UTILS=OFF",
+        "-DLLVM_BUILD_TOOLS=OFF",
+        "-DLLVM_INCLUDE_TOOLS=ON",
+        "-DLLVM_BUILD_LLVM_DYLIB=ON",
+        "-DLLVM_LINK_LLVM_DYLIB=ON",
+        "-DLLVM_DYLIB_COMPONENTS=core;support;native;nativecodegen;passes;orcjit;executionengine;runtimedyld;jitlink;target;mc;codegen;scalaropts;instcombine;abi",
+        "-DLLVM_PARALLEL_COMPILE_JOBS=2",
+        "-DLLVM_PARALLEL_LINK_JOBS=1",
+        "-DLLVM_ENABLE_Z3_SOLVER=OFF",
+        "-DLLVM_ENABLE_LIBEDIT=OFF",
+        "-DCMAKE_INSTALL_PREFIX=/home/raiyyan/llvm24-sanitized-sdk-0247623/install"
+      ],
+      "exit_code": 0,
+      "seconds": 25.083
+    },
+    {
+      "name": "planned-steps",
+      "command": [
+        "ninja",
+        "-C",
+        "/home/raiyyan/llvm24-sanitized-sdk-0247623/build",
+        "-n",
+        "LLVM"
+      ],
+      "exit_code": 0,
+      "seconds": 0.127
+    },
+    {
+      "name": "build",
+      "command": [
+        "cmake",
+        "--build",
+        "/home/raiyyan/llvm24-sanitized-sdk-0247623/build",
+        "--target",
+        "LLVM",
+        "--parallel",
+        "2",
+        "--verbose"
+      ],
+      "exit_code": 2,
+      "seconds": 978.871,
+      "planned_resource_interruption": true
+    },
+    {
+      "name": "toolchain-resume4",
+      "command": [
+        "bash",
+        "-lc",
+        "clang++-18 --version; cmake --version; ninja --version; free -m; df -h /"
+      ],
+      "exit_code": 0,
+      "seconds": 0.094
+    },
+    {
+      "name": "configure-resume4",
+      "command": [
+        "cmake",
+        "-S",
+        "/home/raiyyan/llvm24-sanitized-sdk-0247623/source/llvm",
+        "-B",
+        "/home/raiyyan/llvm24-sanitized-sdk-0247623/build",
+        "-G",
+        "Ninja",
+        "-DCMAKE_C_COMPILER=clang-18",
+        "-DCMAKE_CXX_COMPILER=clang++-18",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_C_FLAGS_RELEASE=-O1 -DNDEBUG",
+        "-DCMAKE_CXX_FLAGS_RELEASE=-O1 -DNDEBUG",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DLLVM_USE_SANITIZER=Address;Undefined",
+        "-DLLVM_USE_LINKER=lld-18",
+        "-DLLVM_ENABLE_RTTI=ON",
+        "-DLLVM_TARGETS_TO_BUILD=X86",
+        "-DLLVM_ENABLE_PROJECTS=",
+        "-DLLVM_ENABLE_RUNTIMES=",
+        "-DLLVM_INCLUDE_TESTS=OFF",
+        "-DLLVM_INCLUDE_EXAMPLES=OFF",
+        "-DLLVM_INCLUDE_BENCHMARKS=OFF",
+        "-DLLVM_INCLUDE_DOCS=OFF",
+        "-DLLVM_ENABLE_BINDINGS=OFF",
+        "-DLLVM_INCLUDE_UTILS=OFF",
+        "-DLLVM_BUILD_UTILS=OFF",
+        "-DLLVM_BUILD_TOOLS=OFF",
+        "-DLLVM_INCLUDE_TOOLS=ON",
+        "-DLLVM_BUILD_LLVM_DYLIB=ON",
+        "-DLLVM_LINK_LLVM_DYLIB=ON",
+        "-DLLVM_DYLIB_COMPONENTS=core;support;native;nativecodegen;passes;orcjit;executionengine;runtimedyld;jitlink;target;mc;codegen;scalaropts;instcombine;abi",
+        "-DLLVM_PARALLEL_COMPILE_JOBS=4",
+        "-DLLVM_PARALLEL_LINK_JOBS=1",
+        "-DLLVM_ENABLE_Z3_SOLVER=OFF",
+        "-DLLVM_ENABLE_LIBEDIT=OFF",
+        "-DCMAKE_INSTALL_PREFIX=/home/raiyyan/llvm24-sanitized-sdk-0247623/install"
+      ],
+      "exit_code": 0,
+      "seconds": 8.457
+    },
+    {
+      "name": "planned-remaining-steps",
+      "command": [
+        "ninja",
+        "-C",
+        "/home/raiyyan/llvm24-sanitized-sdk-0247623/build",
+        "-n",
+        "LLVM"
+      ],
+      "exit_code": 0,
+      "seconds": 0.185
+    },
+    {
+      "name": "build-resume4",
+      "command": [
+        "cmake",
+        "--build",
+        "/home/raiyyan/llvm24-sanitized-sdk-0247623/build",
+        "--target",
+        "LLVM",
+        "--parallel",
+        "4",
+        "--verbose"
+      ],
+      "exit_code": 0,
+      "seconds": 2903.739
+    }
+  ],
+  "archive_sha256": "d1264c903cbcf1ad9e81e38a265981498b8babf8264e967be01c3fdfb355ab5f",
+  "stack_limit_bytes": 8388608,
+  "jobs": 4,
+  "link_jobs": 1,
+  "root": "/home/raiyyan/llvm24-sanitized-sdk-0247623",
+  "instrumentation": "official LLVM_USE_SANITIZER=Address;Undefined, upstream default excludes vptr,function",
+  "no_deliberate_fault_probes": true,
+  "source_file_count": 93159,
+  "environment": {
+    "ASAN_OPTIONS": "detect_leaks=1:abort_on_error=1:log_path=/home/raiyyan/llvm24-sanitized-sdk-0247623/asan",
+    "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1:log_path=/home/raiyyan/llvm24-sanitized-sdk-0247623/ubsan",
+    "ASAN_SYMBOLIZER_PATH": "/usr/lib/llvm-24/bin/llvm-symbolizer"
+  },
+  "supplemental_archive_sha256": "ae4ea2592a02bec3298e7b1350cf3313a7fae30caf00b975ad236c22f2fd602a",
+  "planned_step_count": 2067,
+  "resource_adjustment": {
+    "reason": "Parent-authorized planned resource adjustment: low measured compiler RSS allows four compile jobs",
+    "utc": "2026-11-05T18:30:51.378482+00:00",
+    "old_jobs": 2,
+    "new_jobs": 4,
+    "link_jobs": 1,
+    "ninja_pid": 2199,
+    "command": "/usr/bin/ninja -v -j 2 LLVM ",
+    "process_snapshot": "    PID    PPID   RSS COMMAND\n      1       0 12372 systemd\n      2       1  1920 init-systemd(Ub\n      7       2  1792 init\n     40       1 15176 systemd-journal\n     92       1  6272 systemd-udevd\n    169       1 12672 systemd-resolve\n    170       1  7680 systemd-timesyn\n    178       1  2432 cron\n    179       1  5120 dbus-daemon\n    186       1  8320 systemd-logind\n    190       1  2048 agetty\n    200       1  5120 rsyslogd\n    213       1  1792 agetty\n    214       1 22656 unattended-upgr\n    292       2  3968 login\n    350       1 11136 systemd\n    351     350  3516 (sd-pam)\n    375     292  5120 bash\n   1003       2   908 SessionLeader\n   1004    1003  1172 Relay(1010)\n   1010    1004 50916 python3\n   2198    1010 16256 cmake\n   2199    2198 21724 ninja\n   3305       2   908 SessionLeader\n   3306    3305  1172 Relay(3311)\n   3311    3306 18780 python3\n   3801       1  7680 polkitd\n   4257    3311 17408 ctest\n   6250    4257 26344 python3\n   6323    6250 19328 python3\n   6324    2199  1664 sh\n   6325    6324 265844 clang++-18\n   6326    2199  1664 sh\n   6327    6326 252420 clang++-18\n   6331    6323     0 pikaflow\n   6334       2   908 SessionLeader\n   6335      92  4040 (udev-worker)\n   6336    6334  1172 Relay(6339)\n   6337      92  4040 (udev-worker)\n   6338      92  4040 (udev-worker)\n   6339    6336 12288 python3\n   6340    6339  3840 ps\n",
+    "memory_snapshot": "               total        used        free      shared  buff/cache   available\nMem:            7848        1164        4642          42        2275        6683\nSwap:           2048           0        2048\n"
+  },
+  "remaining_step_count_on_resume": 1472,
+  "finished_utc": "2026-11-05T19:18:30.640804+00:00",
+  "source_matches_after_build": true,
+  "llvm_config_cmake": "/home/raiyyan/llvm24-sanitized-sdk-0247623/build/lib/cmake/llvm/LLVMConfig.cmake",
+  "shared_libraries": {
+    "/home/raiyyan/llvm24-sanitized-sdk-0247623/build/lib/libLLVM.so.24.0git": "ef8192473bc58ad65a5c2142072bf7e9424efa28d3bfd0d6d265a49a76b584ea"
+  },
+  "source_archive_kind": "two exact git archives from the same commit: llvm+cmake+third-party/siphash, then required libc headers",
+  "source_worktree_clean_at_capture": true,
+  "actual_instrumented_c_cpp_compile_count": 1923,
+  "actual_instrumented_translation_unit_count": 1920,
+  "instrumented_precompiled_header_count": 3,
+  "actual_instrumented_commands_path": "/home/raiyyan/llvm24-sanitized-sdk-0247623/instrumented-actual-commands.json",
+  "actual_instrumented_commands_sha256": "9528f8c3f6e71f5d39afb120c0b0a45241f5bf0b63f38dfa6ab11f1d02f6de3b",
+  "compile_commands_sha256": "953f715329f39bdc872222f0edd3fad1481fccd7e2fc2bab32d6366b81cb1b3b",
+  "cmake_cache_sha256": "da23467b7c9148a16a3bffd4088f3678aff90770e7a7f06684479b38dc8b71a3",
+  "build_log_sha256": "a82912d37245742ee6c2cb55d4871cf099b123fef2392116c256aaca1b398508",
+  "resumed_build_log_sha256": "e06cbb8000d35449cb428809fede9968ad170d204027d5674e32715f1e2d1486",
+  "full_source_hash_manifest_sha256": "4040938e18aba4cb385594d02a70e568db7178d1cea22af12c32e94c0aabca52",
+  "upstream_ubsan_exclusions": "vptr,function plus llvm/utils/sanitizers/ubsan_ignorelist.txt",
+  "upstream_ubsan_ignorelist_sha256": "e3f1e0c90944464904f0f5572c179f6823c391ec68aa3f77ba5764c371278bbe",
+  "reports": [],
+  "completed_selected_translation_unit_count": 1920,
+  "completed_target_commands_sha256": "422dfaad7ef07e58c02814f093532b05f466b10c4d66a883099e71508b68667f",
+  "completed_selected_object_proof_sha256": "bfb07fdba85e4d7f48ee630e239e26a6a648726e2b2ec08de32cbf6e7706d9a9",
+  "completed_selected_object_proof_path": "/home/raiyyan/llvm24-sanitized-sdk-0247623/completed-selected-object-proof.json",
+  "ninja_log_sha256": "b158702e02faacae2540adade6422d49391937c55fa30788fab6bb0cf1b2aa4d",
+  "all_selected_c_cpp_objects_exist_and_logged": true,
+  "scope": "Only the completed LLVM monolithic shared-library target and its dependency closure; no check-all or optional-tool execution claim",
+  "exit_code": 0,
+  "compiler_path": "/usr/lib/llvm-18/bin/clang",
+  "compiler_sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+  "compiler_version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n",
+  "logs": {
+    "planned-remaining-steps.log": {
+      "bytes": 146688,
+      "sha256": "6010c4b1f20c43cf23e2220344212a010a48de3a14eb306e0f0408fb22dc3c0e"
+    },
+    "initial-configure.log": {
+      "bytes": 1137,
+      "sha256": "5158ba63b0b166c7ff7b9b3cd7491ab117ded2f84f807f6c309e2e3fc5880786"
+    },
+    "planned-steps.log": {
+      "bytes": 199832,
+      "sha256": "664ae220a20a74fb9a25002906ffc8630fc6dac5f3eb82bb992f53f6db55cfe8"
+    },
+    "configure-resume4.log": {
+      "bytes": 979,
+      "sha256": "cea16c572a16b15ad466621c114231545314450be5a7b66652413020c28e4a43"
+    },
+    "toolchain.log": {
+      "bytes": 504,
+      "sha256": "9a2ed0eb13f0608ac2bae1c2a335bdd94cff193143ab50025c49b24ba12f811f"
+    },
+    "toolchain-resume4.log": {
+      "bytes": 504,
+      "sha256": "6c391ca0b59ed55b0b9579359e5d7214de8ebaf21864c1b626835ff2e236f75c"
+    },
+    "build.log": {
+      "bytes": 1107070,
+      "sha256": "a82912d37245742ee6c2cb55d4871cf099b123fef2392116c256aaca1b398508"
+    },
+    "configure-jobs2.log": {
+      "bytes": 8038,
+      "sha256": "c11c748f037f0ff4381f00f67152b814c9a2493a516b53cfdfbec151cc11344a"
+    },
+    "build-resume4.log": {
+      "bytes": 2794735,
+      "sha256": "e06cbb8000d35449cb428809fede9968ad170d204027d5674e32715f1e2d1486"
+    }
+  },
+  "llvm_config_cmake_sha256": "708959d7df02b4c693980516db8ab21899fd9ec4f9f9bc17d2be0f99b68ad718",
+  "raw_results_path": "/home/raiyyan/llvm24-sanitized-sdk-0247623/results.json",
+  "raw_results_sha256": "4e2e9da8e6cc0865473430d4a095892f37a85e2f60647cedf876dbe6c7369b42"
+}

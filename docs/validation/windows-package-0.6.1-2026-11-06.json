@@ -1,0 +1,36 @@
+{
+  "path": "C:\\Users\\RAIYYAN\\pikaflow\\out\\dist\\pikaflow-0.6.1-windows-x64-e03a541.zip",
+  "bytes": 18242210,
+  "sha256": "522d7ee4ceb1d353c3443f20a5931c66a93c812d0ee263bc1ab789ba28807aa9",
+  "source_commit": "e03a5410561096519538afcb7d179b898ba47824",
+  "compiler_sha256": "ab8fefa23f89dfce476ab9565721748f08bfb760feddd1fb5bbc24c59d00f10a",
+  "version": "PikaFlow 0.6.1; LLVM enabled; x86_64-pc-windows-msvc",
+  "extracted_showcase_namespaces_interpreter_jit": "passed",
+  "installed_package_tools": "passed",
+  "installed_record_demo": "passed",
+  "installed_record_native_cases": 3,
+  "installed_optimization_lab_report": "passed",
+  "optimization_lab_report": {
+    "schema_version": 2,
+    "source": "C:\\Users\\RAIYYAN\\AppData\\Local\\Temp\\pika061 extracted 2c0zb0wt\\examples\\optimization_lab\\main.pf",
+    "before": {
+      "functions": 3,
+      "instructions": 52
+    },
+    "after": {
+      "functions": 3,
+      "instructions": 48
+    },
+    "statistics": {
+      "constants_folded": 0,
+      "branches_folded": 0,
+      "unreachable_removed": 0,
+      "functions_skipped": 0,
+      "common_expressions_reused": 2,
+      "dead_results_removed": 4,
+      "liveness_skipped": 0,
+      "cell_loads_forwarded": 8
+    }
+  },
+  "installed_compound_formatter": "passed"
+}

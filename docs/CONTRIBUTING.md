@@ -92,6 +92,13 @@ candidate's valid generic-chain failure required reducing expression-dispatch
 frame size, followed by a clean default-8-MiB rerun. Raising the stack for
 diagnosis did not count as the release fix. [Validation history](validation.md)
 
+Use the [supported sanitizer profile](sanitizers.md) for backend/runtime changes.
+Retain actual compile-command proof, the matching LLVM SDK cache/library/source
+identity, positive private fault-probe reports and separate unexpected-report
+scans. The profile does not add checks to all generated instructions. Preserve
+upstream SDK defaults without introducing project-wide suppressions; the narrow
+GDB inferior-only LSan exception must not disable compiler-child leak checks.
+
 ## Make a change reviewable
 
 1. Specify the observable behavior and the invalid form before modifying a shared

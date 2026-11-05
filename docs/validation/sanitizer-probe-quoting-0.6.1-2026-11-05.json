@@ -1,0 +1,52 @@
+{
+  "passed": true,
+  "scope": "Actual compiled probes only; no compiler/backend semantic rerun",
+  "private_path_contains_spaces": true,
+  "private_path": "/tmp/pikaflow sanitizer validation kbfgl6oq",
+  "probe_sha256": "0c09251136aaf2a515acaf5cb50c368bb4ce1cb1e9cf996baf12be8f4e785258",
+  "test_driver_sha256": "5d9db682f8244599041c0676c26530e4775ccb1c555fe523d6c9b1d761d6100e",
+  "runs": [
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/pikaflow_sanitizer_probe",
+        "address"
+      ],
+      "exit_code": 1,
+      "stderr": "",
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1:log_path=\"/tmp/pikaflow sanitizer validation kbfgl6oq/address/asan\"",
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1:log_path=\"/tmp/pikaflow sanitizer validation kbfgl6oq/address/ubsan\""
+      }
+    },
+    {
+      "command": [
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/backend-sanitizer-0.6.1-final/build/pikaflow_sanitizer_probe",
+        "undefined"
+      ],
+      "exit_code": 1,
+      "stderr": "",
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=1:halt_on_error=1:log_path=\"/tmp/pikaflow sanitizer validation kbfgl6oq/undefined/asan\"",
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1:log_path=\"/tmp/pikaflow sanitizer validation kbfgl6oq/undefined/ubsan\""
+      }
+    }
+  ],
+  "expected_private_reports": {
+    "address": [
+      {
+        "name": "ubsan.366",
+        "bytes": 3462,
+        "sha256": "dd00b55c338eb269907148bd629e6798feab3f45541ab151437e177e868adabb"
+      }
+    ],
+    "undefined": [
+      {
+        "name": "ubsan.367",
+        "bytes": 1067,
+        "sha256": "e5f92ff105a4db4d6d57f8d8304aac92450abec62f2bfbc204ae79a645dc2d91"
+      }
+    ]
+  },
+  "finished_utc": "2026-11-05T17:57:02.352880+00:00",
+  "global_sanitizer_options_unchanged": true
+}

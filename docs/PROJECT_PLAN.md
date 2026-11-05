@@ -2,12 +2,14 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 23:48 IST.
+**Last updated:** 2026-11-06 01:06 IST.
 
-**Status:** the 0.6 language/tooling contract remains complete. The user's
-renewed completion request starts a bounded 0.6.1 verification closeout, focused
-on instrumenting our LLVM backend and native runtime linkage. No new language
-features are planned. Clean full-profile results are required before delivery.
+**Status:** 0.6.1 implementation and verification are complete. Clean `e03a541`
+passes 31/31 Windows native, 27/27 Windows reference, 33/33 Linux Release and
+33/33 matched-SDK ASan/UBSan suites. Both extracted local packages pass their
+installed examples/tools/project checks. The timestamped plan, exact evidence
+and output-verified benchmark accompany the delivery. Coverage boundaries remain
+explicit in [validation](validation.md) and the [sanitizer profile](sanitizers.md).
 **Owner:** Raiyyan (`7se7en72025`). **Repository:** [PikaFlow](https://github.com/7se7en72025/pikaflow).  
 **Baseline:** pushed commit `b676633`, 35 commits; implemented 0.1 compiler core.
 
@@ -93,6 +95,77 @@ prove all programs correct; scope and any actual findings remain explicit.
   default UBSan exclusions/ignorelist are retained and documented; PikaFlow's own
   sanitizer flags have no such global exclusions. The corrected clean candidate
   will use fresh evidence directories, preserving the earlier failed run.
+
+- 2026-11-05 23:51: corrected implementation `e03a541` is committed, pushed and
+  frozen clean. All three verification captures use the same exact 198-file Git
+  archive, SHA-256 `e4eac9984dcc59d7b615fc6b4b1c652f4e2253112a72a3482f689fa04f9a6d45`.
+  No executable source changed afterward; final documentation/evidence commits
+  identify this tested implementation separately.
+- 2026-11-05 23:57: Windows normal Release passes 31/31 native (307.06 s CTest,
+  307.140 s wrapper) and 27/27 reference (79.55 s CTest, 79.609 s wrapper), with
+  unchanged source. Its extracted ZIP later passes examples, installed tools,
+  three native project cases, formatter and schema-2 optimization-lab checks.
+- 2026-11-06 00:06: Linux normal Release passes 33/33 (626.60 s CTest,
+  626.699 s wrapper), all 198 archive files unchanged. SAN is off, private macro
+  zero and actual compile flags contain no sanitizer options. The standalone
+  plugin, GDB, native environment and installation tests pass. Extracted TAR
+  verification subsequently passes all three project backends, installed plugin
+  remarks/execution and source/asset/build post-checks. The initial two-worker
+  package probe recipe remains recorded; the final serial one-worker checks also
+  pass. Normal-suite durations include concurrent SDK build load, not quiet
+  performance measurements.
+- 2026-11-06 00:50: matching LLVM source `0247623` finishes its official
+  `Address;Undefined` library build, including ABI and X86/ORC/pass dependencies.
+  Same-commit libc headers were added after the preserved initial source-staging
+  configure failure. All 93,159 source files match after the build; 1,920 selected
+  C/C++ objects plus three PCHs have actual completion/log/flag proof. The shared
+  library SHA-256 is `ef8192473bc58ad65a5c2142072bf7e9424efa28d3bfd0d6d265a49a76b584ea`.
+  The initial two-job Ninja segment (978.871 s) was deliberately interrupted at
+  595 completed actions after checking available RAM; one four-job Ninja resumed
+  the remaining 1,472 actions and passed in 2,903.739 s, with link concurrency one.
+  Original logs and the resource adjustment remain evidence. LLVM's own upstream
+  UBSan defaults are retained; LLVM `check-all` was not run.
+- 2026-11-06 00:52: PikaFlow's earlier concurrent compile-only preparation
+  (194.364 s, exact source post-match) is reused honestly. Actual matching-SDK
+  configure takes 4.937 s and remaining full build 80.910 s. Both focused backend
+  and sanitizer-bridge tests pass, clearing the original allocator annotation
+  mismatch and spaced probe-report path regressions. The full matrix then runs.
+- 2026-11-06 01:01: all 33 instrumented suites pass, zero failures/skips,
+  595.96 s CTest / 596.085 s wrapper. All 21 project C/C++ compilation commands
+  have actual sanitizer flags; the 198 source files match afterward. Expected
+  ASan/UBSan controls fail with their intended diagnostics in separate private
+  artifacts. Real report and log-finding lists are empty. Actual JIT/native
+  runtime linking, C ABI, tasks, GDB and installed/relocated SDK RPATH all pass.
+  Only GDB's traced inferior disables leak inspection; compiler children retain
+  leak detection. Generated language instructions and system libraries remain
+  outside blanket instrumentation; this is not a TSan claim.
+- 2026-11-06 01:03: after all owned build/test/debugger processes exit, the quiet
+  Windows benchmark completes on clean `e03a541` and the same verified native
+  binary. Each configuration has three output-checked process samples. Loop
+  medians are 33.166/36.939 ms at O0/O2; Fibonacci medians 24.149/26.792 ms.
+  These startup-inclusive observations are not a speedup claim. No fresh 0.6.1
+  parser/semantic fuzzer campaign is invented; prior campaigns retain their
+  original revisions and scope.
+
+### 0.6.1 completion evidence and handoff
+
+All acceptance gates in this patch's table are complete: **91/91 normal suites
+plus 33/33 sanitizer suites**, supported configuration controls, actual positive
+probes, installation/native linking, two extracted ordinary Release packages,
+and a quiet output-verified benchmark. The matching SDK rebuild expanded the
+initial estimate; the stage durations above record the actual work. No new
+language feature was added by this verification patch.
+
+[Canonical validation and package identities](validation.md), the
+[matching SDK proof](validation/llvm-sdk-sanitized-0.6.1-2026-11-06.json) and
+[benchmark](benchmarks/windows-0.6.1-2026-11-06.json) preserve the final results.
+The initial failed candidate and bounded corrections remain explicit. Narrow
+Git attributes preserve this release's captured JSON bytes across platforms;
+final copies are checked against their original artifacts and staged blobs.
+Ordinary archives remain in `out/dist/`; their compatible host development tools
+are required for native linking. This is a verified local delivery, with the
+supported language/platform/ABI boundaries documented, not a universal installer
+or proof that every possible program is correct.
 
 ## 0.6 optimization and observability milestone - 2026-11-05
 

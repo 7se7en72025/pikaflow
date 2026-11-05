@@ -1,5 +1,25 @@
 # Implementation status
 
+PikaFlow **0.6.1** adds an off-by-default Linux/Clang sanitizer configuration,
+fail-closed matching LLVM build-tree SDK checks, shared SDK linkage and installed
+compiler RPATH, a native runtime link bridge, and positive private ASan/UBSan
+probes. The supported language/runtime/tool contract remains unchanged.
+
+Clean `e03a541` passed **31/31 Windows native** (307.06 s), **27/27 Windows
+reference** (79.55 s) and **33/33 Linux Release** (626.60 s) suites. The selected
+matching LLVM SDK built 1,920 instrumented C/C++ translation units plus three PCHs,
+with all 93,159 source hashes preserved. The corrected full sanitizer matrix
+passed **33/33 suites** (595.96 s), with 21 actual project compile commands
+instrumented and no unexpected reports. Positive private ASan/UBSan controls,
+native runtime linking and installed-layout tests passed. The quiet benchmark
+retains three output-verified whole-process samples per configuration and makes
+no speedup claim.
+[Exact evidence](validation.md) preserves the failed initial SDK-mismatch/probe
+candidate, bounded configure/quote proofs and historical releases. No fresh
+0.6.1 fuzzer campaign is claimed.
+
+## Historical 0.6 release
+
 PikaFlow **0.6.0** adds bounded fresh scalar-cell forwarding before local CSE,
 JSON optimizer report schema 2 with eight counters, standard LLVM passed/missed
 remarks and YAML source locations, and a fifth semantic-fuzzer family exercising

@@ -1,6 +1,6 @@
 # Feature status
 
-PikaFlow 0.6.0 implements the language, runtime and developer-tool contracts
+PikaFlow 0.6.1 implements the language, runtime and developer-tool contracts
 below. The boundaries are part of the release contract. Integration results are
 recorded by exact source/toolchain snapshot in [validation.md](validation.md);
 an implemented feature is not a claim of unlimited platform or protocol coverage.
@@ -13,6 +13,12 @@ the 0.4 language/tooling features retain executable host integration checks.
 The earlier 0.3.1 formatting, protocol, traversal, IR, deep-printing and linker
 protection regressions remain in the suite. These results establish the recorded
 contracts and inputs; they do not prove every program or platform correct.
+
+The 0.6.1 patch adds a Linux/Clang host sanitizer profile with matching LLVM SDK
+metadata checks, positive fault probes and instrumented-runtime native linking.
+The SDK's official exclusions are separate from our project flags. The full
+matched-SDK profile passed 33/33 suites; exact identities and boundaries remain
+in the validation record.
 
 ## Available implementation
 
@@ -29,6 +35,7 @@ contracts and inputs; they do not prove every program or platform correct.
 | Recoverable errors | Typed `Result[T,E]`, constructors/accessors, Result patterns and postfix `?` early error propagation |
 | Custom IR | Typed register instructions, bounded canonical nominal layouts, constant heterogeneous indexes, control-flow verification, definite-assignment checks, dumps |
 | Typed-IR optimization | Verified CFG constants/branches, bounded fresh scalar-cell forwarding, local scalar CSE, scalar liveness/dead-result removal, bounded fallback and eight public counters |
+| Host sanitizer profile | Optional Linux Clang ASan+UBSan across project C/C++, including backend/shared pass/runtime/CLI/tests; matching sanitized build-tree SDK and native link bridge |
 | Reference execution | Typed-IR interpreter using the common runtime |
 | Runtime | Iterative graph printing with cycle markers, bounds checks, checked arithmetic, arrays/tuples/closures, traced non-moving GC |
 | Concurrency | Real OS-thread `spawn`/`join`, typed task handles, isolated capture/result graph copies, automatic scoped joins, independent worker heaps |
@@ -60,6 +67,7 @@ and test results.
 | Raw-pointer programming | `offset` supports typed/byte offsets; foreign-address validity and lifetime remain unsafe caller obligations; no address-of syntax or use-after-free guarantee |
 | C ABI interoperability | Natural x86-64 records and scalar callbacks; no packed records, unions, bitfields, C++ objects, captured callbacks or managed/record callback signatures |
 | Source debugger experience | Automated GDB and CodeView evidence is target-specific; graphical IDE integration and every debugger are unverified |
+| Sanitizer boundary | Matching SDK metadata required; upstream LLVM defaults retained, generated program instructions/system libraries not blanket-instrumented, no TSan claim; debugger inferior-only LSan exception |
 | Additional platforms | Windows x64 and Linux x86-64 are the supported targets; other architectures/ABIs are unverified |
 | LLVM main compatibility | One LLVM version/revision is tested at a time; ongoing compatibility requires repeated builds and tests |
 | Optimization | Bounded constants/CFG, fresh i64/bool cells with alias/version/barrier checks and a 4,096-cell cap, CSE/liveness; no general heap/cross-CFG cell/interprocedural propagation, GC-root liveness or custom FP folding |

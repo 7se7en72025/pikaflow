@@ -1,6 +1,116 @@
 # Validation record
 
-## 0.6.0 clean release validation
+## 0.6.1 clean release validation
+
+Frozen clean source is **`e03a5410561096519538afcb7d179b898ba47824`**, common
+archive SHA-256 `e4eac9984dcc59d7b615fc6b4b1c652f4e2253112a72a3482f689fa04f9a6d45`.
+Linux Release and corrected sanitizer post-checks matched all **198 archived
+files**; Windows also recorded unchanged source. Later documentation commits
+do not change this tested code. The raw records below preserve exact captured bytes.
+
+| Host / mode | Complete result | Record |
+|---|---|---|
+| Windows x64, MSVC 19.52 / LLVM 24 | **31/31 native**, 307.06 s | [Windows](validation/windows-0.6.1-2026-11-06.json) |
+| Windows x64, LLVM disabled | **27/27 reference**, 79.55 s | [Same Windows record](validation/windows-0.6.1-2026-11-06.json) |
+| Ubuntu 24.04 / WSL2, GNU 13.3 / LLVM 24 | **33/33 normal Release**, 626.60 s | [Linux](validation/linux-0.6.1-2026-11-06.json) |
+| Ubuntu 24.04 / Clang 18, matched sanitized LLVM | **33/33 sanitizer profile**, 595.96 s | [Corrected sanitizer record](validation/backend-sanitizer-0.6.1-2026-11-06.json) |
+
+Times above are CTest-reported values. Windows native/reference wrappers recorded
+307.140/79.609 s; Linux Release recorded 626.699 s with a 286.910 s build.
+Those normal suites ran while the independent SDK compiled, so these validation
+durations are not quiet performance measurements. The sanitizer wrapper recorded
+596.085 s after an 80.910 s project build and a successful two-test fail-fast pair.
+All four complete matrices had no CTest failures/skips. Linux tools internally
+skip the Windows-only junction unittest; Windows's report suite skips `/dev/full`.
+
+The two Linux matrices have different composition: normal Release includes
+`llvm_pass_plugin`; the sanitizer profile excludes that standalone plugin and
+adds `sanitizer_build`. Both retain backend, IR/runtime, source/interpreter/JIT/
+native, ABI, task, editor/package, debugger and installed-layout tests. Sanitized
+shared-pass code is exercised inside the compiler/backend; ordinary Release
+separately verifies actual plugin loading and standard remarks.
+
+### Matching SDK and actual sanitizer coverage
+
+The [SDK build proof](validation/llvm-sdk-sanitized-0.6.1-2026-11-06.json)
+uses LLVM source `0247623ddadb8d078a446a704cc20f0a8c944fc8`, archive SHA-256
+`d1264c903cbcf1ad9e81e38a265981498b8babf8264e967be01c3fdfb355ab5f`.
+All **93,159** source hashes matched afterward. Its selected monolithic shared
+library dependency closure completed **1,920 instrumented C/C++ translation
+units plus three PCHs**; no LLVM `check-all` or optional-tool result is claimed.
+`libLLVM.so.24.0git` SHA-256 is
+`ef8192473bc58ad65a5c2142072bf7e9424efa28d3bfd0d6d265a49a76b584ea`;
+the corrected project run verified that matched library unchanged afterward.
+
+The SDK's official `Address;Undefined` profile retains upstream `vptr`/`function`
+exclusions and its unmodified standard-library/CFI ignorelist. These are not
+PikaFlow-wide exclusions or custom report suppressions. The corrected project
+record proves **21 actual C/C++ compile commands** instrumented with ASan/UBSan,
+including backend/shared pass, frontend/core, runtime, CLI and test fixtures.
+It passed the full 33 suites with the default **8 MiB stack**, leak detection,
+and **no unexpected sanitizer reports or log findings**.
+
+Bounded positive controls intentionally fail with ASan heap-buffer-overflow and
+UBSan signed-overflow diagnostics. Their exit-1 reports are stored separately as
+expected evidence, not counted as unexpected test failures. The integration test
+also checks real interpreter/JIT/native-O2 output and instrumented-runtime
+linking. The installed-layout test exercises the compiler's RPATH to the external
+SDK library directory; that dependency remains at its recorded build path.
+Generated language instructions and system libraries are not blanket-instrumented.
+Only GDB's traced inferior disables LSan; compiler children keep leak detection
+enabled, while ASan/UBSan stay active in the inferior. This is not a TSan or
+exhaustive correctness result. [Profile and boundaries](sanitizers.md)
+
+### Preserved initial failure and bounded corrections
+
+The [initial clean `482bf7c` record](validation/backend-sanitizer-candidate-0.6.1-2026-11-05.json)
+selected an unsanitized apt LLVM SDK and failed its focused tests under ASan due
+to LLVM allocator/header annotation disagreement; the complete matrix was not
+run for that candidate. Separately, its expected-fault harness failed because a
+private sanitizer log path contained unquoted spaces. The quote correction
+produced both intended diagnostics, exit 1 and one private report per mode using
+the existing compiled probe. [Actual quote proof](validation/sanitizer-probe-quoting-0.6.1-2026-11-05.json)
+
+The SDK guard now reads the selected build-tree cache, checks sanitizer settings
+and canonical Clang drivers, and resolves bare driver names independently per
+language. It rejects installed/unknown SDKs, incompatible settings and missing
+metadata without a bypass. Eleven bounded
+[configure checks](validation/sanitizer-sdk-configure-0.6.1-2026-11-05.json)
+cover rejection/core-only/normal Release/metadata cases and actual matched-SDK
+shared-target/install-RPATH generation. Its first conservative bare-driver-name
+rejection remains in that history, not as a passed SDK execution. No suppression
+converted the initial backend failure into a pass; the corrected matched-SDK
+configuration completed the matrix separately.
+
+### Identities, local ordinary Release packages and quiet benchmark
+
+| Compiler | SHA-256 |
+|---|---|
+| Windows native | `ab8fefa23f89dfce476ab9565721748f08bfb760feddd1fb5bbc24c59d00f10a` |
+| Windows reference | `41548a7e96231d72ee5ae16ceee66ee0ec9395018b0d474e84937d6ae1353d5d` |
+| Linux normal Release | `84872fc69e9e149ceb58a4d04ec0c4b69718eae58db54a43fbfc8784abe926f1` |
+| Linux sanitizer profile | `db870b36b08f0098d96417b194860ee84d518aca85731231c23d4225d5fe5310` |
+
+| Local ordinary Release package | Bytes | SHA-256 / record |
+|---|---:|---|
+| `pikaflow-0.6.1-windows-x64-e03a541.zip` | 18,242,210 | `522d7ee4ceb1d353c3443f20a5931c66a93c812d0ee263bc1ab789ba28807aa9`; [Windows](validation/windows-package-0.6.1-2026-11-06.json) |
+| `pikaflow-0.6.1-linux-x86_64-e03a541.tar.gz` | 25,341,454 | `eb4a1a4a14b3cf4a437272bcdeb5901197c8ad507fb31e83369fa5d3a4380872`; [Linux](validation/linux-package-0.6.1-2026-11-06.json) |
+
+The extracted ordinary Release packages passed showcase, tools, record/project
+cases and the schema-2 lab proof (52 to 48 instructions, CSE 2, dead results 4,
+cell loads forwarded 8). Linux additionally verified installed ordinary-plugin
+remarks and serial project tests. These local archives retain host dependencies;
+they are not universal installers or a shipped sanitized LLVM SDK.
+
+The [quiet Windows benchmark](benchmarks/windows-0.6.1-2026-11-06.json) used the
+clean source and native binary above, with three output-verified whole-process
+samples per configuration. O0/O2 medians were **33.166/36.939 ms** for the loop
+and **24.149/26.792 ms** for Fibonacci(20), including startup/output capture.
+No general speedup or multiplier is established. There is **no fresh 0.6.1 fuzzer
+campaign**; the historical 0.6 five-family/7,294 run below retains its own
+core/interpreter/runtime scope and source identity.
+
+## Historical 0.6.0 clean release validation
 
 The frozen implementation is **`e70e7aa79006637a4f1c6e464b7b1d4c12b8acf1`**,
 with clean source (`dirty: false`) and common source archive SHA-256

@@ -1,0 +1,223 @@
+{
+  "passed": true,
+  "scope": "Configure-only checks plus isolated cache fixtures; no backend rebuild or actual matched-SDK execution claim",
+  "checks": [
+    {
+      "name": "apt_rejected",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/apt",
+        "-G",
+        "Ninja",
+        "-DCMAKE_C_COMPILER=clang-18",
+        "-DCMAKE_CXX_COMPILER=clang++-18",
+        "-DBUILD_TESTING=ON",
+        "-DPIKAFLOW_ENABLE_SANITIZERS=ON",
+        "-DLLVM_DIR=/usr/lib/llvm-24/lib/cmake/llvm"
+      ],
+      "exit_code": 1,
+      "seconds": 7.589,
+      "log": "apt_rejected.log",
+      "log_sha256": "54f97bc45d308f2549ea6f73a626a28a4c24bcb2436bcda6afa204d349906570"
+    },
+    {
+      "name": "core_only_sanitizers",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/core",
+        "-G",
+        "Ninja",
+        "-DCMAKE_C_COMPILER=clang-18",
+        "-DCMAKE_CXX_COMPILER=clang++-18",
+        "-DBUILD_TESTING=ON",
+        "-DPIKAFLOW_ENABLE_SANITIZERS=ON",
+        "-DPIKAFLOW_ENABLE_LLVM=OFF"
+      ],
+      "exit_code": 0,
+      "seconds": 2.919,
+      "log": "core_only_sanitizers.log",
+      "log_sha256": "6e7d84465853520abe630be871301c182dedb4d755657f49c4964c99607035d5"
+    },
+    {
+      "name": "ordinary_release_apt",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/release",
+        "-G",
+        "Ninja",
+        "-DCMAKE_C_COMPILER=clang-18",
+        "-DCMAKE_CXX_COMPILER=clang++-18",
+        "-DBUILD_TESTING=ON",
+        "-DPIKAFLOW_ENABLE_SANITIZERS=OFF",
+        "-DLLVM_DIR=/usr/lib/llvm-24/lib/cmake/llvm"
+      ],
+      "exit_code": 0,
+      "seconds": 9.636,
+      "log": "ordinary_release_apt.log",
+      "log_sha256": "465b5ab4e395f4f6d59ff7dc610bcf30d955f5ee4b1a4f843c06c350b410430b"
+    },
+    {
+      "name": "matching_cache",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/fixture",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/matching_cache/build",
+        "-G",
+        "Ninja",
+        "-DSDK_ROOT=/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/matching_cache/sdk"
+      ],
+      "exit_code": 0,
+      "seconds": 0.533,
+      "log": "matching_cache.log",
+      "log_sha256": "4606265a473f90891b67f39f39e8af19859872dad81ea5d04713d22ee49af84c"
+    },
+    {
+      "name": "unsanitized_cache",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/fixture",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/unsanitized_cache/build",
+        "-G",
+        "Ninja",
+        "-DSDK_ROOT=/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/unsanitized_cache/sdk"
+      ],
+      "exit_code": 1,
+      "seconds": 0.361,
+      "log": "unsanitized_cache.log",
+      "log_sha256": "41a66a9382995312c3876037c5a9bdfa077e406a88588a0319f3328f0079aff6"
+    },
+    {
+      "name": "address_only_cache",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/fixture",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/address_only_cache/build",
+        "-G",
+        "Ninja",
+        "-DSDK_ROOT=/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/address_only_cache/sdk"
+      ],
+      "exit_code": 1,
+      "seconds": 0.376,
+      "log": "address_only_cache.log",
+      "log_sha256": "38bdb5b2e90c6a01dc2e47fcbb55e8dea677680e4c12192d77033c3f2ac58365"
+    },
+    {
+      "name": "wrong_compiler_cache",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/fixture",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/wrong_compiler_cache/build",
+        "-G",
+        "Ninja",
+        "-DSDK_ROOT=/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/wrong_compiler_cache/sdk"
+      ],
+      "exit_code": 1,
+      "seconds": 0.392,
+      "log": "wrong_compiler_cache.log",
+      "log_sha256": "0a727c57e467742397e760f05e0dc4c7e89ed8438a959046ee292969d86a62d4"
+    },
+    {
+      "name": "matching_bare_compiler",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/fixture",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/matching_bare_compiler/build",
+        "-G",
+        "Ninja",
+        "-DSDK_ROOT=/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/matching_bare_compiler/sdk"
+      ],
+      "exit_code": 0,
+      "seconds": 0.494,
+      "log": "matching_bare_compiler.log",
+      "log_sha256": "ed1cc75d43b2fc1b6522c65e86c6c460f2255e1e40c4f9e9b6a3e6dce35aa1e7"
+    },
+    {
+      "name": "wrong_bare_cxx_compiler",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/fixture",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/wrong_bare_cxx_compiler/build",
+        "-G",
+        "Ninja",
+        "-DSDK_ROOT=/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/wrong_bare_cxx_compiler/sdk"
+      ],
+      "exit_code": 1,
+      "seconds": 0.341,
+      "log": "wrong_bare_cxx_compiler.log",
+      "log_sha256": "08e72573c395e7a13f31db4975666a0cf7f15cdb61d822bfb0755889b7130049"
+    },
+    {
+      "name": "real_matched_sdk",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/matched-sdk",
+        "-G",
+        "Ninja",
+        "-DCMAKE_C_COMPILER=clang-18",
+        "-DCMAKE_CXX_COMPILER=clang++-18",
+        "-DPIKAFLOW_ENABLE_SANITIZERS=ON",
+        "-DLLVM_DIR=/home/raiyyan/llvm24-sanitized-sdk-0247623/build/lib/cmake/llvm"
+      ],
+      "exit_code": 0,
+      "seconds": 5.68,
+      "log": "real_matched_sdk.log",
+      "log_sha256": "6a15a1068aa328a7af77c454b628dcb26a10286274f1dc5f0a5c6e9588d045f9"
+    },
+    {
+      "name": "missing_cache_key_ignores_caller_override",
+      "command": [
+        "cmake",
+        "-S",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/missing-fixture",
+        "-B",
+        "/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/missing-metadata/build",
+        "-G",
+        "Ninja",
+        "-DSDK_ROOT=/mnt/c/Users/RAIYYAN/pikaflow/out/sanitizer-sdk-guard-validation/missing-metadata/sdk"
+      ],
+      "exit_code": 1,
+      "seconds": 0.328,
+      "log": "missing_cache_key_ignores_caller_override.log",
+      "log_sha256": "82fa7885f5f2cfbfc7c2155dd022515a6a6c52b80c092a21a4689c4f61c2eca7"
+    }
+  ],
+  "changed_file_sha256": {
+    "CMakeLists.txt": "9fb3ab2456bf0a0f8d989b2128cdbd1da362fc2f58b80b719e61bfe4a2d967b5",
+    "cmake/Sanitizers.cmake": "ffeeb072db0eca1de11b07259edc2355836358b104921ac0267e9598fd6a23b0",
+    "docs/sanitizers.md": "b2a67b0c7777753c2ceda212a929e08bec216520b3b7a473e4a74da82cc239cc",
+    "tests/test_sanitizer_build.py": "024a6f3e3f4d74a895eb1338b3d5785eea5bdf02619b9348a2943387577df0c8"
+  },
+  "real_sdk_shared_link_and_install_rpath": "passed generation-only; no link or installed execution claim",
+  "real_sdk_cache_sha256": "93e2ac86d0d7014d594ed6b2d61f69864bec3a175f86357c109e8707a01c8c3a",
+  "real_sdk_config_sha256": "708959d7df02b4c693980516db8ab21899fd9ec4f9f9bc17d2be0f99b68ad718",
+  "source_files_unchanged_after_checks": true,
+  "initial_guard_validation_rejection": {
+    "log": "real_matched_sdk-initial-bare-name-rejection.log",
+    "sha256": "5da67c1683bee0e6b77af4567e97e7b47c6d011f8989af69138e14bb31416ca0",
+    "reason": "First guard required cached compiler to be an absolute existing path; actual SDK cache retained bare Clang driver names. Fresh per-language lookup fixed and rechecks passed. This was not a successful SDK execution."
+  }
+}

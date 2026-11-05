@@ -32,7 +32,29 @@ flags, timing scope, and noise in view.
 and report structure without creating native executables. Actual native benchmark
 execution remains a separate verification step.
 
-## 0.6 recorded native run
+## 0.6.1 recorded native run
+
+The [Windows 0.6.1 report](benchmarks/windows-0.6.1-2026-11-06.json) was captured
+after all validation/SDK/package processes were quiet, from clean revision
+`e03a5410561096519538afcb7d179b898ba47824`. Native compiler SHA-256 is
+`ab8fefa23f89dfce476ab9565721748f08bfb760feddd1fb5bbc24c59d00f10a`,
+matching the [Windows validation record](validation/windows-0.6.1-2026-11-06.json).
+All interpreter references, native warmups and three timed outputs per
+configuration matched.
+
+| Workload | `-O0` median | `-O2` median |
+|---|---:|---:|
+| Checked loop over 50,000 integers | 33.166 ms | 36.939 ms |
+| Recursive Fibonacci(20) | 24.149 ms | 26.792 ms |
+
+Complete-process timing includes startup and output capture. Both medians were
+higher at `-O2` in this run; these small synthetic samples establish no general
+speedup or multiplier. The report retains raw samples, sources, flags and
+identities. Normal test durations recorded while the SDK compiled are validation
+timing, separate from this quiet benchmark. Earlier reports remain historical
+observations rather than controlled release comparisons.
+
+## Historical 0.6 recorded native run
 
 The [Windows 0.6 report](benchmarks/windows-0.6.0-2026-11-05.json) was captured
 after host/package/sanitizer work finished, from clean revision

@@ -128,3 +128,26 @@ The ptrace restriction and sequential option parsing can be checked in LLVM's
 `compiler-rt/lib/sanitizer_common/sanitizer_flag_parser.cpp`. Debugger results
 should state this narrow leak-check exception alongside the normal leak-enabled
 compiler/backend results.
+
+## Verified 0.6.1 run
+
+Clean implementation `e03a5410561096519538afcb7d179b898ba47824` passed all
+**33/33 sanitizer CTest suites** in 595.96 s (596.085 s wrapper), including
+actual JIT/native output, C ABI, tasks, installed/relocated compiler and the
+positive sanitizer controls. All 21 project C/C++ compile commands carry the
+required flags; all 198 archived source files match after testing. Expected
+probe reports are retained separately, with no unexpected report/log findings.
+The compiler SHA-256 is
+`db870b36b08f0098d96417b194860ee84d518aca85731231c23d4225d5fe5310`.
+
+The matched LLVM library uses exact source `0247623`, with 93,159 source files
+unchanged and 1,920 completed selected C/C++ objects plus three PCHs verified
+against actual flags/build logs. This checks the library used by these integration
+tests, not LLVM `check-all` or every optional LLVM tool. The scope and GDB leak
+exception above remain part of this result. The ordinary Linux Release separately
+passes its real standalone plugin checks.
+
+[Full project record](validation/backend-sanitizer-0.6.1-2026-11-06.json),
+[SDK build proof](validation/llvm-sdk-sanitized-0.6.1-2026-11-06.json) and
+[initial failed candidate](validation/backend-sanitizer-candidate-0.6.1-2026-11-05.json)
+retain source/binary identities and the unsupported SDK-mixing correction.
