@@ -12,7 +12,8 @@ import unittest
 
 COMPILER = pathlib.Path(sys.argv.pop(1)).resolve()
 COUNTERS = {"constants_folded", "branches_folded", "unreachable_removed", "functions_skipped",
-            "common_expressions_reused", "dead_results_removed", "liveness_skipped"}
+            "common_expressions_reused", "dead_results_removed", "liveness_skipped",
+            "cell_loads_forwarded"}
 
 
 class OptimizationReports(unittest.TestCase):
@@ -44,7 +45,7 @@ class OptimizationReports(unittest.TestCase):
         self.assertEqual(result.stderr,"")
         value = json.loads(result.stdout)
         self.assertEqual(set(value),{"schema_version","source","before","after","statistics"})
-        self.assertEqual(value["schema_version"],1)
+        self.assertEqual(value["schema_version"],2)
         self.assertEqual(pathlib.Path(value["source"]),self.source)
         self.assertEqual(set(value["statistics"]),COUNTERS)
         for counts in (value["before"],value["after"]):
@@ -66,6 +67,7 @@ class OptimizationReports(unittest.TestCase):
         self.assertGreater(stats["unreachable_removed"],0)
         self.assertGreater(stats["common_expressions_reused"],0)
         self.assertGreater(stats["dead_results_removed"],0)
+        self.assertGreater(stats["cell_loads_forwarded"],0)
         self.assertEqual((stats["functions_skipped"],stats["liveness_skipped"]),(0,0))
         self.assertEqual(report["before"]["functions"],report["after"]["functions"])
         self.assertEqual(report["before"]["instructions"]-report["after"]["instructions"],

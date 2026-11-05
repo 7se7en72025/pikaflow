@@ -262,7 +262,8 @@ void scalarLivenessAndEffects() {
          ins(Op::ConstString,5),ins(Op::Eq,6,{5,5}),ins(Op::Print,-1,{0}),ins(Op::Return,-1,{0})});
     heap.functions[0].code[9].text="value";
     optimized=optimizeIR(heap,&stats);
-    require(stats.commonExpressionsReused==0 && stats.deadResultsRemoved==0,
+    require(stats.commonExpressionsReused==0 && stats.cellLoadsForwarded==2 && stats.deadResultsRemoved==2 &&
+            operations(optimized.functions[0],Op::MakeCell)==1 && operations(optimized.functions[0],Op::Index)==1,
             "heap, string or effect operations participated in scalar elimination");
 
     auto bounded=single({I64},{ins(Op::ConstI64,0,{},42),ins(Op::Return,-1,{0})});
@@ -284,11 +285,135 @@ void scalarLivenessAndEffects() {
     require(stats.livenessSkipped==1 && dumpIR(optimized)==dumpIR(bounded),
             "liveness budget exhaustion must retain all instructions without partial deletion");
 }
+
+void scalarCellsAndMutation() {
+    const auto cell = Type::cell(I64);
+    auto repeated = arithmeticFunction({I64,I64,cell,cell,I64,I64,I64,I64,I64,I64,I64},
+        {ins(Op::MakeCell,2,{0}),ins(Op::MakeCell,3,{1}),ins(Op::LoadCell,4,{2}),
+         ins(Op::LoadCell,5,{3}),ins(Op::Add,6,{4,5}),ins(Op::LoadCell,7,{2}),
+         ins(Op::LoadCell,8,{3}),ins(Op::Add,9,{7,8}),ins(Op::Add,10,{6,9}),ins(Op::Return,-1,{10})});
+    repeated.localNames[2]="left";
+    repeated.localNames[3]="right";
+    auto original=invoking(repeated,{20,22});
+    OptimizationStats stats;
+    auto optimized=optimizeIR(original,&stats);
+    require(stats.cellLoadsForwarded==4 && stats.commonExpressionsReused==1,
+            "fresh scalar cells did not expose repeated structured arithmetic to CSE");
+    require(operations(optimized.functions[1],Op::LoadCell)==0 &&
+            operations(optimized.functions[1],Op::MakeCell)==2 &&
+            optimized.functions[1].localNames==repeated.localNames,
+            "cell forwarding changed allocations or debug bindings");
+    require(interpret(original)==84 && interpret(optimized)==84,"scalar forwarding changed repeated addition");
+
+    auto alias = arithmeticFunction({I64,I64,cell,cell,I64},
+        {ins(Op::MakeCell,2,{0}),ins(Op::Move,3,{2}),ins(Op::Move,3,{3}),
+         ins(Op::StoreCell,-1,{3,1}),ins(Op::LoadCell,4,{2}),ins(Op::Return,-1,{4})});
+    original=invoking(alias,{20,42}); optimized=optimizeIR(original,&stats);
+    require(stats.cellLoadsForwarded==1 && operations(optimized.functions[1],Op::StoreCell)==1 &&
+            interpret(original)==42 && interpret(optimized)==42,"aliased cell store or self-move was ignored");
+    const auto& forwarded=definition(optimized.functions[1],4);
+    require(forwarded.location.file=="optimizer-test.pf" && forwarded.location.line==17 && forwarded.location.column==9,
+            "forwarded cell load lost its source location");
+
+    auto overwritten=arithmeticFunction({I64,I64,cell,I64,I64},
+        {ins(Op::MakeCell,2,{0}),ins(Op::Move,0,{1}),ins(Op::LoadCell,3,{2}),
+         ins(Op::LoadCell,4,{2}),ins(Op::Return,-1,{4})});
+    original=invoking(overwritten,{20,42}); optimized=optimizeIR(original,&stats);
+    require(stats.cellLoadsForwarded==1 && definition(optimized.functions[1],3).op==Op::LoadCell &&
+            interpret(original)==20 && interpret(optimized)==20,"overwritten scalar representative was reused");
+    overwritten.code={ins(Op::MakeCell,2,{0}),ins(Op::StoreCell,-1,{2,1}),ins(Op::Move,1,{0}),
+                      ins(Op::LoadCell,3,{2}),ins(Op::Return,-1,{3})};
+    original=invoking(overwritten,{20,42}); optimized=optimizeIR(original,&stats);
+    require(stats.cellLoadsForwarded==0 && interpret(original)==42 && interpret(optimized)==42,
+            "overwritten stored-value register was reused");
+
+    auto reassign=arithmeticFunction({I64,I64,cell,cell,cell,I64},
+        {ins(Op::MakeCell,2,{0}),ins(Op::MakeCell,3,{1}),ins(Op::Move,4,{2}),
+         ins(Op::Move,4,{3}),ins(Op::StoreCell,-1,{4,0}),ins(Op::LoadCell,5,{3}),ins(Op::Return,-1,{5})});
+    original=invoking(reassign,{20,42}); optimized=optimizeIR(original,&stats);
+    require(stats.cellLoadsForwarded==1 && interpret(original)==20 && interpret(optimized)==20,
+            "reassigned cell alias updated the wrong allocation");
+
+    auto boolean=arithmeticFunction({Bool,Bool,Type::cell(Bool),Bool,I64},
+        {ins(Op::MakeCell,2,{0}),ins(Op::StoreCell,-1,{2,1}),ins(Op::LoadCell,3,{2}),
+         ins(Op::JumpFalse,-1,{3},0,6),ins(Op::ConstI64,4,{},42),ins(Op::Return,-1,{4}),
+         ins(Op::ConstI64,4),ins(Op::Return,-1,{4})});
+    boolean.parameters={Bool,Bool};
+    original=invoking(boolean,{0,1});optimized=optimizeIR(original,&stats);
+    require(stats.cellLoadsForwarded==1 && interpret(original)==42 && interpret(optimized)==42,
+            "boolean scalar cell forwarding changed result");
+}
+
+void cellBoundariesAndEffects() {
+    const auto cell=Type::cell(I64);
+    for(Op barrier : {Op::Collect,Op::Print,Op::MakeArray}) {
+        auto operation=ins(barrier);
+        if(barrier==Op::Print) operation.args={0};
+        if(barrier==Op::MakeArray) {operation.dst=4;operation.args={0};}
+        auto function=arithmeticFunction({I64,I64,cell,I64,Type::array(I64)},
+            {ins(Op::MakeCell,2,{0}),operation,ins(Op::LoadCell,3,{2}),ins(Op::Return,-1,{3})});
+        OptimizationStats stats;auto optimized=optimizeIR(invoking(function,{20,42}),&stats);
+        require(stats.cellLoadsForwarded==0 && definition(optimized.functions[1],3).op==Op::LoadCell,
+                "cell facts survived an effect barrier");
+    }
+    auto caller=arithmeticFunction({I64,I64,cell,I64,I64},
+        {ins(Op::MakeCell,2,{0}),ins(Op::Call,3,{2,1}),ins(Op::LoadCell,4,{2}),ins(Op::Return,-1,{4})});
+    caller.code[1].text="mutate";
+    Function mutate;mutate.name="mutate";mutate.parameters={cell,I64};mutate.result=I64;
+    mutate.registers={cell,I64};mutate.code={ins(Op::StoreCell,-1,{0,1}),ins(Op::Return,-1,{1})};
+    auto original=invoking(caller,{20,42});original.functions.push_back(mutate);
+    OptimizationStats stats;auto optimized=optimizeIR(original,&stats);
+    require(stats.cellLoadsForwarded==0 && interpret(original)==42 && interpret(optimized)==42,
+            "cell contents were reused after an escaping call mutated the allocation");
+
+    auto unknown=caller;
+    unknown.parameters={cell,I64};unknown.registers={cell,I64,cell,I64,I64};
+    unknown.code={ins(Op::MakeCell,2,{1}),ins(Op::StoreCell,-1,{0,1}),
+                  ins(Op::LoadCell,3,{2}),ins(Op::Return,-1,{3})};
+    auto program=single({I64},{ins(Op::ConstI64,0,{},42),ins(Op::Return,-1,{0})});
+    program.functions.push_back(unknown);optimized=optimizeIR(program,&stats);
+    require(stats.cellLoadsForwarded==0,"unknown cell store did not discard facts");
+
+    auto branch=arithmeticFunction({I64,I64,Bool,cell,I64},
+        {ins(Op::MakeCell,3,{0}),ins(Op::JumpFalse,-1,{2},0,3),ins(Op::StoreCell,-1,{3,1}),
+         ins(Op::LoadCell,4,{3}),ins(Op::Return,-1,{4})});
+    branch.parameters.push_back(Bool);
+    for(int64_t condition:{0,1}) {
+        original=invoking(branch,{20,42,condition});optimized=optimizeIR(original,&stats);
+        require(stats.cellLoadsForwarded==0 && interpret(original)==interpret(optimized),
+                "linear cell scan crossed a CFG join");
+    }
+    auto floating=arithmeticFunction({F64,F64,Type::cell(F64),F64,I64},
+        {ins(Op::MakeCell,2,{0}),ins(Op::LoadCell,3,{2}),ins(Op::ConstI64,4,{},42),ins(Op::Return,-1,{4})});
+    floating.parameters={F64,F64};program.functions[1]=floating;optimized=optimizeIR(program,&stats);
+    require(stats.cellLoadsForwarded==0 && definition(optimized.functions[1],3).op==Op::LoadCell,
+            "floating-point cell contents participated in forwarding");
+    auto managed=floating;
+    managed.parameters={Type::array(I64),I64};
+    managed.registers={Type::array(I64),I64,Type::cell(Type::array(I64)),Type::array(I64),I64};
+    program.functions[1]=managed;optimized=optimizeIR(program,&stats);
+    require(stats.cellLoadsForwarded==0 && definition(optimized.functions[1],3).op==Op::LoadCell,
+            "managed cell contents participated in forwarding");
+
+    auto bounded=arithmeticFunction({I64,I64,cell,I64,cell},{});
+    for(size_t index=0;index<4097;++index) bounded.code.push_back(ins(Op::MakeCell,2,{0}));
+    bounded.code.push_back(ins(Op::LoadCell,3,{2}));
+    bounded.code.push_back(ins(Op::Return,-1,{3}));
+    original=invoking(bounded,{42,0});optimized=optimizeIR(original,&stats);
+    require(stats.cellLoadsForwarded==1 && operations(optimized.functions[1],Op::MakeCell)==4097 &&
+            interpret(optimized)==42,"cell cache bound erased allocations or rejected fresh facts");
+    bounded.code.insert(bounded.code.begin()+1,ins(Op::Move,4,{2}));
+    bounded.code.insert(bounded.code.end()-2,ins(Op::StoreCell,-1,{4,1}));
+    original=invoking(bounded,{42,0});optimized=optimizeIR(original,&stats);
+    require(stats.cellLoadsForwarded==0 && interpret(original)==42 && interpret(optimized)==42,
+            "expired alias was confused with a new cell after the cache reset");
+}
 } // namespace
 int main() {
     try {
         constantsAndTraps();branchesAndEffects();joinsAndLoops();metadataAndBounds();floatingValuesStayOpaque();
         localExpressionsAndMutation();scalarLivenessAndEffects();
+        scalarCellsAndMutation();cellBoundariesAndEffects();
         std::cout<<"Typed IR optimization tests passed\n";
         return 0;
     } catch(const std::exception& error) { std::cerr<<error.what()<<'\n';return 1; }

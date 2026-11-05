@@ -16,10 +16,12 @@ same two register values twice. Local value numbering reuses the first
 successful result, and liveness removes its discarded comparison. The first
 addition still runs and can trap for an excessive input.
 
-The structured function illustrates a boundary: locals live in mutable cells,
-so its separate cell loads remain opaque to scalar value numbering. Both branch
-arms also remain reachable for arbitrary function arguments. Inspect the typed
-IR and counters to see which operations change before examining LLVM's separate
+The structured function uses a shared `increment` binding. Bounded scalar-cell
+forwarding replaces proven current cell reads with moves, allowing value
+numbering to reuse its repeated addition too. Cell allocations and writes stay
+present. Facts reset at calls, unknown effects and block boundaries, so both
+branch arms remain reachable for arbitrary function arguments. Inspect the typed
+IR and schema-2 `cell_loads_forwarded` counter before examining LLVM's separate
 transformations.
 
 `opt-report` compiles and analyzes the program without running it. Its JSON

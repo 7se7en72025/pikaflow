@@ -8,7 +8,8 @@ executes the original program.
 The pipeline is:
 
 ```text
-typed IR -> verify -> constant/CFG propagation -> local scalar CSE
+typed IR -> verify -> constant/CFG propagation -> local scalar-cell forwarding
+         -> local scalar CSE
          -> scalar liveness/dead-result removal -> verify
          -> LLVM lowering -> LLVM verifier -> LLVM optimization pipeline
          -> checked-arithmetic LLVM pass -> LLVM verifier -> JIT/object/assembly
@@ -16,7 +17,7 @@ typed IR -> verify -> constant/CFG propagation -> local scalar CSE
 
 The public API is `optimizeIR(program, &statistics)` in
 `include/pikaflow/optimizer.hpp`. It returns a copy and reports constants folded,
-branches folded, unreachable instructions removed, common expressions reused,
+branches folded, unreachable instructions removed, scalar-cell loads forwarded, common expressions reused,
 dead scalar results removed, functions skipped by constant-analysis bounds and
 liveness passes skipped by their bounds. Register types, parameter registers,
 function names, source locations, debug binding names, nominal layouts, C ABI descriptors, and editor
@@ -37,14 +38,18 @@ typed-IR pipeline: all `-O` flags are rejected, including `-O0`. Other flags
 besides `-o` are also rejected rather than silently ignored. A source entry
 function is required under ordinary compilation rules.
 
-Schema version 1 contains:
+Schema version 2 contains:
 
-- `schema_version`: integer `1`; `source`: the canonical primary source filename.
+- `schema_version`: integer `2`; `source`: the canonical primary source filename.
 - `before` and `after`: total `functions` and `instructions`, including imports
   and generated specializations present in the compiled Program.
 - `statistics`: nonnegative integer counters `constants_folded`,
   `branches_folded`, `unreachable_removed`, `functions_skipped`,
-  `common_expressions_reused`, `dead_results_removed` and `liveness_skipped`.
+  `common_expressions_reused`, `cell_loads_forwarded`, `dead_results_removed` and `liveness_skipped`.
+
+Version 1 had seven statistics fields and no `cell_loads_forwarded` counter.
+Version 2 deliberately changes the schema identifier when adding this eighth
+field. The API counter is `OptimizationStats::cellLoadsForwarded`.
 
 The report contains aggregate counts, without per-instruction or per-function
 arrays. Its size is bounded by these fixed fields and the source filename;
@@ -109,10 +114,40 @@ example, all of these retain their checked failures:
 ```
 
 The multiplication by zero in the second example cannot erase the earlier
-addition failure. Heap loads and calls supply varying values. This pass does
+addition failure. Heap loads and calls supply varying values. Constant analysis does
 not infer cell contents, fold floating-point operations, assume anything about
 an external function's result, or remove checked traps because a result is
 unused.
+
+## Local scalar-cell forwarding
+
+After successful constant/CFG analysis, a separate forward scan recognizes
+fresh `cell` (`MakeCell`) allocations containing only `i64` or `bool` within a basic
+block. The initializer or a subsequent known `cell.set` supplies a scalar
+representative. A `cell.get` becomes a move only while that representative
+register still contains the remembered value. Register write versions prevent
+reuse after a scalar register is overwritten. If the representative is stale,
+the load stays and its result becomes the new representative.
+
+Cell-register moves preserve allocation identity, including self-moves and
+reassigned aliases. A store through a known alias updates that allocation's
+remembered value. Unknown cell operations and every block boundary discard all
+facts. Calls, closures, collection, printing, other allocations, conversions,
+foreign calls, tasks and raw-memory operations also discard facts; an escaped
+cell cannot be rediscovered merely by loading or moving its old reference.
+The whitelist otherwise permits only scalar register operations and tracked
+cell operations. This pass never analyzes captured cells or cell parameters.
+
+Allocations, stores, debug bindings and managed root assignments stay intact.
+The replacement move retains the original load's source location. Forwarded
+loads give local CSE the same register values, so ordinary structured code such
+as two consecutive `left + right` expressions can reuse the first successful
+checked addition. A second constant-analysis pass is not run; newly exposed
+constants may remain moves until a later explicit optimization invocation.
+
+There is no forwarding of array/record loads, floating-point or managed cell
+payloads, or facts across branches. This is a local fresh-cell analysis, not
+general heap alias analysis or scalar replacement of allocations.
 
 ## Local scalar common expressions
 
@@ -132,9 +167,10 @@ intervening call, print or collection: the earlier successful operation and all
 effects retain their order. Reassigning either an operand or the representative
 invalidates reuse. No expressions are moved between blocks or across a branch.
 
-Heap loads, cell contents, strings, pointers, floating-point operations,
+Heap loads, strings, pointers, floating-point operations,
 conversions, allocations, calls, foreign calls, tasks and raw-memory operations
-do not participate. There is no algebraic reassociation or commutative operand
+do not participate in CSE. Cell loads themselves are handled only by the
+restricted preceding forwarding pass. There is no algebraic reassociation or commutative operand
 reordering. In particular, the pass cannot cache an array read across mutation.
 
 ## Scalar dead results
@@ -203,7 +239,13 @@ million work units per function. A function exceeding either bound is left
 unchanged, including skipping the later passes. Unresolved incoming branch
 facts also cause that conservative fallback. Local CSE retains at most 4,096
 expression entries per block; reaching the cap clears its cache and loses only
-optimization opportunities. Liveness independently uses the same fact/work
+optimization opportunities. Cell forwarding retains at most 4,096 fresh-cell
+identities; reaching that cap discards its facts before tracking the next fresh
+cell. Register versions and epoch-stamped aliases use linear register storage;
+barriers invalidate aliases without repeatedly clearing the register arrays.
+The extra scan has linear work in instructions and registers. It runs only
+after constant analysis succeeds, preserving the unchanged-function fallback.
+Liveness independently uses the same fact/work
 budgets. If it exceeds either, no dead-result edits are applied and
 `livenessSkipped` increases; earlier verified constant/CSE transformations remain.
 Input and output still pass the typed IR verifier.
@@ -223,7 +265,11 @@ runtime errors. It also checks the custom IR, LLVM IR, and assembly effect of
 the example above. Dynamic stack-word fixtures additionally prove that one
 repeated checked addition becomes a move, an unused comparison disappears,
 reachable prints remain, and first/unused checked failures retain their original
-source sites. These are executable regression checks, not performance claims.
+source sites. Cell regressions cover known and unknown alias stores,
+representative/alias overwrites, boolean cells, CFG/effect barriers, cache
+bounds, preserved allocations/debug locations, and structured-local CSE.
+Source cases also exercise mutation through nested closures and checked
+arithmetic after scalar loads. These are executable regression checks, not performance claims.
 
 These passes do not implement heap alias analysis, interprocedural propagation,
 register liveness for GC roots, or a general floating-point optimizer. LLVM's

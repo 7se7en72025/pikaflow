@@ -2,7 +2,7 @@
 
 **Created:** 2026-11-04 21:25 IST (15:55 UTC).
 
-**Last updated:** 2026-11-05 05:49 IST.
+**Last updated:** 2026-11-05 05:57 IST.
 
 **Status:** verified 0.5.0 remains a historical delivery below. The user
 renewed overnight-work authorization; a 0.6 compiler-optimization milestone is
@@ -50,6 +50,17 @@ required even when forwarding is conservatively skipped.
   advances to 2 for the new eighth optimizer counter; original field names and
   aggregate count meanings remain. A fifth fuzzer family checks captured writes
   across indirect/top-level calls. Designs are reviewed before integration.
+
+
+- 05:57: scalar forwarding, schema 2 and the shared-binding lab pass fresh
+  Windows reference checks plus four native focused suites (160 optimizer output
+  comparisons). The lab prints `84,48,0`, reports 52 to 48 instructions, CSE 2,
+  dead results 4 and eight cell loads forwarded. An isolated dirty-candidate
+  Clang ASan/UBSan run passes four focused suites on the default 8 MiB stack,
+  including 32 source comparisons, seven report tests and all five fuzzer seeds.
+  No sanitizer reports; all 187 captured candidate files match afterward. Epoch
+  invalidation keeps barrier resets independent of total register count. These
+  focused proofs precede the final clean whole-host freeze.
 
 ## 0.5 compiler-engineering milestone - 2026-11-05
 

@@ -103,6 +103,52 @@ def main() -> int:
             fun main() -> unit:
                 print(difference([20]))
         """, "21\n"),
+        ("structured_reuse", """
+            fun repeated(left: i64, right: i64) -> i64:
+                let first = left + right
+                let second = left + right
+                return first + second
+            fun main() -> unit:
+                print(repeated(20, 22))
+        """, "84\n"),
+        ("local_writes", """
+            fun changed(input: i64) -> i64:
+                var value = input
+                let before = value + value
+                value = value + 1
+                let after = value + value
+                return after - before
+            fun main() -> unit:
+                print(changed(20))
+        """, "2\n"),
+        ("captured_cell_barriers", """
+            fun main() -> unit:
+                var value = 20
+                let before = value + value
+                fun bump() -> i64:
+                    value = value + 1
+                    return value
+                let callback = fun() -> i64:
+                    return bump()
+                print(callback())
+                gc()
+                print(before)
+                print(value + value)
+        """, "21\n40\n42\n"),
+        ("local_cfg", """
+            fun changed(input: i64, choose: bool) -> i64:
+                var value = input
+                if choose:
+                    value = value + 22
+                var index = 0
+                while index < 2:
+                    value = value + 1
+                    index = index + 1
+                return value
+            fun main() -> unit:
+                print(changed(20, true))
+                print(changed(20, false))
+        """, "44\n22\n"),
     ]
     rng = random.Random(20261104)
     for index in range(12):
@@ -135,6 +181,11 @@ def main() -> int:
     trap_sources = [(name, f"fun main() -> unit:\n    print({value})\n", message)
                     for name, value, message in traps]
     trap_sources.extend([
+        ("cell_checked", """fun checked(value: i64) -> i64:
+    return value + 1
+fun main() -> unit:
+    print(checked(9223372036854775807))
+""", "integer addition overflow"),
         ("duplicate_checked", """word repeated(i64, i64) -> i64:
     over over + dup print rot rot + +
 fun main() -> unit:
@@ -200,6 +251,15 @@ fun main() -> unit:
             raise AssertionError("unused scalar comparison survived typed-IR liveness\n" + after.stdout)
         if len(re.findall(r"\bprint\b", before.stdout)) != len(re.findall(r"\bprint\b", after.stdout)):
             raise AssertionError("scalar optimization removed a reachable print")
+        structured = directory / "structured_reuse.pf"
+        before = run([compiler, "dump-ir", str(structured), "-O0"])
+        after = run([compiler, "dump-ir", str(structured), "-O2"])
+        if before.returncode or after.returncode:
+            raise AssertionError(before.stderr + after.stderr)
+        if len(re.findall(r"\badd\b", before.stdout)) != 3 or len(re.findall(r"\badd\b", after.stdout)) != 2:
+            raise AssertionError("fresh structured locals did not expose CSE\n" + after.stdout)
+        if not re.search(r"= cell ", before.stdout) or len(re.findall(r"= cell ", before.stdout)) != len(re.findall(r"= cell ", after.stdout)):
+            raise AssertionError("cell forwarding erased an allocation")
         if native:
             for command in ("emit-ir", "dump-asm"):
                 before = run([compiler, command, str(proof), "-O0"])

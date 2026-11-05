@@ -3,8 +3,9 @@ word repeated_sum(i64, i64) -> i64:
     over over + rot rot + +
 
 fun calculate(value: i64, choose_bonus: bool) -> i64:
-    let first = value + 7
-    let repeated = value + 7
+    let increment = 7
+    let first = value + increment
+    let repeated = value + increment
     var total = first + repeated
     if choose_bonus:
         total = total + 6

@@ -140,7 +140,7 @@ std::string optimizationJSON(const pika::Program &program) {
         return count;
     };
     std::ostringstream output;
-    output << "{\"schema_version\":1,\"source\":" << json(program.sourceFile)
+    output << "{\"schema_version\":2,\"source\":" << json(program.sourceFile)
            << ",\"before\":{\"functions\":" << program.functions.size()
            << ",\"instructions\":" << instructions(program)
            << "},\"after\":{\"functions\":" << optimized.functions.size()
@@ -151,7 +151,8 @@ std::string optimizationJSON(const pika::Program &program) {
            << ",\"functions_skipped\":" << stats.functionsSkipped
            << ",\"common_expressions_reused\":" << stats.commonExpressionsReused
            << ",\"dead_results_removed\":" << stats.deadResultsRemoved
-           << ",\"liveness_skipped\":" << stats.livenessSkipped << "}}\n";
+           << ",\"liveness_skipped\":" << stats.livenessSkipped
+           << ",\"cell_loads_forwarded\":" << stats.cellLoadsForwarded << "}}\n";
     return output.str();
 }
 fs::path executablePath(const char *executable) {

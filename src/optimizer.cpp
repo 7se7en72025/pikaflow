@@ -130,6 +130,59 @@ bool scalarExpression(const Function& function, const Instruction& ins) {
     }
 }
 
+void forwardCellLoads(Function& function, OptimizationStats& statistics) {
+    constexpr size_t maximumCells = 4096;
+    struct Alias { size_t epoch = 0, cell = 0; };
+    struct Value { int reg; size_t version; };
+    const auto leaders = blockLeaders(function);
+    std::vector<Alias> aliases(function.registers.size());
+    std::vector<size_t> versions(function.registers.size());
+    std::vector<Value> cells;
+    size_t epoch = 0;
+    auto clear = [&] { ++epoch; cells.clear(); };
+    auto known = [&](int reg) { return aliases[size_t(reg)].epoch == epoch; };
+    for(size_t pc = 0; pc < function.code.size(); ++pc) {
+        if(leaders[pc]) clear();
+        auto& ins = function.code[pc];
+        // Read operands before invalidating the destination, including self-moves.
+        const auto sourceAlias = ins.op == Op::Move ? aliases[size_t(ins.args[0])] : Alias{};
+        int forwarded = -1;
+        if(ins.op == Op::LoadCell && known(ins.args[0])) {
+            const auto value = cells[aliases[size_t(ins.args[0])].cell];
+            if(versions[size_t(value.reg)] == value.version) forwarded = value.reg;
+        }
+        if(ins.dst >= 0) {
+            ++versions[size_t(ins.dst)];
+            aliases[size_t(ins.dst)] = {};
+        }
+        if(ins.op == Op::MakeCell &&
+           (function.registers[size_t(ins.dst)] == Type::cell(I64) ||
+            function.registers[size_t(ins.dst)] == Type::cell(Bool))) {
+            if(cells.size() == maximumCells) clear();
+            aliases[size_t(ins.dst)] = {epoch, cells.size()};
+            cells.push_back({ins.args[0], versions[size_t(ins.args[0])]});
+        } else if(ins.op == Op::LoadCell && known(ins.args[0])) {
+            auto& value = cells[aliases[size_t(ins.args[0])].cell];
+            value = {ins.dst, versions[size_t(ins.dst)]};
+            if(forwarded >= 0) {
+                ins.op = Op::Move;
+                ins.args = {forwarded};
+                ins.text.clear(); ins.integer = 0; ins.real = 0; ins.target = -1;
+                ++statistics.cellLoadsForwarded;
+            }
+        } else if(ins.op == Op::StoreCell && known(ins.args[0])) {
+            cells[aliases[size_t(ins.args[0])].cell] = {ins.args[1], versions[size_t(ins.args[1])]};
+        } else if(ins.op == Op::Move && sourceAlias.epoch == epoch) {
+            aliases[size_t(ins.dst)] = sourceAlias;
+        } else if(ins.dst >= 0 &&
+                  (function.registers[size_t(ins.dst)] == I64 || function.registers[size_t(ins.dst)] == Bool) &&
+                  (ins.op == Op::ConstI64 || ins.op == Op::ConstBool || ins.op == Op::Zero ||
+                   ins.op == Op::Move || scalarExpression(function, ins))) {
+            // Scalar register operations cannot mutate or expose a tracked cell.
+        } else clear();
+    }
+}
+
 void reuseExpressions(Function& function, OptimizationStats& statistics) {
     const auto leaders = blockLeaders(function);
     std::vector<size_t> values(function.registers.size());
@@ -382,6 +435,7 @@ Program optimizeIR(const Program& program, OptimizationStats* result) {
     OptimizationStats statistics;
     for(auto& function : optimized.functions) {
         if(!optimizeFunction(function, statistics)) { ++statistics.functionsSkipped; continue; }
+        forwardCellLoads(function, statistics);
         reuseExpressions(function, statistics);
         if(!removeDeadResults(function, statistics)) ++statistics.livenessSkipped;
     }
