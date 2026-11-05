@@ -1,5 +1,24 @@
 # Implementation status
 
+PikaFlow **0.6.0** adds bounded fresh scalar-cell forwarding before local CSE,
+JSON optimizer report schema 2 with eight counters, standard LLVM passed/missed
+remarks and YAML source locations, and a fifth semantic-fuzzer family exercising
+captured cells, closure calls and GC. The [optimization lab](../examples/optimization_lab/README.md)
+shows 52 to 48 IR instructions, two CSE reuses, four dead results and eight
+forwarded cell loads. Allocations, stores, roots and checked failures remain;
+this is not general heap alias analysis.
+
+Clean `e70e7aa` passed **31/31 Windows native** (245.04 s), **27/27 Windows
+reference** (78.05 s) and **33/33 Linux native** (428.08 s) CTest suites.
+Four fresh Clang ASan/UBSan suites and **7,294** bounded semantic executions
+passed with the default 8 MiB stack and leak detection, without findings.
+Both extracted local packages passed the lab/schema-2 proof; Linux also verified
+installed remarks and execution. [Exact evidence](validation.md) and the
+[output-verified benchmark](benchmarks/windows-0.6.0-2026-11-05.json) retain
+source/binary identities and measurement limits. Earlier results remain history.
+
+## Historical 0.5 release
+
 PikaFlow **0.5.0** adds `opt-report FILE [-o FILE]`, shared LLVM checked-constant
 folding with a backward-compatible v2/v1 producer contract, and a genuinely
 coverage-guided semantic/compiler/optimizer harness. The

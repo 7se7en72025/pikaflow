@@ -37,9 +37,9 @@ of independent execution paths before studying optimization differences.
 | Do namespaces and indexed updates preserve visibility/evaluation order? | Compiler resolvers/assignment lowering and parser lvalues | [Namespace/assignment tests](../tests/test_namespaces_assignments.py) |
 | How do source names retain identity through shadows, captures and generics? | Optional compiler semantic source pass and AST name locations | [Semantic index tests](../tests/test_semantic_symbols.py), [editor tests](../tests/test_editor.py) |
 | What does our own IR guarantee before LLVM sees it? | [ir.hpp](../include/pikaflow/ir.hpp), [ir.cpp](../src/ir.cpp) | [Malformed IR tests](../tests/ir_tests.cpp) |
-| How do constants, value identities and live results drive our own optimization? | [optimizer.cpp](../src/optimizer.cpp), [optimizer.hpp](../include/pikaflow/optimizer.hpp) | [Optimizer unit tests](../tests/optimizer_tests.cpp), [cross-mode optimizer tests](../tests/test_optimization.py), [pass description](optimization.md) |
+| How do fresh cells, constants, value identities and live results drive our own optimization? | [optimizer.cpp](../src/optimizer.cpp), [optimizer.hpp](../include/pikaflow/optimizer.hpp) | [Optimizer unit tests](../tests/optimizer_tests.cpp), [cross-mode optimizer tests](../tests/test_optimization.py), [pass description](optimization.md) |
 | How can optimization be inspected without executing a source program? | CLI report serialization and protected text output in [main.cpp](../src/main.cpp) | [Report CLI tests](../tests/test_opt_report.py), [optimization lab](../examples/optimization_lab/README.md) |
-| How do instrumented semantic inputs drive compiler/optimizer coverage? | [Semantic harness](../tests/fuzz_semantic.cpp) | [Instrumentation, four families and oracle contract](fuzzing.md) |
+| How do instrumented semantic inputs drive compiler/optimizer coverage? | [Semantic harness](../tests/fuzz_semantic.cpp) | [Instrumentation, five families and oracle contract](fuzzing.md) |
 | How do records and aliases preserve type/field identity? | Compiler type expansion, nominal registry and source field resolution | [Record tests](../tests/test_records.py), [alias tests](../tests/test_type_aliases.py), [record project](../examples/record_project/README.md) |
 | How does the same LLVM pass run in the compiler and `opt`? | [Shared pass](../src/llvm/CheckedArithmeticPass.cpp), [plugin entry](../src/llvm/PassPlugin.cpp) | [Plugin contract](llvm-pass-plugin.md), [FileCheck fixtures](../tests/llvm/checked_simplify.ll), Linux `opt`/`lli`/`llc` tests |
 | How can we execute without relying on LLVM lowering? | [interpreter.cpp](../src/interpreter.cpp) | [Interpreter tests](../tests/interpreter_tests.cpp), [arithmetic differential tests](../tests/fuzz_frontend.py) |
@@ -78,7 +78,14 @@ before marking a runtime helper; an incorrect attribute can authorize an invalid
 transformation even when LLVM verification succeeds. v1 promises only safe
 identities; v2 additionally promises exact, effect-free successful arithmetic
 and authorizes checked APInt constant folds. Retain overflow/division failures
-and legacy effectful nonidentity cases in the tests.
+and legacy effectful nonidentity cases in the tests. Standard LLVM remarks must
+remain quiet by default; test source-located passed/missed YAML and identical
+IR/runtime behavior with remarks enabled and disabled.
+
+For scalar-cell forwarding, cover alias writes, overwritten representatives,
+escaping calls/closures, CFG boundaries and the 4,096-cell cache reset. Verify
+that cell allocations/stores, debug bindings, roots and checked failures remain;
+CSE counts alone cannot establish legality. [Optimization contract](optimization.md)
 
 Sanitizer resource checks should retain ordinary host stack limits. The 0.4
 candidate's valid generic-chain failure required reducing expression-dispatch

@@ -1,6 +1,99 @@
 # Validation record
 
-## 0.5.0 corrected clean release validation
+## 0.6.0 clean release validation
+
+The frozen implementation is **`e70e7aa79006637a4f1c6e464b7b1d4c12b8acf1`**,
+with clean source (`dirty: false`) and common source archive SHA-256
+`29a816f2fe64586c2e009d1fae88b5efab8092f6f780928008d17f8a4b725539`.
+Linux and sanitizer post-checks matched all **188 archived files**; Windows also
+recorded unchanged source after testing. The six JSON records preserve the
+captured evidence; later documentation commits do not change this tested code.
+
+| Host / mode | Complete result | Record |
+|---|---|---|
+| Windows x64, MSVC 19.52 / LLVM 24.0.0git | **31/31 native suites**, 245.04 s | [Windows](validation/windows-0.6.0-2026-11-05.json) |
+| Windows x64, MSVC 19.52, LLVM disabled | **27/27 reference suites**, 78.05 s | [Same record, reference mode](validation/windows-0.6.0-2026-11-05.json) |
+| Ubuntu 24.04 x86-64 / WSL2, GNU 13.3 / LLVM 24.0.0 | **33/33 native suites**, 428.08 s | [Linux](validation/linux-0.6.0-2026-11-05.json) |
+
+Times above are CTest's elapsed values. Linux separately recorded a 428.138 s
+test wrapper and 227.058 s build. No CTest suite failed or skipped. The Linux
+tools unittest internally skips its Windows-only junction case; Windows's
+seven-test report suite internally skips Linux-only `/dev/full`.
+Native suites include **160 optimizer execution comparisons**, schema-2 report
+checks and the existing language/runtime/ABI/editor/package cases. Linux's shared
+pass passed **seven FileCheck pipelines, 91 execution checks and seven remark
+configurations**, including default silence, passed/missed filtering, source-
+located YAML and unchanged IR/runtime behavior with remarks enabled or disabled.
+Windows uses the shared source internally, without a dynamic plugin claim.
+
+### Optimizer and instrumented semantic checks
+
+The fresh-cell pass tracks only local `i64`/`bool` allocations within one basic
+block. Move aliases, register-write versions and known stores maintain facts;
+unknown effects, calls/closures and CFG boundaries discard them. Its 4,096-cell
+cap loses only optimization opportunities. Allocations, stores, debug metadata,
+managed roots and checked failures remain. There is no general heap alias,
+cross-CFG cell, interprocedural or floating-point propagation.
+[Legality and budgets](optimization.md)
+
+The [clean sanitizer/campaign record](validation/semantic-fuzzer-0.6.0-2026-11-05.json)
+includes **four fresh focused ASan/UBSan suites**, passing in 6.26 s CTest time
+(6.334 s wrapper): IR optimizer units, 32 reference source comparisons, seven
+schema-2 report tests, and five seed replays with 12 golden self-check outcomes.
+Canonical archive bytes changed line endings from the dirty initial snapshot,
+so the actual **242.370 s rebuild compiled 19 translation units in 24 steps**;
+it was not a no-op reuse. Both candidate and clean provenance remain explicit.
+All nine fuzzer target units (harness plus eight implementation files) carry
+coverage/ASan/UBSan; the separate nine core/runtime/CLI unit commands also prove
+sanitizer instrumentation. No uninstrumented core library was linked into the
+fuzzer, and this target does not instrument LLVM backend code.
+
+The final campaign completed **7,294 executions**, seed `20261107`, without
+findings, artifacts, warnings or sanitizer reports. Five bounded valid-source
+families cover arithmetic/typed words, CFGs, aliased arrays, generic records/aliases
+and captured mutable cells with closure calls and GC. Original, optimized and
+twice-optimized IR must match an independent full-output oracle and restore
+managed heap baselines. It used the default **8 MiB stack**, leak detection,
+eight-byte inputs, a requested 120-second budget, five-second input timeout and
+1,024-MiB RSS limit. LibFuzzer reported **121 s**, while the wrapper recorded
+**114.081 s**; both observations remain unnormalized. Counters were 6,695 coverage
+and 12,528 features, peak RSS 502 MiB, with 94 retained inputs/517 bytes (97 corpus
+files on disk). These are bounded observations, not coverage percentages or a
+correctness proof. [Harness contract](fuzzing.md)
+
+### Identities, quiet benchmark and local artifacts
+
+| Compiler | SHA-256 |
+|---|---|
+| Windows native | `cc17a7073dc0a6a423e505926b9b8154b675f47b4e2161206bc4ee1d127ff20d` |
+| Windows reference | `a752526cc0ae2e5400f631b110a538fcdd74ed1b9ebbcead630f2c45d3df930c` |
+| Linux native | `e604b788c733d0ef355c9437fd35a61491641409db84846e2826f8155626547e` |
+
+The [quiet Windows benchmark](benchmarks/windows-0.6.0-2026-11-05.json) used that
+native binary and clean revision after all host/package/sanitizer work finished.
+Every interpreter, warmup and timed output matched, with three process-inclusive
+samples per configuration. O0/O2 medians were **27.516/24.878 ms** for the loop
+and **16.542/16.444 ms** for Fibonacci(20). These samples establish no general
+speedup or multiplier. [Measurement scope](benchmarking.md)
+
+| Local package | Bytes | SHA-256 / record |
+|---|---:|---|
+| `pikaflow-0.6.0-windows-x64-e70e7aa.zip` | 18,242,211 | `dd1a1d27d3eb41eb10ec0e44c4056928ffce7162bf216aca607e78ababef72ca`; [Windows](validation/windows-package-0.6.0-2026-11-05.json) |
+| `pikaflow-0.6.0-linux-x86_64-e70e7aa.tar.gz` | 25,311,845 | `90bc3043e219c0e50aa00a8b1852744ee34a00e136ca3999497a544c43372b37`; [Linux](validation/linux-package-0.6.0-2026-11-05.json) |
+
+Both extracted packages passed the optimization lab/schema-2 report proof:
+**52 to 48 instructions, two CSE reuses, four dead results removed and eight
+cell loads forwarded**. The lab still prints `84`, `48`, `0`. Showcase, record,
+tool and project checks also passed. Linux ran three project cases in each of
+interpreter/JIT/native modes and verified the installed plugin's passed/missed
+YAML at source positions **12:3** and **22:3**, quiet default, identical IR, a
+successful `lli` output and a retained located fatal failure. Installation's
+RUNPATH adjustment is recorded separately from the build plugin identity.
+These are local tested archives with host-library/SDK requirements, not published
+universal installers. No remote CI run is claimed. Older releases and the failed
+0.5 test-race candidate remain below; their results are not relabeled as 0.6.
+
+## Historical 0.5.0 corrected clean release validation
 
 The final frozen implementation is **`8ec3986fe9bf606e383e1c0c06bb8c3436bf4d49`**,
 with clean source (`dirty: false`) and common archive SHA-256

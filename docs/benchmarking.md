@@ -32,7 +32,27 @@ flags, timing scope, and noise in view.
 and report structure without creating native executables. Actual native benchmark
 execution remains a separate verification step.
 
-## 0.5 recorded native run
+## 0.6 recorded native run
+
+The [Windows 0.6 report](benchmarks/windows-0.6.0-2026-11-05.json) was captured
+after host/package/sanitizer work finished, from clean revision
+`e70e7aa79006637a4f1c6e464b7b1d4c12b8acf1`. Its native compiler SHA-256 is
+`cc17a7073dc0a6a423e505926b9b8154b675f47b4e2161206bc4ee1d127ff20d`,
+matching the [Windows validation record](validation/windows-0.6.0-2026-11-05.json).
+All interpreter references, native warmups and three timed outputs per
+configuration matched.
+
+| Workload | `-O0` median | `-O2` median |
+|---|---:|---:|
+| Checked loop over 50,000 integers | 27.516 ms | 24.878 ms |
+| Recursive Fibonacci(20) | 16.542 ms | 16.444 ms |
+
+These are complete-process timings including startup and output capture. The
+small synthetic samples establish no general speedup or multiplier. All raw
+samples, sources and flags remain in the report; earlier releases are historical
+observations rather than controlled comparisons.
+
+## Historical 0.5 recorded native run
 
 The [Windows 0.5 report](benchmarks/windows-0.5.0-2026-11-05.json) was captured
 after corrected host/package checks, from clean revision

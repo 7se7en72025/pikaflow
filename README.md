@@ -9,15 +9,13 @@ The project draws inspiration from [Pikapika](https://github.com/7se7en72025/pik
 and [Goof](https://github.com/sneaky-potato/goof). Its implementation and language
 rules are developed here rather than merging the two projects' source code.
 
-**Status:** PikaFlow 0.5 adds a nonexecuting JSON optimizer report, safe LLVM
-checked-constant folding under an explicit v2 contract, and a coverage-guided
-semantic/optimizer harness with instrumented compiler/runtime code. Records,
-aliases, structured/stack programming, tasks, C interop, project tests and editor
-features remain supported. Clean corrected `8ec3986` passed **31/31 Windows
-native**, **27/27 Windows reference** and **33/33 Linux native** suites, plus
-11,228 bounded semantic-fuzzer executions with no finding. The
-[validation record](docs/validation.md) preserves exact identities, the earlier
-Linux test-race failure and historical releases. [Supported scope](docs/FEATURES.md)
+**Status:** PikaFlow 0.6 adds bounded scalar-cell load forwarding, schema-2
+optimizer reports and standard LLVM passed/missed optimization remarks. Its
+instrumented semantic harness now covers captured mutable cells and closures.
+Clean `e70e7aa` passed **31/31 Windows native**, **27/27 Windows reference** and
+**33/33 Linux native** suites, four focused sanitizer suites and **7,294** bounded
+semantic-fuzzer executions with no finding. The [validation record](docs/validation.md)
+preserves exact identities and historical releases. [Supported scope](docs/FEATURES.md)
 
 ## A small hybrid program
 
@@ -179,11 +177,18 @@ The [typed-IR optimizer](docs/optimization.md) propagates integer/boolean consta
 over the CFG, folds safe arithmetic/branches and removes unreachable instructions
 before LLVM lowering. Checked failures and reachable effects are preserved; LLVM
 optimization remains a separate stage. Local scalar value numbering reuses
-successful dynamic checked expressions; CFG liveness removes only dead,
-nontrapping scalar results. Managed operations and root lifetimes are retained.
+successful dynamic checked expressions. A preceding fresh-cell scan forwards
+proven `i64`/`bool` reads within a block, with alias/version checks and conservative
+effect barriers; allocations, stores and roots remain. CFG liveness removes only
+dead, nontrapping scalar results. Schema-2 reports include all eight counters.
+The lab changes 52 to 48 typed-IR instructions: two common expressions reused,
+four dead results removed and eight cell loads forwarded. These counts are not
+a performance measurement.
 The same [checked-arithmetic LLVM pass](docs/llvm-pass-plugin.md) is also a Linux
 LLVM 24 plugin for `opt`, with real FileCheck/`lli`/`llc` execution tests.
 Windows uses the shared pass internally; its current LLVM build skips the DLL.
+On Linux, standard LLVM remark options expose passed/missed diagnostics and YAML
+records with source locations; the pass stays quiet by default.
 
 ## Language and runtime features
 
@@ -248,14 +253,16 @@ The integration suite detects whether LLVM is enabled. LLVM builds add JIT and
 native output comparisons at `-O0`/`-O2`, object/IR checks, and C ABI tests.
 Bounded generated-program checks complement the parser's malformed-input tests;
 they are not a coverage-guided fuzz campaign.
-The new [semantic/optimizer libFuzzer target](docs/fuzzing.md) completed 11,228
-executions across four bounded valid-source families with an independent output
-oracle. All nine implementation units carry coverage/ASan/UBSan instrumentation;
-the LLVM backend is outside that target. The separate parser target and seeded
-program oracle retain their own scopes. Final host suites include optimizer
-reports, 135 optimizer execution comparisons and the default ten-program oracle;
-Linux's shared pass additionally passed seven FileCheck pipelines and 85
-execution checks. [Exact counts and identities](docs/validation.md).
+The [semantic/optimizer libFuzzer target](docs/fuzzing.md) completed 7,294
+executions across five bounded valid-source families with an independent full-output
+oracle. Its nine target translation units (the harness plus eight implementation
+files) carry coverage/ASan/UBSan instrumentation; the LLVM backend is outside that
+target. Four fresh focused sanitizer suites also passed. The separate parser
+target and seeded program oracle retain their own scopes. Final native host
+suites include schema-2 reports, 160 optimizer execution comparisons and the
+default ten-program oracle. Linux's shared pass passed seven FileCheck pipelines,
+91 executions and seven standard-remark configurations.
+[Exact counts and identities](docs/validation.md).
 
 Benchmarks verify results before recording timings, retain repeated measurements,
 and record the compiler binary identity, checkout metadata, machine, source, and

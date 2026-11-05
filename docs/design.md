@@ -188,10 +188,16 @@ deliberate rebuilds, adaptation, and tests rather than assuming compatibility.
 Tokens, AST, custom IR, LLVM IR, and target assembly are independently inspectable.
 At optimized levels, the typed register IR first passes through verified integer/
 boolean constant propagation, checked arithmetic/branch folding and unreachable
-instruction removal, followed by local scalar CSE and backwards CFG liveness.
-Value identities account for mutable registers; liveness accounts for backedges.
-The first possible checked failure and reachable effects remain. Managed
-assignments/roots and floating-point operations stay opaque to these new passes.
+instruction removal, followed by fresh scalar-cell forwarding, local scalar CSE
+and backwards CFG liveness. The cell scan remembers only local `i64`/`bool`
+allocations, their move aliases and version-valid scalar values. Unknown effects,
+calls, closures and block boundaries discard facts; the 4,096-cell cap loses only
+optimization opportunities. Epoch-stamped aliases keep invalidation bounded
+without repeatedly clearing every register. There is no cross-CFG cell or
+general heap propagation. Value identities account for mutable registers;
+liveness accounts for backedges. The first possible checked failure and reachable
+effects remain. Allocations, stores and managed assignments/roots are retained;
+floating-point operations stay opaque.
 LLVM's optimization pipeline remains a separate stage.
 [Optimization details](optimization.md)
 
@@ -201,7 +207,10 @@ The plugin transforms only exact helper signatures carrying an explicit
 literal signed-i64 folding and identities without extra successful-call effects;
 legacy `v1` permits only identity rewrites. Failing calls remain. Names alone
 are insufficient. Linux `opt` tests cover boundaries, failures, invalid contracts
-and effectful unmarked/legacy helpers.
+and effectful unmarked/legacy helpers. Standard LLVM OptimizationRemarkEmitter
+passed/missed diagnostics and YAML records explain selected folds and retained
+known failures with the original source location. They are quiet by default;
+enabling remarks leaves generated IR and runtime behavior unchanged.
 [Plugin contract](llvm-pass-plugin.md)
 Compiler errors retain filename/line/column and a source caret. Parser recovery
 collects up to 20 independent top-level errors. Semantic function-body checking
@@ -250,12 +259,19 @@ can detect a mistake shared by interpreter and LLVM paths. This complements
 parser libFuzzer and sanitizer runs rather than measuring semantic coverage.
 [Program oracle](program-testing.md)
 
+A separate coverage-guided semantic harness derives bounded valid source and an
+independent full-output oracle from bytes. Its five families cover scalar/stack
+arithmetic, CFGs, aliased arrays, generic records/aliases and captured mutable
+cells with closure calls and GC. Original, optimized and twice-optimized IR must
+agree with that oracle. All nine target translation units are instrumented;
+LLVM lowering is outside this harness. [Fuzzer contract](fuzzing.md)
+
 ## Staged scope
 
 | Decision | Current direction | Later work |
 |---|---|---|
 | Native platforms | Windows x64 and Linux x64 targets | Additional targets need separate ABI/runtime tests |
-| Optimization | Verified typed-IR constants, local scalar CSE/liveness, LLVM pipelines and shared checked identities | Heap/interprocedural/floating-point custom analyses require separate legality tests |
+| Optimization | Verified typed-IR constants, bounded fresh scalar-cell forwarding, local CSE/liveness, LLVM pipelines and shared checked identities/remarks | Heap/interprocedural/floating-point custom analyses require separate legality tests |
 | Debugging | Real GDB scalar/captured-local stepping/watch tests and Windows CodeView inspection | Managed visualization, optimized-code quality and graphical IDE integration remain unverified |
 | Standard library | Numeric, sequence, and ASCII/byte-string source modules | Additional APIs require specified contracts/tests |
 | Generics | Inferred/explicit module-level monomorphization; recursive nominal ADTs | Bounded specialization/type expansion; no runtime generic dispatch |
